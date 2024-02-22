@@ -12,7 +12,7 @@ import logging,  urllib.request, urllib.parse, urllib.error, json
 log = logging.getLogger() # Overwrite if needed. Setup is in the main script.
 _test_dummy_JSON = '[["leg","Skartveit, John"], ["contry","30"], ["locality","New York"]]'
 
-class OutputEcxcel(): 
+class OutputExcel(): 
     pass
 
 class OCRAnalysisResult():
