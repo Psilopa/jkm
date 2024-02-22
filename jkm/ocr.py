@@ -30,6 +30,7 @@ def _load_neural_net(fn):
         sys.exit()
     return net
 
+
 def intersection(a, b):
     startX = max( min(a[0], a[2]), min(b[0], b[2]) )
     startY = max( min(a[1], a[3]), min(b[1], b[3]) )
@@ -79,7 +80,7 @@ def _pad(x1,y1,x2,y2,pad = 1.2): # Pad as a factor
     y2f = int( y2+halfpady )
     return (x1f,y1f,x2f,y2f)
 
-def find_text_rects(img, nnfn, max_textareas = 10):
+def find_text_rects(img, nnfn, max_textareas = 50, min_areasize = 30):
     "nnfn = neural net file name"
     # Uses a (module) global neural net _net
     # Resize to a square
@@ -98,10 +99,15 @@ def find_text_rects(img, nnfn, max_textareas = 10):
     blob = cv2.dnn.blobFromImage(img, 1.0, (W, H),(123.68, 116.78, 103.94))
     _net.setInput(blob)
     log.debug("Detecting text elements")
-    (scores, geometry) = _net.forward(layerNames)
-    (numRows, numCols) = scores.shape[2:4]
+    try:
+        (scores, geometry) = _net.forward(layerNames)
+        (numRows, numCols) = scores.shape[2:4]
+    except cv2.error as msg: 
+        log.warning(f"Neural net reported error {msg}")
+        return []
     rects = []
     confidences = []
+
     for y in range(numRows):
         scoresData = scores[0, 0, y]
         xData0 = geometry[0, 0, y]
@@ -123,6 +129,7 @@ def find_text_rects(img, nnfn, max_textareas = 10):
                 # DImensions of the bounding box
                 hr = xData0[x] + xData2[x]
                 wr = xData1[x] + xData3[x]
+                if hr*wr < min_areasize: continue # Ignore tiny areas
                 endX = int(offsetX + (cos * xData1[x]) + (sin * xData2[x]))
                 endY = int(offsetY - (sin * xData1[x]) + (cos * xData2[x]))
                 startX = int(endX - wr)
@@ -133,14 +140,12 @@ def find_text_rects(img, nnfn, max_textareas = 10):
                 rects.append(newrect)
                 confidences.append(scoresData[x])
     log.debug("... Found %i individual areas" % len(rects))
-    out = []
-#    clr = (0, 255, 0)
     log.debug("Grouping text areas near each other")
-    max_textareas = 10
     grouped = group_rects(rects)
     maxlen = min(max_textareas, len(grouped))
     if len(grouped) > max_textareas:
         log.debug(f"Too many text areas ({len(grouped)}), processing only first {max_textareas}")
+    out = []
     for (x1, y1, x2, y2,rot) in grouped[0:maxlen]:
         x1 = int(max(x1,0) * rW)
         x2 = int(min(x2,W) * rW)
@@ -161,6 +166,7 @@ def ocr(rect, timeout=def_timeout,lang=def_lang,fdir=None):
     if increasecontast: rect = jkm.tools.gammacorrect(rect,3)
     try:
         start_time = time.time()
+        log.debug(f"Attempting OCR on an image area shape {rect.shape}")
         txtf = pytesseract.image_to_string(rect,timeout=timeout,lang=lang)
         elapsed_time = time.time() - start_time
         log.debug("Time spent in OCR process %.2f seconds" % elapsed_time)
