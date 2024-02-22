@@ -1,3 +1,8 @@
+"""
+Stub OCR result lexeme parsing & context. To be run off an currently non-existing web API. 
+
+Add further mapping from API output field titles -> relevant data input column names (for Kotka to start with)
+"""
 import logging,  urllib.request, urllib.parse, urllib.error, json 
 #import cv2
 #import jkm.tools
@@ -5,7 +10,7 @@ import logging,  urllib.request, urllib.parse, urllib.error, json
 #import time, sys
 
 log = logging.getLogger() # Overwrite if needed. Setup is in the main script.
-_test_dummy_JSON = '[["leg","Skartveit, John"], ["contry",'30'], ["locality","New York"]]'
+_test_dummy_JSON = '[["leg","Skartveit, John"], ["contry","30"], ["locality","New York"]]'
 
 class OCRAnalysisResult():
     def __init__(self,valuepairs = []): 
@@ -32,8 +37,3 @@ Return value: an OCRAnalysisResult instance. """
         return OCRAnalysisResult.from_json(_test_dummy_JSON)
     except urllib.error.URLError: 
         return OCRAnalysisResult()
-
-
-
-
-
