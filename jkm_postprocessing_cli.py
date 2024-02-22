@@ -186,7 +186,8 @@ def processSampleEvents(conf, sleep_s):
             for image in sample.imagelist:
                 if not image.has_labels : continue # Skip pure specimen images
                 log.debug(f"Searching for text areas in {image.camname} of sample {sample.name}")
-                textareas = image.findtextareas()
+                neuralnet = conf.get( "ocr", "EASTfile")
+                textareas = image.findtextareas(neuralnet)
                 image.meta.addlog("Text areas found", str(textareas))
                 if conf.getb( "postprocessor", "save_text_area_images"): 
                     image.savetextareas("_textarea_")
@@ -222,7 +223,7 @@ def processSampleEvents(conf, sleep_s):
         timestamp = grab_timestamp_from_dirname(sample.datapath)
         # Write sampleID to Linjasto metadata file (if any)
         # TODO: move this to a function in DigiLineSample (or any other relevant sample type)         
-        if conf.get("postprocessor", "datatype_to_load") == "Preview002.jpg" AND :
+        if conf.get("postprocessor", "datatype_to_load") == "Preview002.jpg":
             if len(sids) == 1:
                 outsid = sids[0]
                 fullbarcode = bkdata[0]
@@ -251,6 +252,7 @@ def processSampleEvents(conf, sleep_s):
             dpr.update("URI_format_OK", str(url_OK) )
             dpr.update("Q-sharp", "" )
             dpr.update("Q-color", "" )
+            if conf.getb( "postprocessor", "ocr"): dpr.update("OCR_result", alltext.replace("\n"," "))
             with open(fullpath,"w") as f: dpr.write(f)
         log.info(f"Sample events in process queue: {q.qsize()-1}\n\n") # Queue still contains this item, thus -1 in the number reported
            
