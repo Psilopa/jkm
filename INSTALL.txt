@@ -1,0 +1,13 @@
+INSTALLING
+-----------
+Install tesseract., On Helsinki University computers, this needs HelpDesk support (unless you have admin access)
+
+Install some Python packages, if you do not have them already
+
+pip3 install jsonpickle
+pip3 install opencv-python
+pip3 install numpy
+pip3 install watchdog
+pip3 install pytesseract
+pip3 install pyzbar
+
