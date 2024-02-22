@@ -8,26 +8,27 @@ import queue
 from watchdog.observers import Observer
 import watchdog.events
 # app-specific modules
-import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes
+import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis
 from jkm.digitisation_properties import DigipropFile
 
 _debug = True
 _num_worker_threads = 4
 _program_name = "jkm-post"
-_program_ver = "0.21" 
+_program_ver = "1.01" 
 _program = f"{_program_name} ({_program_ver})"
 
 allowed_URI_domains = ["http://tun.fi/", "http://id.luomus.fi/",""]
 
+# Move to Luomus-specific Sample type
 def grab_identifier_prefix(ident): # everything up to the last /
     if not "/" in ident:
         return None
     else:
         parts = ident.split("/")
         noend = "/".join(parts[:-1]) + "/"
-        return noend
-        
+        return noend        
 
+# Move to Luomus-specific Sample type
 def verify_URI(uri):
     # SIMPLISTIC IMPLEMENTATION
     pref = grab_identifier_prefix(uri)
@@ -36,8 +37,7 @@ def verify_URI(uri):
         if uriok in uri: return True
     return False # No matching URI pattern found
 
-
-
+# Move to Luomus-specific Sample type
 def file_add_prefix(sid,old_filename,ignore_domain=True, domain_separator = '/', prefix_separator= "_"):
     """Rename files/dirs if sample ID data is available (from QR code parsing or other source)
 ##
@@ -63,6 +63,7 @@ def file_add_prefix(sid,old_filename,ignore_domain=True, domain_separator = '/',
     finally: 
         return new_pathname    
 
+# Move to Luomus-specific Sample type
 def rename_directories(sids,config,datapath,prefix,ignore_domain=True, separator = '\\'):
     """Rename files/dirs if sample ID data is available (from QR code parsing or other source)
 
@@ -101,16 +102,7 @@ def rename_directories(sids,config,datapath,prefix,ignore_domain=True, separator
     finally: 
         return newpath
 
-class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
-    def __init__(self,  *args,  **kwargs): super().__init__(**kwargs)
-    def on_created(self, event): 
-        q.put(event.src_path)        
-
-def path_in_list(p,pathlist):
-    for p2 in pathlist: 
-        if p.samefile(p2): return True
-    return False	
-	
+# Move to Luomus-specific Sample type
 def find_meta_files(dirname,datafile_patterns):
     log.debug(f"Finding files to process" )
     d = Path(dirname)
@@ -125,12 +117,23 @@ def find_meta_files(dirname,datafile_patterns):
 #    for x in res:
 #        if not path_in_list(x,r2): r2.append(x)
     return res
-    
+
+# Move to Luomus-specific Sample type
 def grab_timestamp_from_dirname(dirname): #helper function for insect line processing
     marker = "dc1."
     x = str(dirname.name).split(marker) # Look for marker in last element of directory name
     if len(x) != 2: return ""
     else: return x[-1] # Last element
+
+class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
+    def __init__(self,  *args,  **kwargs): super().__init__(**kwargs)
+    def on_created(self, event): q.put(event.src_path)        
+
+def path_in_list(p,pathlist):
+    for p2 in pathlist: 
+        if p.samefile(p2): return True
+    return False		
+    
 # ----------------- main worker function ------------------------
 def processSampleEvents(conf, sleep_s):
     while True:
@@ -200,6 +203,12 @@ def processSampleEvents(conf, sleep_s):
                 alltext  += " " + labeltxt
 #                image.meta.addlog("OCR result for image", labeltxt,lvl=logging.DEBUG)
             sample.meta.addlog("Combined OCR result for all images",alltext)
+
+        # SUBMIT alltext to component analysis
+        if conf.getb( "postprocessor", "ocr") and conf.getb( "postprocessor", "ocr_analysis"):
+            ocrdatadict = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
+            log.debug(f"OCR data parsing output: {ocrdatadict}")
+        else: log.debug(f"No OCR data parsing attempted.")      
 
         sids = bkdata
         datapath = sample.datapath
