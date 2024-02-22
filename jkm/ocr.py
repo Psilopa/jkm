@@ -4,13 +4,13 @@ import numpy as np
 import cv2
 import jkm.tools
 #from pathlib import Path
-import time
+import time, sys
 
 log = logging.getLogger() # Overwrite if needed
 _net = None
 
 # DEFAULT SETUP
-eastfile = r"Z:/EAST/frozen_east_text_detection.pb"
+#eastfile = r"Z:/EAST/frozen_east_text_detection.pb"
 min_confidence = 0.9
 padding = 1.5 # Increase in text box size as a factor (pre-merging)
 postpadding = 1.2
@@ -22,8 +22,12 @@ def_lang = "eng"
 def load_neural_net(fn):
     # TODO: add error handling
     log.debug("Loading neural net text detector (EAST) from %s ..." % fn)
-    net = cv2.dnn.readNet(fn)
-    log.debug("EAST text detector loaded.")
+    try:
+        net = cv2.dnn.readNet(fn)
+        log.debug("EAST text detector loaded.")
+    except cv2.error as msg: 
+        log.critical(f"Loading text detection neural net (EAST) failed: {msg}")
+        sys.exit()
     return net
 
 def intersection(a, b):
