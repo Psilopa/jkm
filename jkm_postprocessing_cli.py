@@ -222,7 +222,7 @@ def processSampleEvents(conf, sleep_s):
         timestamp = grab_timestamp_from_dirname(sample.datapath)
         # Write sampleID to Linjasto metadata file (if any)
         # TODO: move this to a function in DigiLineSample (or any other relevant sample type)         
-        if conf.get("postprocessor", "datatype_to_load") == "Preview002.jpg":
+        if conf.get("postprocessor", "datatype_to_load") == "Preview002.jpg" AND :
             if len(sids) == 1:
                 outsid = sids[0]
                 fullbarcode = bkdata[0]
@@ -252,7 +252,7 @@ def processSampleEvents(conf, sleep_s):
             dpr.update("Q-sharp", "" )
             dpr.update("Q-color", "" )
             with open(fullpath,"w") as f: dpr.write(f)
-        log.info(f"Sample events in process queue: {q.qsize()}\n\n")
+        log.info(f"Sample events in process queue: {q.qsize()-1}\n\n") # Queue still contains this item, thus -1 in the number reported
            
 
 if __name__ == '__main__':
@@ -314,6 +314,5 @@ if __name__ == '__main__':
     for i in range(_num_worker_threads): q.put(None) # Signal end-of-life to worker threads
     for t in threads: t.join()   # Wait for each worker thread to end properly
     log.info("Ending session, closing log files.")
-
 
     logging.shutdown()         
