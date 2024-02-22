@@ -10,4 +10,4 @@ pip3 install numpy
 pip3 install watchdog
 pip3 install pytesseract
 pip3 install pyzbar
-
+pip3 install openpyxl

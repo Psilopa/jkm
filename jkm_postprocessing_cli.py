@@ -1,6 +1,6 @@
 # Check: Watchdog in licences using the Apache License, Version 2.0 
 # TODO: ADD ATEXIT CALL TO CLOSE LOG FILES ON CRASH
-import time,  logging,  threading, sys, shutil
+import time,  logging,  threading
 from datetime import datetime
 from pathlib import Path
 import queue
@@ -135,7 +135,7 @@ def path_in_list(p,pathlist):
     return False		
     
 # ----------------- main worker function ------------------------
-def processSampleEvents(conf, sleep_s):
+def processSampleEvents(conf, sleep_s, data_out_table):
     while True:
 #        print("processSampleEvents called")		
         input = q.get()
@@ -160,7 +160,7 @@ def processSampleEvents(conf, sleep_s):
             else:
                 raise jkm.errors.FileLoadingError("Unknown metadata format")
                 q.task_done(); continue
-        except jkm.errors.FileLoadingError as msg:
+        except jkm.errors.FileLoadingError:
                 q.task_done(); continue
         # MAIN POSTPROCESSOR IN HERE
         log.info(f"Postprocessing sample {sample.name}")
@@ -205,14 +205,24 @@ def processSampleEvents(conf, sleep_s):
             sample.meta.addlog("Combined OCR result for all images",alltext)
 
         # SUBMIT alltext to component analysis
+        ocrdata = None
         if conf.getb( "postprocessor", "ocr") and conf.getb( "postprocessor", "ocr_analysis"):
-            ocrdatadict = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
-            log.debug(f"OCR data parsing output: {ocrdatadict}")
-        else: log.debug(f"No OCR data parsing attempted.")      
-
+            ocrdata = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
+            log.debug(f"OCR data parsing output: {ocrdata}")
+        else: log.debug("No OCR data parsing attempted.")      
+        
         sids = bkdata
         datapath = sample.datapath
         sids = [x.split('/')[-1] for x in sids] # List of sample identifiers (short form)
+        # Store interpreted data in a table file IF data and identifier are available
+        if ocrdata and len(sids) == 1:
+            fullbarcode = bkdata[0]
+            ocrdata.prepend("identifier", fullbarcode)
+            log.debug(f"Calling OutputCSV.addline with data: {ocrdata}")
+            log.debug(f"data_out_table.fp = {data_out_table.fp}")
+            data_out_table.add_line(ocrdata)
+            log.debug("...done")
+            
         # RENAME DIRECTORIES (this should be before file renaming
         if conf.getb( "basic", "directories_rename_by_barcode_id") and bkdata:
             prefix = sample.datapath.name # last element of directory path
@@ -226,7 +236,6 @@ def processSampleEvents(conf, sleep_s):
 
         # Write records to Metadata file
         if conf.getb( "basic", "save_JSON"): sample.writeMetaJSON()
-
         # Insect line-specific stuff, should be moved into a subclass
         # Grab timestamp from dirname
         timestamp = grab_timestamp_from_dirname(sample.datapath)
@@ -268,6 +277,7 @@ def processSampleEvents(conf, sleep_s):
 
 if __name__ == '__main__':
     threads = []
+    excel = None
     q = queue.Queue() # a FIFO queue of metafile names
     log = jkm.tools.setup_logging(_program_name, debug = _debug)
     # Set loggers in other modules
@@ -296,9 +306,13 @@ if __name__ == '__main__':
         for fn in existingevents: q.put(fn)
         log.info(f"Approximate number of sample events to process at launch is {q.qsize()}")
     
+    if conf.getb("postprocessor", "ocr_analysis_to_Excel"):
+        data_out_table = jkm.ocr_analysis.OutputCSV("test.csv")
+        data_out_table.open()
+     
      #Start loops looking for data to process and processing it
     for i in range(_num_worker_threads):
-        t = threading.Thread(target=processSampleEvents,  args=(conf, sleep_s_before_reading_file))
+        t = threading.Thread(target=processSampleEvents,  args=(conf, sleep_s_before_reading_file, data_out_table))
         t.start()
         threads.append(t)    
     if not conf.getb( "postprocessor", "monitor"):
@@ -325,5 +339,5 @@ if __name__ == '__main__':
     for i in range(_num_worker_threads): q.put(None) # Signal end-of-life to worker threads
     for t in threads: t.join()   # Wait for each worker thread to end properly
     log.info("Ending session, closing log files.")
-
+    if data_out_table: data_out_table.save()
     logging.shutdown()         
