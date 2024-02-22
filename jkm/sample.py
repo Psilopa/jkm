@@ -237,3 +237,4 @@ class CombinedImage(SpecimenImage, LabelImage): # Note: potential problems with 
 if __name__ == '__main__': #SImple testing
     si = SampleEvent()
     print(si.toJSON())
+  
