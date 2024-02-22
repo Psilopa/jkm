@@ -2,7 +2,7 @@
   "header": {
     "comment": "eric project file for project jkm",
     "copyright": "Copyright (C) 2024 Jere Kahanp\u00e4\u00e4, psilopa@gmail.com",
-    "saved": "2024-02-22, 18:37:34"
+    "saved": "2024-02-22, 18:46:23"
   },
   "project": {
     "AUTHOR": "Jere Kahanp\u00e4\u00e4",
@@ -73,7 +73,6 @@
     },
     "RESOURCES": [],
     "SOURCES": [
-      "__init__.py",
       "build_Kotka_from_JSON.py",
       "jkm/__init__.py",
       "jkm/barcodes.py",
