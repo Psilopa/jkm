@@ -194,16 +194,11 @@ class LabelImage(SampleImage):
     def textareas(self):  
         "Access textareas once they have been identified using findtextareas()"
         return self._textareas
-    def findtextareas(self,  method="EAST"):
+    def findtextareas(self,  nnfn):
         "Find areas with text using EAST text detector"
         img = self.readImage()
-        if ( method.lower() == "east" ): 
-            log.debug("Find areas with text using EAST text detector")
-            self._textareas = jkm.ocr.find_text_rects(img)
-            return self.textareas
-        else:
-            log.critical("Only EAST text detection is currently supported")
-            self._textareas = []
+        log.debug("Find areas with text using EAST text detector")
+        self._textareas = jkm.ocr.find_text_rects(img,nnfn)
         return self._textareas
     def savetextareas(self, namehdr):
         x = 1
@@ -242,3 +237,4 @@ class CombinedImage(SpecimenImage, LabelImage): # Note: potential problems with 
 if __name__ == '__main__': #SImple testing
     si = SampleEvent()
     print(si.toJSON())
+  

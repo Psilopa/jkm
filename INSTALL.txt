@@ -1,6 +1,6 @@
 INSTALLING
 -----------
-Install tesseract., On Helsinki University computers, this needs HelpDesk support (unless you have admin access)
+Install tesseract. On Helsinki University computers, this needs HelpDesk support (unless you have admin access)
 
 Install some Python packages, if you do not have them already
 

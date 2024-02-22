@@ -4,13 +4,13 @@ import numpy as np
 import cv2
 import jkm.tools
 #from pathlib import Path
-import time
+import time, sys
 
 log = logging.getLogger() # Overwrite if needed
 _net = None
 
 # DEFAULT SETUP
-eastfile = r"Z:/EAST/frozen_east_text_detection.pb"
+#eastfile = r"Z:/EAST/frozen_east_text_detection.pb"
 min_confidence = 0.9
 padding = 1.5 # Increase in text box size as a factor (pre-merging)
 postpadding = 1.2
@@ -19,12 +19,17 @@ ocr_max_width = 3000
 def_timeout = 10
 def_lang = "eng"
 
-def load_neural_net(fn):
+def _load_neural_net(fn):
     # TODO: add error handling
     log.debug("Loading neural net text detector (EAST) from %s ..." % fn)
-    net = cv2.dnn.readNet(fn)
-    log.debug("EAST text detector loaded.")
+    try:
+        net = cv2.dnn.readNet(fn)
+        log.debug("EAST text detector loaded.")
+    except cv2.error as msg: 
+        log.critical(f"Loading text detection neural net (EAST) failed: {msg}")
+        sys.exit()
     return net
+
 
 def intersection(a, b):
     startX = max( min(a[0], a[2]), min(b[0], b[2]) )
@@ -75,13 +80,13 @@ def _pad(x1,y1,x2,y2,pad = 1.2): # Pad as a factor
     y2f = int( y2+halfpady )
     return (x1f,y1f,x2f,y2f)
 
-def find_text_rects(img, nnfn = eastfile, max_textareas = 10):
+def find_text_rects(img, nnfn, max_textareas = 50, min_areasize = 30):
     "nnfn = neural net file name"
     # Uses a (module) global neural net _net
     # Resize to a square
 #    orig = img.copy()
     global _net
-    if _net is None: _net = load_neural_net(nnfn)
+    if _net is None: _net = _load_neural_net(nnfn)
     (h0, w0) = img.shape[:2]
     (W, H) = (proc_size, proc_size)
     rW = w0 / float(W)
@@ -94,10 +99,15 @@ def find_text_rects(img, nnfn = eastfile, max_textareas = 10):
     blob = cv2.dnn.blobFromImage(img, 1.0, (W, H),(123.68, 116.78, 103.94))
     _net.setInput(blob)
     log.debug("Detecting text elements")
-    (scores, geometry) = _net.forward(layerNames)
-    (numRows, numCols) = scores.shape[2:4]
+    try:
+        (scores, geometry) = _net.forward(layerNames)
+        (numRows, numCols) = scores.shape[2:4]
+    except cv2.error as msg: 
+        log.warning(f"Neural net reported error {msg}")
+        return []
     rects = []
     confidences = []
+
     for y in range(numRows):
         scoresData = scores[0, 0, y]
         xData0 = geometry[0, 0, y]
@@ -119,6 +129,7 @@ def find_text_rects(img, nnfn = eastfile, max_textareas = 10):
                 # DImensions of the bounding box
                 hr = xData0[x] + xData2[x]
                 wr = xData1[x] + xData3[x]
+                if hr*wr < min_areasize: continue # Ignore tiny areas
                 endX = int(offsetX + (cos * xData1[x]) + (sin * xData2[x]))
                 endY = int(offsetY - (sin * xData1[x]) + (cos * xData2[x]))
                 startX = int(endX - wr)
@@ -129,14 +140,12 @@ def find_text_rects(img, nnfn = eastfile, max_textareas = 10):
                 rects.append(newrect)
                 confidences.append(scoresData[x])
     log.debug("... Found %i individual areas" % len(rects))
-    out = []
-#    clr = (0, 255, 0)
     log.debug("Grouping text areas near each other")
-    max_textareas = 10
     grouped = group_rects(rects)
     maxlen = min(max_textareas, len(grouped))
     if len(grouped) > max_textareas:
         log.debug(f"Too many text areas ({len(grouped)}), processing only first {max_textareas}")
+    out = []
     for (x1, y1, x2, y2,rot) in grouped[0:maxlen]:
         x1 = int(max(x1,0) * rW)
         x2 = int(min(x2,W) * rW)
@@ -157,6 +166,7 @@ def ocr(rect, timeout=def_timeout,lang=def_lang,fdir=None):
     if increasecontast: rect = jkm.tools.gammacorrect(rect,3)
     try:
         start_time = time.time()
+        log.debug(f"Attempting OCR on an image area shape {rect.shape}")
         txtf = pytesseract.image_to_string(rect,timeout=timeout,lang=lang)
         elapsed_time = time.time() - start_time
         log.debug("Time spent in OCR process %.2f seconds" % elapsed_time)

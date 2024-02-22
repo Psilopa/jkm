@@ -11,7 +11,7 @@ import watchdog.events
 import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes
 from jkm.digitisation_properties import DigipropFile
 
-_debug = False
+_debug = True
 _num_worker_threads = 4
 _program_name = "jkm-post"
 _program_ver = "0.21" 
@@ -186,7 +186,8 @@ def processSampleEvents(conf, sleep_s):
             for image in sample.imagelist:
                 if not image.has_labels : continue # Skip pure specimen images
                 log.debug(f"Searching for text areas in {image.camname} of sample {sample.name}")
-                textareas = image.findtextareas()
+                neuralnet = conf.get( "ocr", "EASTfile")
+                textareas = image.findtextareas(neuralnet)
                 image.meta.addlog("Text areas found", str(textareas))
                 if conf.getb( "postprocessor", "save_text_area_images"): 
                     image.savetextareas("_textarea_")
@@ -251,8 +252,9 @@ def processSampleEvents(conf, sleep_s):
             dpr.update("URI_format_OK", str(url_OK) )
             dpr.update("Q-sharp", "" )
             dpr.update("Q-color", "" )
+            if conf.getb( "postprocessor", "ocr"): dpr.update("OCR_result", alltext.replace("\n"," "))
             with open(fullpath,"w") as f: dpr.write(f)
-        log.info(f"Sample events in process queue: {q.qsize()}\n\n")
+        log.info(f"Sample events in process queue: {q.qsize()-1}\n\n") # Queue still contains this item, thus -1 in the number reported
            
 
 if __name__ == '__main__':
@@ -292,7 +294,7 @@ if __name__ == '__main__':
         threads.append(t)    
     if not conf.getb( "postprocessor", "monitor"):
         log.debug("NOT MONITORING, JUST ONE PASSTHROUGH")
-        q.join() # block until all tasks are done
+#        q.join() # block until all tasks are done
     else:        
         log.debug("MONITORING DIRECTORY")
         # Start a filesystem watchdog thread watching for NEW .metadata files
@@ -314,6 +316,5 @@ if __name__ == '__main__':
     for i in range(_num_worker_threads): q.put(None) # Signal end-of-life to worker threads
     for t in threads: t.join()   # Wait for each worker thread to end properly
     log.info("Ending session, closing log files.")
-
 
     logging.shutdown()         
