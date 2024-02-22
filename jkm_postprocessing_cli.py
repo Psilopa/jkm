@@ -11,7 +11,7 @@ import watchdog.events
 import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes
 from jkm.digitisation_properties import DigipropFile
 
-_debug = False
+_debug = True
 _num_worker_threads = 4
 _program_name = "jkm-post"
 _program_ver = "0.21" 
@@ -292,7 +292,7 @@ if __name__ == '__main__':
         threads.append(t)    
     if not conf.getb( "postprocessor", "monitor"):
         log.debug("NOT MONITORING, JUST ONE PASSTHROUGH")
-        q.join() # block until all tasks are done
+#        q.join() # block until all tasks are done
     else:        
         log.debug("MONITORING DIRECTORY")
         # Start a filesystem watchdog thread watching for NEW .metadata files
