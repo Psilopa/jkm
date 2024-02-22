@@ -19,7 +19,7 @@ ocr_max_width = 3000
 def_timeout = 10
 def_lang = "eng"
 
-def load_neural_net(fn):
+def _load_neural_net(fn):
     # TODO: add error handling
     log.debug("Loading neural net text detector (EAST) from %s ..." % fn)
     try:
@@ -79,13 +79,13 @@ def _pad(x1,y1,x2,y2,pad = 1.2): # Pad as a factor
     y2f = int( y2+halfpady )
     return (x1f,y1f,x2f,y2f)
 
-def find_text_rects(img, nnfn = eastfile, max_textareas = 10):
+def find_text_rects(img, nnfn, max_textareas = 10):
     "nnfn = neural net file name"
     # Uses a (module) global neural net _net
     # Resize to a square
 #    orig = img.copy()
     global _net
-    if _net is None: _net = load_neural_net(nnfn)
+    if _net is None: _net = _load_neural_net(nnfn)
     (h0, w0) = img.shape[:2]
     (W, H) = (proc_size, proc_size)
     rW = w0 / float(W)
