@@ -46,6 +46,7 @@ class OutputCSV():
         self.writer = csv.writer(self.csvfile)
     def add_line(self, ocrdata):  
         self.writer.writerow( [str(x[1]) for x in ocrdata.as_list()] )
+        self.csvfile.flush() # Write data to file immediately
     def save(self):  
         if self.csvfile: self.csvfile.close()
 
