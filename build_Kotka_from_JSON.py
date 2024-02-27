@@ -42,11 +42,11 @@ class EventMetadata(metaStorage):
 class ImageMetadata(metaStorage):
     def __init__(self, cameraname="unknown"):
         super().__init__(self) 
-        self.camname = cameraname    
+        self.label = cameraname    
     def addlog(self,title,content="",lvl=logging.INFO):
         "Add metadata and also write to logging"
         self.data[title] = content
-        log.log(lvl, f"{self.camname} - {title}: {content}" )
+        log.log(lvl, f"{self.label} - {title}: {content}" )
 
 class SampleBase(ABC):
     def __init__(self, time = None): 
@@ -76,11 +76,11 @@ class SampleEvent(SampleBase):
     @property
     def imagelist(self):  return self._imagelist
     @staticmethod
-    def fromJPGfile(imgfile, conf, camname="generic_camera"): # Assumes jpg file name is metadata file name
+    def fromJPGfile(imgfile, conf, label="generic_camera"): # Assumes jpg file name is metadata file name
         log.debug("Creating sample data from JPEG image and config file metadata")
         itime = getFileCreationDateTime(imgfile)
         imgfile = Path(imgfile)
-        image = CombinedImage(camname, fn = imgfile)
+        image = CombinedImage(label, fn = imgfile)
         # Extract creating time from JPG and use it as the Sample event time        
         s = SampleEvent( time = itime )
         s.copyMetadatafFomConf(conf,  no_new_directiories=True)
@@ -120,10 +120,10 @@ class SampleEvent(SampleBase):
 #------------------------------------------------------------------------------------------------------    
 class SampleImage(SampleBase): 
     "One image plus metadata"
-    def __init__(self,  camname,  fn = None): 
+    def __init__(self,  label,  fn = None): 
         super().__init__()
-        self.camname= camname
-        self.meta = jkm.metadata.ImageMetadata(self.camname)  #Image-level metadata
+        self.label= label
+        self.meta = jkm.metadata.ImageMetadata(self.label)  #Image-level metadata
         self.confsection= None
         self._img = None  # Full image data loaded to memory (set to None if not yet loaded)
         if fn is not None: self._fn = fn
@@ -188,15 +188,15 @@ class SampleImage(SampleBase):
 class SpecimenImage(SampleImage):
     has_specimens = True
     has_labels = False
-    def __init__(self,  camname,  fn = None): 
-        super().__init__(camname,  fn)
+    def __init__(self,  label,  fn = None): 
+        super().__init__(label,  fn)
 #    def specimenCrop(self): pass
 #------------------------------------------------------------------------------------------------------    
 class LabelImage(SampleImage):
     has_specimens = False
     has_labels = True
-    def __init__(self,  camname,  fn = None): 
-        super().__init__(camname, fn)
+    def __init__(self,  label,  fn = None): 
+        super().__init__(label, fn)
         self._textareas = None
     @property
     def textareas(self):  
@@ -228,13 +228,13 @@ class LabelImage(SampleImage):
         # If not all_image_ocr, examine only text areas previously found
         txt = ""
         if not self._textareas or force_all_image_ocr :
-            log.debug(f"OCR call for {self.camname}, full frame")
+            log.debug(f"OCR call for {self.label}, full frame")
             img = self.readImage()
             txt = jkm.ocr.ocr(img)
         else:  # OCR recognised text areas one at a time
             x = 1
             for area in self._textareas:
-                log.debug(f"OCR call for {self.camname}, text area {x}")
+                log.debug(f"OCR call for {self.label}, text area {x}")
                 txt += " " + jkm.ocr.ocr(self.getsubimage(area))
                 x += 1
         return txt
@@ -244,8 +244,8 @@ class LabelImage(SampleImage):
 class CombinedImage(SpecimenImage, LabelImage): # Note: potential problems with inheritance, resolve!
     has_specimens = True
     has_labels = True
-    def __init__(self,  camname,  fn = None): 
-        super().__init__(camname,  fn)
+    def __init__(self,  label,  fn = None): 
+        super().__init__(label,  fn)
 
 
 

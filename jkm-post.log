@@ -3014,3 +3014,788 @@ INFO: Sample events in process queue: 0
 
  [2024-02-27 15:56:50,813]
 INFO: Ending session, closing log files. [2024-02-27 15:56:50,815]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:07:32,452]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:07:32,452]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:07:32,453]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:07:32,455]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f3bb05fb550> [2024-02-27 16:07:33,456]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f3bb05fb950> [2024-02-27 16:07:33,456]
+INFO: labelcam - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:07:33,700]
+INFO: labelcam - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:07:33,718]
+INFO: labelcam - Text areas found: [] [2024-02-27 16:07:35,035]
+INFO: labelcam - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 16:07:35,357]
+INFO: Combined OCR result for all images:  ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:07:42,305]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 16:07:42,306]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:07:42,368]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 16:07:42,369]
+INFO: Ending session, closing log files. [2024-02-27 16:07:42,369]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:13:05,901]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:13:05,901]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:13:05,902]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:13:05,903]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f52a202ad50> [2024-02-27 16:13:06,904]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f52a202b450> [2024-02-27 16:13:06,905]
+INFO: labelcam - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:13:07,139]
+INFO: labelcam - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:13:07,158]
+INFO: labelcam - Text areas found: [(2278, 1339, 4882, 1872, 0.025986671), (2292, 1811, 4905, 2434, 0.03574735), (1595, 2374, 4904, 3048, 0.022976875), (2950, 3055, 4547, 3518, -0.0001231432), (2846, 3439, 4566, 3896, 0.035098612)] [2024-02-27 16:13:08,833]
+INFO: labelcam - Text areas found: [(2278, 1339, 4882, 1872, 0.025986671), (2292, 1811, 4905, 2434, 0.03574735), (1595, 2374, 4904, 3048, 0.022976875), (2950, 3055, 4547, 3518, -0.0001231432), (2846, 3439, 4566, 3896, 0.035098612)] [2024-02-27 16:13:09,040]
+INFO: Combined OCR result for all images:   - Korpilahti
+ oar q
+  [a] http: //id.luomus. fi/
+AF F.252693
+ Univ. of Helsinki
+e LUOMUS, 2019
+ [2024-02-27 16:13:11,082]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 16:13:11,083]
+INFO: Combined OCR result for all images:   - Korpilahti
+ oar q
+  [a] http: //id.luomus. fi/
+AF F.252693
+ Univ. of Helsinki
+e LUOMUS, 2019
+ [2024-02-27 16:13:11,228]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 16:13:11,228]
+INFO: Ending session, closing log files. [2024-02-27 16:13:11,229]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:13:36,460]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:13:36,461]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:13:36,462]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:13:36,463]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f06f883af50> [2024-02-27 16:13:37,465]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f06f883b250> [2024-02-27 16:13:37,465]
+INFO: labelcam - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:13:37,706]
+INFO: labelcam - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:13:37,719]
+INFO: labelcam - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 16:13:39,092]
+INFO: labelcam - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 16:13:39,417]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:13:46,329]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 16:13:46,330]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:13:46,440]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 16:13:46,441]
+INFO: Ending session, closing log files. [2024-02-27 16:13:46,442]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:15:31,583]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:15:31,584]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:15:31,584]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:15:31,586]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f3687b16ad0> [2024-02-27 16:15:32,587]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f3687b16d10> [2024-02-27 16:15:32,588]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:15:32,829]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:15:32,844]
+INFO: labels - Text areas found: [(0, 630, 8243, 5370, 0.33709574)] [2024-02-27 16:15:34,149]
+INFO: labels - Text areas found: [(0, 630, 8243, 5370, 0.33709574)] [2024-02-27 16:15:34,232]
+INFO: Combined OCR result for all images:    —-
+‘Te.
+Korpilahti aes.
+Te PA9 39
+Rew brolr
+[m] [a] http: //id.luomus. fi/
+mL F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+: | | :
++ 4 spe biae PeR EE
+PEEETEEEETT TTL EEE GT
+ [2024-02-27 16:15:40,581]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 16:15:40,582]
+INFO: Combined OCR result for all images:    —-
+‘Te.
+Korpilahti aes.
+Te PA9 39
+Rew brolr
+[m] [a] http: //id.luomus. fi/
+mL F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+: | | :
++ 4 spe biae PeR EE
+PEEETEEEETT TTL EEE GT
+ [2024-02-27 16:15:40,630]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 16:15:40,631]
+INFO: Ending session, closing log files. [2024-02-27 16:15:40,632]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:16:22,576]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:16:22,577]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:16:22,578]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:16:22,579]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f5af3516910> [2024-02-27 16:16:23,580]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f5af3516d50> [2024-02-27 16:16:23,581]
+INFO: label_file - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:16:23,822]
+INFO: label_file - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:16:23,839]
+INFO: label_file - Text areas found: [(0, 2229, 5632, 5199, 0.0)] [2024-02-27 16:16:25,216]
+INFO: label_file - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 16:16:25,536]
+INFO: Combined OCR result for all images:   http://id.luomus. fi/
+F.252693
+
+Univ. of Helsinki
+LUOMUS, 2019
+
+om wre as
+
+Pe ate ote ate ome oe
+ [2024-02-27 16:16:28,673]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 16:16:28,673]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:16:32,521]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 16:16:32,521]
+INFO: Ending session, closing log files. [2024-02-27 16:16:32,522]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:16:53,064]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:16:53,065]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:16:53,065]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:16:53,067]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7fbcfd65fc10> [2024-02-27 16:16:54,068]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7fbcfd65fe90> [2024-02-27 16:16:54,069]
+INFO: label_file - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:16:54,309]
+INFO: label_file - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:16:54,322]
+INFO: label_file - Text areas found: [(0, 0, 8243, 5501, -1.2337006)] [2024-02-27 16:16:55,761]
+INFO: label_file - Text areas found: [(0, 0, 8243, 5501, -1.2337006), (0, 0, -7, 5501, -1.2337006)] [2024-02-27 16:16:56,980]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:17:03,829]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 16:17:03,830]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ \ . * ¥
+: ames.
+ie
+Korpilahti ee
+>>
+FPA 39
+ts f ee
+hw aaAa Fare a
+http: //id.luomus. fi/
+“AF OF.252693
+Univ. of Helsinki
+LUOMUS, 2019
+) :
+sTecsntatqal eae
+; ‘ i 3 : $ @
+PeEEGEEEPTP PTT ETEE TT
+ [2024-02-27 16:17:11,089]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 16:17:11,090]
+INFO: Ending session, closing log files. [2024-02-27 16:17:11,091]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:20:09,703]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:20:09,703]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:20:09,704]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:20:09,705]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f335552ed50> [2024-02-27 16:20:10,706]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f335552f1d0> [2024-02-27 16:20:10,707]
+INFO: label_file - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:20:10,950]
+INFO: label_file - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:20:10,965]
+WARNING: Neural net reported error OpenCV(4.6.0) ./modules/dnn/src/net_impl.cpp:566: error: (-215:Assertion failed) !layers[0].outputBlobs.empty() in function 'allocateLayers'
+ [2024-02-27 16:20:11,373]
+INFO: label_file - Text areas found: [] [2024-02-27 16:20:11,381]
+INFO: label_file - Text areas found: [(2278, 1339, 4882, 1872, 0.025986671), (2292, 1811, 4905, 2434, 0.03574735), (1595, 2374, 4904, 3048, 0.022976875), (2950, 3055, 4547, 3518, -0.0001231432), (2846, 3439, 4566, 3896, 0.035098612)] [2024-02-27 16:20:12,306]
+INFO: Combined OCR result for all images:   - Korpilahti
+ oar q
+  [a] http: //id.luomus. fi/
+AF F.252693
+ Univ. of Helsinki
+e LUOMUS, 2019
+ [2024-02-27 16:20:14,480]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 16:20:14,481]
+INFO: Combined OCR result for all images:  ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:20:18,659]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 16:20:18,660]
+INFO: Ending session, closing log files. [2024-02-27 16:20:18,661]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:21:33,587]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:21:33,588]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:21:33,589]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:21:33,590]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7fa9568cb550> [2024-02-27 16:21:34,591]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7fa9568cba50> [2024-02-27 16:21:34,592]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:21:34,838]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:21:34,853]
+INFO: labels - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 16:21:36,330]
+INFO: labels - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 16:21:36,410]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:21:43,437]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 16:21:43,437]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:21:43,462]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 16:21:43,462]
+INFO: Ending session, closing log files. [2024-02-27 16:21:43,463]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:21:45,331]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:21:45,332]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:21:45,333]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:21:45,334]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f91f468a510> [2024-02-27 16:21:46,335]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f91f468aa10> [2024-02-27 16:21:46,336]
+INFO: labelssss - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:21:46,583]
+INFO: labelssss - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:21:46,597]
+INFO: labelssss - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 16:21:48,027]
+INFO: labelssss - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 16:21:48,325]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:21:55,266]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 16:21:55,267]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:21:55,315]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 16:21:55,315]
+INFO: Ending session, closing log files. [2024-02-27 16:21:55,316]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:24:14,903]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:24:14,903]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:24:14,904]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:24:14,906]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f01163fb5d0> [2024-02-27 16:24:15,906]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f01163fbad0> [2024-02-27 16:24:15,908]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:24:16,160]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:24:16,166]
+INFO: labels - Text areas found: [(2278, 1339, 4882, 1872, 0.025986671), (2292, 1811, 4905, 2434, 0.03574735), (1595, 2374, 4904, 3048, 0.022976875), (2950, 3055, 4547, 3518, -0.0001231432), (2846, 3439, 4566, 3896, 0.035098612)] [2024-02-27 16:24:17,887]
+INFO: labels - Text areas found: [(2278, 1339, 4882, 1872, 0.025986671), (2292, 1811, 4905, 2434, 0.03574735), (1595, 2374, 4904, 3048, 0.022976875), (2950, 3055, 4547, 3518, -0.0001231432), (2846, 3439, 4566, 3896, 0.035098612)] [2024-02-27 16:24:18,069]
+INFO: Combined OCR result for all images:   - Korpilahti
+ oar q
+  [a] http: //id.luomus. fi/
+AF F.252693
+ Univ. of Helsinki
+e LUOMUS, 2019
+ [2024-02-27 16:24:20,117]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 16:24:20,117]
+INFO: Combined OCR result for all images:   - Korpilahti
+ oar q
+  [a] http: //id.luomus. fi/
+AF F.252693
+ Univ. of Helsinki
+e LUOMUS, 2019
+ [2024-02-27 16:24:20,225]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 16:24:20,226]
+INFO: Ending session, closing log files. [2024-02-27 16:24:20,227]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:26:01,002]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:26:01,003]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:26:01,004]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:26:01,005]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f914b1327d0> [2024-02-27 16:26:02,006]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f914b132d10> [2024-02-27 16:26:02,008]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:26:02,258]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:26:02,272]
+INFO: labels - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 16:26:03,641]
+INFO: labels - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 16:26:03,902]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:26:10,803]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 16:26:10,803]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:26:10,898]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 16:26:10,899]
+INFO: Ending session, closing log files. [2024-02-27 16:26:10,899]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:27:17,295]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:27:17,295]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:27:17,296]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:27:17,298]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f6042c2be50> [2024-02-27 16:27:18,299]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f6042c2c2d0> [2024-02-27 16:27:18,300]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:27:18,546]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:27:18,559]
+INFO: labels - Text areas found: [(0, 0, -1464, 2159, -1.2337006), (0, 0, 1313, 4016, -1.2337006), (1821, 264, 7953, 5410, 1.2337006)] [2024-02-27 16:27:20,064]
+INFO: labels - Text areas found: [(0, 0, -1464, 2159, -1.2337006), (0, 0, 1313, 4016, -1.2337006), (1821, 264, 7953, 5410, 1.2337006)] [2024-02-27 16:27:20,104]
+INFO: Combined OCR result for all images:     Korpilahti
+
+TF 19 39
+
+[Oo ies //id. tuomus. fi/
+F.252693
+
+Univ. of Helsinki
+LUOMUS, 2019
+
+POPP PT AP feh PolD pal? S
+
+FP ODP CFP OS
+
+Se
+
+a te
+
+ty
+
+ae ee
+
+Ate am mre
+
+he al
+
+At NS el Ne Red
+
+LIM Le
+
+?
+
+ie P Pee Me
+ [2024-02-27 16:27:29,624]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 16:27:29,625]
+INFO: Combined OCR result for all images:     Korpilahti
+
+TF 19 39
+
+[Oo ies //id. tuomus. fi/
+F.252693
+
+Univ. of Helsinki
+LUOMUS, 2019
+
+POPP PT AP feh PolD pal? S
+
+FP ODP CFP OS
+
+Se
+
+a te
+
+ty
+
+ae ee
+
+Ate am mre
+
+he al
+
+At NS el Ne Red
+
+LIM Le
+
+?
+
+ie P Pee Me
+ [2024-02-27 16:27:29,727]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 16:27:29,728]
+INFO: Ending session, closing log files. [2024-02-27 16:27:29,729]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:27:41,440]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:27:41,440]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:27:41,441]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:27:41,442]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f6d67f2e9d0> [2024-02-27 16:27:42,443]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f6d67f2efd0> [2024-02-27 16:27:42,444]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:27:42,690]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:27:42,703]
+INFO: labels - Text areas found: [(1074, 2505, 8033, 5169, 0.0)] [2024-02-27 16:27:43,998]
+INFO: labels - Text areas found: [(1074, 2505, 8033, 5169, 0.0)] [2024-02-27 16:27:44,082]
+INFO: Combined OCR result for all images:   F.252693
+
+Univ. of Helsinki
+LUOMUS, 2019
+
+ [2024-02-27 16:27:47,095]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 16:27:47,096]
+INFO: Combined OCR result for all images:   F.252693
+
+Univ. of Helsinki
+LUOMUS, 2019
+
+ [2024-02-27 16:27:47,101]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 16:27:47,101]
+INFO: Ending session, closing log files. [2024-02-27 16:27:47,102]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:31:07,812]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:31:07,813]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:31:07,813]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:31:07,815]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7fc78c289c90> [2024-02-27 16:31:08,815]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7fc78c28aed0> [2024-02-27 16:31:08,817]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:31:09,062]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:31:09,076]
+INFO: labels - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 16:31:10,483]
+INFO: labels - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 16:31:10,791]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:31:17,705]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 16:31:17,706]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:31:17,820]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 16:31:17,821]
+INFO: Ending session, closing log files. [2024-02-27 16:31:17,822]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:37:26,308]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:37:26,309]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:37:26,310]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:37:26,311]
+INFO: Ending session, closing log files. [2024-02-27 16:37:27,316]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:39:20,055]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:39:20,056]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:39:20,057]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:39:20,058]
+INFO: Postprocessing sample SampleEvent stored in dirpath [2024-02-27 16:39:21,059]
+INFO: Postprocessing sample SampleEvent stored in dirpath [2024-02-27 16:39:21,060]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:39:21,303]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:39:21,317]
+INFO: labels - Text areas found: [] [2024-02-27 16:39:22,623]
+INFO: labels - Text areas found: [] [2024-02-27 16:39:22,710]
+INFO: Combined OCR result for all images:  ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:39:29,696]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 16:39:29,697]
+INFO: Combined OCR result for all images:  ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:39:29,748]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 16:39:29,749]
+INFO: Ending session, closing log files. [2024-02-27 16:39:29,749]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:40:38,715]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:40:38,716]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:40:38,717]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:40:38,718]
+INFO: Ending session, closing log files. [2024-02-27 16:40:39,724]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:40:48,022]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:40:48,023]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:40:48,024]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:40:48,025]
+INFO: Ending session, closing log files. [2024-02-27 16:40:49,031]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:41:29,820]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:41:29,821]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:41:29,822]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:41:29,823]
+INFO: Postprocessing sample SampleEvent stored in dirpath [2024-02-27 16:41:30,823]
+INFO: Postprocessing sample SampleEvent stored in dirpath [2024-02-27 16:41:30,825]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:41:31,064]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:41:31,077]
+WARNING: Neural net reported error OpenCV(4.6.0) ./modules/core/src/matrix.cpp:749: error: (-215:Assertion failed) m.dims >= 2 in function 'Mat'
+ [2024-02-27 16:41:31,573]
+WARNING: Neural net reported error OpenCV(4.6.0) ./modules/core/src/matrix.cpp:749: error: (-215:Assertion failed) m.dims >= 2 in function 'Mat'
+ [2024-02-27 16:41:31,573]
+INFO: labels - Text areas found: [] [2024-02-27 16:41:31,573]
+INFO: labels - Text areas found: [] [2024-02-27 16:41:31,573]
+INFO: Combined OCR result for all images:  ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:41:38,558]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 16:41:38,559]
+INFO: Combined OCR result for all images:  ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:41:38,648]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 16:41:38,648]
+INFO: Ending session, closing log files. [2024-02-27 16:41:38,649]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 16:43:15,420]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 16:43:15,421]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 16:43:15,422]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 16:43:15,423]
+INFO: Postprocessing sample SampleEvent stored in dirpath [2024-02-27 16:43:16,424]
+INFO: Postprocessing sample SampleEvent stored in dirpath [2024-02-27 16:43:16,425]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:43:16,674]
+INFO: labels - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 16:43:16,688]
+INFO: habitus1 - Barcode contents: [] [2024-02-27 16:43:17,677]
+INFO: habitus1 - Barcode contents: [] [2024-02-27 16:43:17,686]
+INFO: labels - Text areas found: [(0, 0, 8061, 5501, 0.0)] [2024-02-27 16:43:19,127]
+INFO: labels - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 16:43:19,205]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:43:26,181]
+WARNING: No readable QR code, or several QR codes [2024-02-27 16:43:26,181]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 16:43:26,181]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 16:43:26,236]
+WARNING: No readable QR code, or several QR codes [2024-02-27 16:43:26,237]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 16:43:26,237]
+INFO: Ending session, closing log files. [2024-02-27 16:43:26,238]

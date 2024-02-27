@@ -1,6 +1,6 @@
 # Check: Watchdog in licences using the Apache License, Version 2.0 
 # TODO: ADD ATEXIT CALL TO CLOSE LOG FILES ON CRASH
-import time,  logging,  threading,  sys
+import time,  logging,  threading
 from datetime import datetime
 from pathlib import Path
 import queue
@@ -184,7 +184,7 @@ def processSampleEvents(conf, sleep_s, data_out_table):
         if conf.getb( "postprocessor", "find_text_areas"):
             for image in sample.imagelist:
                 if not image.has_labels : continue # Skip pure specimen images
-                log.debug(f"Searching for text areas in {image.camname} of sample {sample.name}")
+                log.debug(f"Searching for text areas in {image.label} of sample {sample.name}")
                 neuralnet = conf.get( "ocr", "EASTfile")
                 textareas = image.findtextareas(neuralnet)
                 image.meta.addlog("Text areas found", str(textareas))

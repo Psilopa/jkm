@@ -33,8 +33,8 @@ class EventMetadata(metaStorage):
 class ImageMetadata(metaStorage):
     def __init__(self, cameraname="unknown"):
         super().__init__(self) 
-        self.camname = cameraname    
+        self.label = cameraname    
     def addlog(self,title,content="",lvl=logging.INFO):
         "Add metadata and also write to logging"
         self.data[title] = content
-        log.log(lvl, f"{self.camname} - {title}: {content}" )
+        log.log(lvl, f"{self.label} - {title}: {content}" )
