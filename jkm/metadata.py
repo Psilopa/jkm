@@ -6,10 +6,11 @@ log = logging.getLogger() # Overwrite if needed
 
 class metaStorage(UserDict):
     "A dictionary-like metadata storage container (should keep order in Python 3.7+)"
-    def addlog(self,title,content="",lvl=logging.INFO):
+    def addlog(self,title,content="",lvl=logging.INFO, log_add_hdr = ""):
         "Add metadata and also write to logging"
         self.data[title] = content
-        log.log(lvl, f"{title}: {content}" )
+        if not log_add_hdr:  log.log(lvl, f"{title}: {content}" )
+        else: log.log(lvl, f"{log_add_hdr}- {title}: {content}" )
     def add(self,title,content=""):
         self.data[title] = content        
 #    def encodeJSON(self):
@@ -34,7 +35,8 @@ class ImageMetadata(metaStorage):
     def __init__(self, cameraname="unknown"):
         super().__init__(self) 
         self.label = cameraname    
-    def addlog(self,title,content="",lvl=logging.INFO):
+    def addlog(self,title,content="",lvl=logging.INFO, log_add_hdr = ""):
         "Add metadata and also write to logging"
         self.data[title] = content
-        log.log(lvl, f"{self.label} - {title}: {content}" )
+        if not log_add_hdr:  log.log(lvl, f"{self.label} - {title}: {content}" )
+        else:  log.log(lvl, f"{log_add_hdr}- {self.label} - {title}: {content}" )
