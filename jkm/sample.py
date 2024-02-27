@@ -15,6 +15,8 @@ deg2rotcode = {90: cv2.ROTATE_90_CLOCKWISE,
                270: cv2.ROTATE_90_COUNTERCLOCKWISE}
 
 # Helper functions
+def _UNIQUE(s) :return list(set(s))
+
 def getFileCreationDateTime(fn):
     # Does not work well on POSIX systems, which return the last modified date for getctime
     timestamp =  os.path.getctime(fn)
@@ -269,6 +271,42 @@ class MZHLineSample(SampleEvent):
         for ofp, ofn in zip(objectfilepaths, object_titles):
             s.addImage( SpecimenImage(ofn, fn = ofp)  )
         return s           
+    def rename_directories(self, ids,config,prefix,ignore_domain=True, separator = '\\'):
+        """Rename files/dirs if sample ID data is available (from QR code parsing or other source)
+
+        ids = iterable (list, tuple or similar) with (long) identifiers
+        ignore_domain = if True, only the namespace.number part is used 
+        Renaming details are provided in the config class instance passed as an argument
+
+        """
+        ids = _UNIQUE(ids) # Remove duplicates
+        if len(ids) == 0:
+            log.warning("File renaming requested but no usable identifiers found")
+            return self.datapath # Silently fail if no usable identifier (not the best)        
+        if len(ids) > 1:
+            log.warning("File renaming requested but several different identifiers found")
+            return self.datapath # Silently fail if no usable identifier (not the best)        
+        id0 = ids[0]
+        if ignore_domain: # Remove http//domains/ from ID
+            id0 = id0.split(separator)[-1]
+
+        try: # TODO: EXTEND TO POSSIBLE SUBDIRECTORIES?
+            basepath = Path(config.get("basic","main_data_directory"))
+            newprefix = id0 + "_" + prefix
+            if config.getb("basic","create_directories"): # if a subdirectory was created for data
+                newbase = basepath / id0 # example [basebath]/GX.38276
+                newpath = newbase / newprefix # example [basebath]/GX.38276/GX.38276_timestamp
+                if not newbase.exists(): newbase.mkdir() 
+            else:
+                newpath = basepath / newprefix 
+            log.debug(f"Renaming {self.datapath} to {newpath}")        
+            self.datapath.rename(newpath) 
+        except PermissionError as msg:
+            log.warning("Renaming directory failed with error message: %s" % msg)
+        except FileExistsError as msg:
+            log.warning("Target directory name already exists, skipping: %s" % msg)
+        finally: 
+            return newpath
 
 #------------------------------------------------------------------------------------------------------    
 class SingleImageSample(SampleEvent): 

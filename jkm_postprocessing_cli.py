@@ -64,44 +64,6 @@ def file_add_prefix(sid,old_filename,ignore_domain=True, domain_separator = '/',
     finally: 
         return new_pathname    
 
-# Move to Luomus-specific Sample type
-def rename_directories(sids,config,datapath,prefix,ignore_domain=True, separator = '\\'):
-    """Rename files/dirs if sample ID data is available (from QR code parsing or other source)
-
-    sids = iterable (list, tuple or similar) with identifiers
-    ignore_domain = if True, only the namespace.number part is used 
-    Renaming details are provided in the config class instance passed as an argument
-
-    """
-    log.debug("Renaming files based on barcode content")
-    sids = tuple(dict.fromkeys(sids)) # Remove duplicates
-    if len(sids) == 0:
-        log.warning("File renaming requested but no usable identifiers found")
-        return datapath, prefix # Silently fail if no usable identifier (not the best)        
-    if len(sids) > 1:
-        log.warning("File renaming requested but several different identifiers found")
-        return datapath, prefix # Silently fail if no usable identifier (not the best)        
-    sid = sids[0]
-    if ignore_domain: # Remove http//domains/ from ID
-        sid = sid.split(separator)[-1]
-
-    try: # TODO: EXTEND TO POSSIBLE SUBDIRECTORIES?
-        basepath = Path(config.get("basic","main_data_directory"))
-        newprefix = sid + "_" + prefix
-        if config.getb("basic","create_directories"): # if a subdirectory was created for data
-            newbase = basepath / sid # example [basebath]/GX.38276
-            newpath = newbase / newprefix # example [basebath]/GX.38276/GX.38276_timestamp
-            if not newbase.exists(): newbase.mkdir() 
-        else:
-            newpath = basepath / newprefix 
-        log.debug(f"Renaming {datapath} to {newpath}")        
-        datapath.rename(newpath) 
-    except PermissionError as msg:
-        log.warning("Renaming directory failed with error message: %s" % msg)
-    except FileExistsError as msg:
-        log.warning("Target directory name already exists, skipping: %s" % msg)
-    finally: 
-        return newpath
 
 # Move to Luomus-specific Sample type
 def find_meta_files(dirname,datafile_patterns):
@@ -200,7 +162,7 @@ def processSampleEvents(conf, sleep_s, data_out_table):
                 labeltxt = image.ocr() # Default ocr uses fragments created above
                 alltext  += " " + labeltxt
 #                image.meta.addlog("OCR result for image", labeltxt,lvl=logging.DEBUG)
-            sample.meta.addlog(f"Combined OCR result for all images",alltext,  log_add_hdr= sample.name)
+            sample.meta.addlog("Combined OCR result for all images",alltext,  log_add_hdr= sample.name)
 
         # SUBMIT alltext to component analysis
         ocrdata = None
@@ -209,10 +171,10 @@ def processSampleEvents(conf, sleep_s, data_out_table):
             log.debug(f"{sample.name}: OCR data parsing output: {ocrdata}")
         else: log.debug(f"{sample.name}: No OCR data parsing attempted.")           
         sids = _UNIQUE(allbkdata)
-        datapath = sample.datapath
         sids = [x.split('/')[-1] for x in sids] # List of sample identifiers (short form)
+
         # Store interpreted data in a table file IF data and identifier are available
-        if ocrdata and len(sids) == 1:
+        if ocrdata and len(sids) == 1 and data_out_table:
             fullbarcode = allbkdata[0]
             ocrdata.prepend("identifier", fullbarcode)
             log.debug(f"{sample.name}: Calling OutputCSV.addline with data: {ocrdata}")
@@ -223,14 +185,21 @@ def processSampleEvents(conf, sleep_s, data_out_table):
         # RENAME DIRECTORIES (this should be before file renaming
         if conf.getb( "basic", "directories_rename_by_barcode_id") and allbkdata:
             prefix = sample.datapath.name # last element of directory path
-            datapath = rename_directories(sids,conf,datapath,prefix)
-            sample.datapath = datapath
+            log.debug("Renaming directory based on barcode content")
+            try:            
+                sample.datapath = sample.rename_directories(sids,conf,prefix)
+            except jkm.errors.JKError as msg: 
+                log.warning(f"Renaming directory failed: {msg}")                
 
         # RENAME FILES
         if conf.getb( "basic", "files_rename_by_barcode_id") and allbkdata and len(sids) == 1:
             # TODO: THIS DOES NOT PROPERLY UPDATE DATA IN SAMPLE CLASSES
-            for filepath in sample.filelist:
-                file_add_prefix(sids[0], filepath)
+            # TODO: THIS SHOULD ROLLBACK ON FAILURE?
+            try:            
+                for filepath in sample.filelist:
+                    file_add_prefix(sids[0], filepath)
+            except jkm.errors.JKError as msg: 
+                log.warning(f"Renaming files failed: {msg}")                
 
         # Write records to JSON Metadata file (should this be before renaming?)
         if conf.getb( "basic", "save_JSON"): sample.writeMetaJSON()
@@ -238,7 +207,7 @@ def processSampleEvents(conf, sleep_s, data_out_table):
         # FOR MZH IMAGING LINE SAMPLES
         if conf.get("sampleformat", "datatype_to_load").lower()  in ["mzh_insectline", "mzh_plantline"]:
             # Insect line-specific stuff, should be moved into a subclass
-            if len(sids) == 1:
+            if len(sids) == 1: # Only one identifier-containing barcode was found
                 outsid = sids[0]
                 fullbarcode = allbkdata[0]
                 url_OK = verify_URI(fullbarcode)
@@ -296,6 +265,7 @@ if __name__ == '__main__':
         if conf.getb("postprocessor", "ocr_analysis_to_Excel"):
             data_out_table = jkm.ocr_analysis.OutputCSV("test.csv")
             data_out_table.open()
+        else: data_out_table = None
          
          #Start loops looking for data to process and processing it
         for i in range(_num_worker_threads):
