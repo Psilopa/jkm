@@ -10,13 +10,15 @@ import watchdog.events
 # app-specific modules
 import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis
 
-_debug = True
+_debug = False
 _num_worker_threads = 4
 _program_name = "jkm-post"
 _program_ver = "1.01" 
 _program = f"{_program_name} ({_program_ver})"
 
 allowed_URI_domains = ["http://tun.fi/", "http://id.luomus.fi/",""]
+
+def _UNIQUE(s) :return list(set(s))
 
 # Move to Luomus-specific Sample type
 def grab_identifier_prefix(ident): # everything up to the last /
@@ -148,7 +150,6 @@ def processSampleEvents(conf, sleep_s, data_out_table):
                 if not dirpath.is_dir():
                     log.warning(f"Cannot find path {dirpath},  skipping to next sample")
                     continue
-                print(f"Pathname is {dirpath}")
                 sample = jkm.sample.MZHLineSample.from_directory(dirpath, conf)
             elif sample_format.lower() == "singlefile":                
                 sample = jkm.sample.SingleImageSample.from_image_file(filename, conf, "generic_camera")
@@ -164,21 +165,22 @@ def processSampleEvents(conf, sleep_s, data_out_table):
         rot = conf.geti( "postprocessor", "rotate_before_processing")
         if rot: # non-zero value
             for i in range(len(sample.imagelist)):
-                log.debug(f"Rotating image {sample.imagelist[i].name}")
+                log.debug(f"{sample.name}: Rotating image {sample.imagelist[i].name}")
                 sample.imagelist[i].rotate(rot)
         # SAVE ROTATED
         
         # FIND BARCODES
-        bkdata = []
+        allbkdata = []
         if conf.getb( "postprocessor", "read_barcodes"):
             
             log.debug(sample.imagelist)
             for image in sample.imagelist:
-                try:
+                try:                    
                     bkdata = image.readbarcodes()
-                    image.meta.addlog("Barcode contents",bkdata)
+                    image.meta.addlog(f"{sample.name}:Barcode contents",bkdata)
+                    allbkdata += bkdata
                 except jkm.errors.FileLoadingError as msg:
-                    log.warning("Barcode detection attempt failed: %s" % msg)
+                    log.warning(f"{sample.name}: Barcode detection attempt failed: %s" % msg)
                     continue
         # FIND TEXT ARES
         if conf.getb( "postprocessor", "find_text_areas"):
@@ -198,34 +200,34 @@ def processSampleEvents(conf, sleep_s, data_out_table):
                 labeltxt = image.ocr() # Default ocr uses fragments created above
                 alltext  += " " + labeltxt
 #                image.meta.addlog("OCR result for image", labeltxt,lvl=logging.DEBUG)
-            sample.meta.addlog("Combined OCR result for all images",alltext)
+            sample.meta.addlog(f"{sample.name}: Combined OCR result for all images",alltext)
 
         # SUBMIT alltext to component analysis
         ocrdata = None
         if conf.getb( "postprocessor", "ocr") and conf.getb( "postprocessor", "ocr_analysis"):
             ocrdata = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
-            log.debug(f"OCR data parsing output: {ocrdata}")
-        else: log.debug("No OCR data parsing attempted.")           
-        sids = bkdata
+            log.debug(f"{sample.name}: OCR data parsing output: {ocrdata}")
+        else: log.debug(f"{sample.name}: No OCR data parsing attempted.")           
+        sids = _UNIQUE(allbkdata)
         datapath = sample.datapath
         sids = [x.split('/')[-1] for x in sids] # List of sample identifiers (short form)
         # Store interpreted data in a table file IF data and identifier are available
         if ocrdata and len(sids) == 1:
-            fullbarcode = bkdata[0]
+            fullbarcode = allbkdata[0]
             ocrdata.prepend("identifier", fullbarcode)
-            log.debug(f"Calling OutputCSV.addline with data: {ocrdata}")
-            log.debug(f"data_out_table.fp = {data_out_table.fp}")
+            log.debug(f"{sample.name}: Calling OutputCSV.addline with data: {ocrdata}")
+            log.debug(f"{sample.name}: data_out_table.fp = {data_out_table.fp}")
             data_out_table.add_line(ocrdata)
-            log.debug("...done")
+            log.debug(f"{sample.name}: ...done")
             
         # RENAME DIRECTORIES (this should be before file renaming
-        if conf.getb( "basic", "directories_rename_by_barcode_id") and bkdata:
+        if conf.getb( "basic", "directories_rename_by_barcode_id") and allbkdata:
             prefix = sample.datapath.name # last element of directory path
             datapath = rename_directories(sids,conf,datapath,prefix)
             sample.datapath = datapath
 
         # RENAME FILES
-        if conf.getb( "basic", "files_rename_by_barcode_id") and bkdata and len(sids) == 1:
+        if conf.getb( "basic", "files_rename_by_barcode_id") and allbkdata and len(sids) == 1:
             # TODO: THIS DOES NOT PROPERLY UPDATE DATA IN SAMPLE CLASSES
             for filepath in sample.filelist:
                 file_add_prefix(sids[0], filepath)
@@ -238,12 +240,12 @@ def processSampleEvents(conf, sleep_s, data_out_table):
             # Insect line-specific stuff, should be moved into a subclass
             if len(sids) == 1:
                 outsid = sids[0]
-                fullbarcode = bkdata[0]
+                fullbarcode = allbkdata[0]
                 url_OK = verify_URI(fullbarcode)
-                log.debug(f"URI prefix {grab_identifier_prefix(fullbarcode)}")
-                if not url_OK: log.critical(f"*******\n\n\n\nMALFORMED IDENTIFIER {fullbarcode}*******\n\n\n\n")
+                log.debug(f"{sample.name}: URI prefix {grab_identifier_prefix(fullbarcode)}")
+                if not url_OK: log.critical(f"{sample.name}: *******\n\n\n\nMALFORMED IDENTIFIER {fullbarcode}*******\n\n\n\n")
             else:
-                log.warning("No readable QR code, or several QR codes")
+                log.warning(f"{sample.name}: No readable QR code, or several QR codes")
                 outsid = ""
                 fullbarcode = ""
                 url_OK = False

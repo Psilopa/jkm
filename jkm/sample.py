@@ -256,7 +256,7 @@ class MZHLineSample(SampleEvent):
         s = MZHLineSample( time = itime )
         s.copyMetadatafFomConf(conf,  no_new_directiories=True)
         s.datapath = dirpath
-        s.name = "SampleEvent stored in dirpath"        
+        s.name = f"{dirpath.name}"        
         s.prefix = dirpath
         #Load label image
         label_label = conf.get("sampleformat", "label_title")
