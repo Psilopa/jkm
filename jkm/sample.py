@@ -7,23 +7,23 @@ import jsonpickle
 import jkm.metadata
 import jkm.ocr
 import jkm.tools
+from jkm.digitisation_properties import DigipropFile
 
 log = logging.getLogger() # Overwrite if needed
 deg2rotcode = {90: cv2.ROTATE_90_CLOCKWISE,
                180: cv2.ROTATE_180,
                270: cv2.ROTATE_90_COUNTERCLOCKWISE}
 
-#------------------------------------------------------------------------------------------------------    
 # Helper functions
 def getFileCreationDateTime(fn):
     # Does not work well on POSIX systems, which return the last modified date for getctime
     timestamp =  os.path.getctime(fn)
     return datetime.datetime.fromtimestamp(timestamp)
 
-def create_new_image(imgtype): 
-    "Create a new SampleImage subclass instance based on the requested type"
-    if imgtype.lower().strip() == 'label': return LabelImage()
-    if imgtype.lower().strip() == 'specimen': return SpecimenImage()
+#def create_new_image(imgtype): 
+#    "Create a new SampleImage subclass instance based on the requested type"
+#    if imgtype.lower().strip() == 'label': return LabelImage()
+#    if imgtype.lower().strip() == 'specimen': return SpecimenImage()
 #------------------------------------------------------------------------------------------------------    
 class SampleBase(ABC):
     def __init__(self, time = None): 
@@ -46,30 +46,27 @@ class SampleEvent(SampleBase):
     def __init__(self,  time = None):
         super().__init__(time)
         self._imagelist = [] # List of SamplePhoto subclass instances
-        self.prefix  = "" # Common file name prefix
-#        self.basepath = "" # Common data directory
-        self.datapath = "" # Data directory for this record
+        self.prefix  = "" # Common file name prefix (often/ALWAYS same as self.datapath?)
+        self.datapath = "" # Data directory for this record 
         self.meta = jkm.metadata.EventMetadata() # Event-level metadata
+#        self._has_metadatafile = False
+#        self._is_directory = False
     @property
-    def imagelist(self):  return self._imagelist
+    def is_directory(self):  return self._is_directory
+    @property
+    def feature_metadata(self):  return self._has_metadatafile
+    @property
+    def imagelist(self, labels=[]):  
+        if not labels: 
+            return self._imagelist
+        else: 
+            #Only return images with certain labels
+            return [x for x in self._imagelist if x.label in labels] 
     @property
     def filelist(self):
         # INCOMPLETE IMPLEMENTATION, ONLY IMAGE FILES
         filelist = [Path(x.filename) for x in self._imagelist]
         return tuple(filelist) 
-    @staticmethod
-    def fromJPGfile(imgfile, conf, camname="generic_camera"): # Assumes jpg file name is metadata file name
-        log.debug("Creating sample data from JPEG image and config file metadata")
-        itime = getFileCreationDateTime(imgfile)
-        imgfile = Path(imgfile)
-        image = CombinedImage(camname, fn = imgfile)
-        # Extract creating time from JPG and use it as the Sample event time        
-        s = SampleEvent( time = itime )
-        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
-        s.datapath = imgfile.parent
-        s.addImage(image)
-        s.prefix = imgfile.stem
-        return s
     def writeMetaJSON(self,  extension = ".json"): 
         "Save SampleEvent metadata to a file"
         for img in self._imagelist: img.unloadImageData()
@@ -102,10 +99,10 @@ class SampleEvent(SampleBase):
 #------------------------------------------------------------------------------------------------------    
 class SampleImage(SampleBase): 
     "One image plus metadata"
-    def __init__(self,  camname,  fn = None): 
+    def __init__(self,  label,  fn = None): 
         super().__init__()
-        self.camname= camname
-        self.meta = jkm.metadata.ImageMetadata(self.camname)  #Image-level metadata
+        self.label= label
+        self.meta = jkm.metadata.ImageMetadata(self.label)  #Image-level metadata
         self.confsection= None
         self._img = None  # Full image data loaded to memory (set to None if not yet loaded)
         if fn is not None: self._fn = fn
@@ -128,7 +125,7 @@ class SampleImage(SampleBase):
         self._img = None # Do not serialise in-memory copy of image
         d = {}
         d[f"__{type(self).__name__}__"] = True
-        d['cameraname'] = self.cameraname
+        d['label'] = self.label
         d['confsection'] = self.confsection
         d['_fn'] = self._fn
         d['meta'] = self.meta.encodeJSON()
@@ -180,15 +177,15 @@ class SampleImage(SampleBase):
 class SpecimenImage(SampleImage):
     has_specimens = True
     has_labels = False
-    def __init__(self,  camname,  fn = None): 
-        super().__init__(camname,  fn)
+    def __init__(self,  label,  fn = None): 
+        super().__init__(label,  fn)
 #    def specimenCrop(self): pass
 #------------------------------------------------------------------------------------------------------    
 class LabelImage(SampleImage):
     has_specimens = False
     has_labels = True
-    def __init__(self,  camname,  fn = None): 
-        super().__init__(camname, fn)
+    def __init__(self,  label,  fn = None): 
+        super().__init__(label, fn)
         self._textareas = None
     @property
     def textareas(self):  
@@ -215,13 +212,13 @@ class LabelImage(SampleImage):
         # If not all_image_ocr, examine only text areas previously found
         txt = ""
         if not self._textareas or force_all_image_ocr :
-            log.debug(f"OCR call for {self.camname}, full frame")
+            log.debug(f"OCR call for {self.label}, full frame")
             img = self.readImage()
             txt = jkm.ocr.ocr(img)
         else:  # OCR recognised text areas one at a time
             x = 1
             for area in self._textareas:
-                log.debug(f"OCR call for {self.camname}, text area {x}")
+                log.debug(f"OCR call for {self.label}, text area {x}")
                 txt += " " + jkm.ocr.ocr(self.getsubimage(area))
                 x += 1
         return txt
@@ -231,10 +228,65 @@ class LabelImage(SampleImage):
 class CombinedImage(SpecimenImage, LabelImage): # Note: potential problems with inheritance, resolve!
     has_specimens = True
     has_labels = True
-    def __init__(self,  camname,  fn = None): 
-        super().__init__(camname,  fn)
+    def __init__(self,  label,  fn = None): 
+        super().__init__(label,  fn)
 
 if __name__ == '__main__': #SImple testing
     si = SampleEvent()
     print(si.toJSON())
   
+#------------------------------------------------------------------------------------------------------    
+class MZHLineSample(SampleEvent): 
+    def __init__(self,  time=None):
+        super().__init__(time)
+#        self._has_metadatafile = True
+#        self._is_directory = True
+        self.digipropfile = DigipropFile() 
+    def original_timestamp(self): #helper function for insect line processing
+        marker = "dc1."
+        x = str(self.datapath.name).split(marker) # Look for marker in last element of directory name
+        if len(x) != 2: return ""
+        else: return x[-1] # Last element
+    @staticmethod
+    def from_directory(dirpath, conf): # Assumes jpg file name is metadata file name
+        log.debug("Creating sample data from JPEG image and config file metadata")
+        labelpath = dirpath / Path(conf.get("sampleformat", "label_file"))
+        # Extract creating time from JPG and use it as the Sample event time        
+        itime = getFileCreationDateTime(labelpath)
+        s = MZHLineSample( time = itime )
+        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
+        s.datapath = dirpath
+        s.name = f"{dirpath.name}"        
+        s.prefix = dirpath
+        #Load label image
+        label_label = conf.get("sampleformat", "label_title")
+        labelimage = LabelImage(label_label, fn = labelpath)
+        s.addImage(labelimage)
+        #Load object (insect/plant) images
+        objectfiles = conf.getlist("sampleformat", "object_files")
+        object_titles = conf.getlist("sampleformat", "object_titles")
+        objectfilepaths= [dirpath / Path(x) for x in objectfiles]
+        for ofp, ofn in zip(objectfilepaths, object_titles):
+            s.addImage( SpecimenImage(ofn, fn = ofp)  )
+        return s           
+
+#------------------------------------------------------------------------------------------------------    
+class SingleImageSample(SampleEvent): 
+    """Dummy holder for a single image based minimal sample event"""
+    def __init__(self,  time = None):
+#        self._has_metadatafile = False
+#        self._is_directory = False
+        super().__init__(time)
+    @staticmethod
+    def from_image_file(imgfile, conf, label="generic_camera"): # Assumes jpg file name is metadata file name
+        log.debug("Creating sample data from JPEG image and config file metadata")
+        itime = getFileCreationDateTime(imgfile)
+        imgfile = Path(imgfile)
+        image = CombinedImage(label, fn = imgfile)
+        # Extract creating time from JPG and use it as the Sample event time        
+        s = SingleImageSample( time = itime )
+        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
+        s.datapath = imgfile.parent
+        s.addImage(image)
+        s.prefix = imgfile.stem
+        return s        
