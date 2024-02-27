@@ -10,63 +10,16 @@ import watchdog.events
 # app-specific modules
 import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis
 
-_debug = False
+_debug = True
 _num_worker_threads = 4
 _program_name = "jkm-post"
 _program_ver = "1.01" 
 _program = f"{_program_name} ({_program_ver})"
 
-allowed_URI_domains = ["http://tun.fi/", "http://id.luomus.fi/",""]
-
 def _UNIQUE(s) :return list(set(s))
 
 # Move to Luomus-specific Sample type
-def grab_identifier_prefix(ident): # everything up to the last /
-    if not "/" in ident:
-        return None
-    else:
-        parts = ident.split("/")
-        noend = "/".join(parts[:-1]) + "/"
-        return noend        
-
-# Move to Luomus-specific Sample type
-def verify_URI(uri):
-    # SIMPLISTIC IMPLEMENTATION
-    pref = grab_identifier_prefix(uri)
-    if pref is None: return True  # No URI to test
-    for uriok in allowed_URI_domains:
-        if uriok in uri: return True
-    return False # No matching URI pattern found
-
-# Move to Luomus-specific Sample type
-def file_add_prefix(sid,old_filename,ignore_domain=True, domain_separator = '/', prefix_separator= "_"):
-    """Rename files/dirs if sample ID data is available (from QR code parsing or other source)
-##
-##    sids = a single identified
-##    ignore_domain = if True, only the namespace.number part is used 
-##    Renaming details are provided in the config class instance passed as an argument
-##
-##    """
-    try: 
-        log.debug(f"Renaming files based on barcode content: SID {sid}, oldname {old_filename}")
-        new_pathname = old_filename # Default new name = old name
-        if ignore_domain: # Remove http//domains/ from ID
-            sid = sid.split(domain_separator)[-1]
-        newprefix = sid + prefix_separator
-        new_filename = sid + prefix_separator + Path(old_filename).name
-        new_pathname = old_filename.parent / Path(new_filename)
-        log.debug(f"New name for {old_filename} is {new_pathname}")
-        old_filename.rename(new_pathname) 
-    except PermissionError as msg:
-        log.warning("Renaming file failed with error message: %s" % msg)
-    except FileExistsError as msg:
-        log.warning("Target file name already exists, skipping: %s" % msg)
-    finally: 
-        return new_pathname    
-
-
-# Move to Luomus-specific Sample type
-def find_meta_files(dirname,datafile_patterns):
+def find_samples(dirname,datafile_patterns):
     log.debug("Finding files to process" )
     d = Path(dirname)
     res = []
@@ -121,7 +74,8 @@ def processSampleEvents(conf, sleep_s, data_out_table):
                 q.task_done(); continue
         except jkm.errors.FileLoadingError:
                 q.task_done(); continue
-        # MAIN POSTPROCESSOR IN HERE
+                
+        # MAIN POSTPROCESSOR STARTS HERE
         log.info(f"Postprocessing sample {sample.name}")
         # ROTATE
         rot = conf.geti( "postprocessor", "rotate_before_processing")
@@ -129,13 +83,11 @@ def processSampleEvents(conf, sleep_s, data_out_table):
             for i in range(len(sample.imagelist)):
                 log.debug(f"{sample.name}: Rotating image {sample.imagelist[i].name}")
                 sample.imagelist[i].rotate(rot)
-        # SAVE ROTATED
+        # SAVE ROTATED (NOT IMPLEMENTED)
         
         # FIND BARCODES
         allbkdata = []
-        if conf.getb( "postprocessor", "read_barcodes"):
-            
-            log.debug(sample.imagelist)
+        if conf.getb( "postprocessor", "read_barcodes"):            
             for image in sample.imagelist:
                 try:                    
                     bkdata = image.readbarcodes()
@@ -144,6 +96,7 @@ def processSampleEvents(conf, sleep_s, data_out_table):
                 except jkm.errors.FileLoadingError as msg:
                     log.warning(f"{sample.name}: Barcode detection attempt failed: %s" % msg)
                     continue
+                    
         # FIND TEXT ARES
         if conf.getb( "postprocessor", "find_text_areas"):
             for image in sample.imagelist:
@@ -154,6 +107,7 @@ def processSampleEvents(conf, sleep_s, data_out_table):
                 image.meta.addlog("Text areas found", str(textareas),  log_add_hdr= sample.name)
                 if conf.getb( "postprocessor", "save_text_area_images"): 
                     image.savetextareas("_textarea_")
+
         # PERFORM OCR
         if conf.getb( "postprocessor", "ocr"):
             alltext = ""
@@ -164,41 +118,47 @@ def processSampleEvents(conf, sleep_s, data_out_table):
 #                image.meta.addlog("OCR result for image", labeltxt,lvl=logging.DEBUG)
             sample.meta.addlog("Combined OCR result for all images",alltext,  log_add_hdr= sample.name)
 
-        # SUBMIT alltext to component analysis
+        # SUBMIT alltext to COMPONENT ANALYSIS
         ocrdata = None
         if conf.getb( "postprocessor", "ocr") and conf.getb( "postprocessor", "ocr_analysis"):
             ocrdata = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
             log.debug(f"{sample.name}: OCR data parsing output: {ocrdata}")
         else: log.debug(f"{sample.name}: No OCR data parsing attempted.")           
-        sids = _UNIQUE(allbkdata)
-        sids = [x.split('/')[-1] for x in sids] # List of sample identifiers (short form)
 
-        # Store interpreted data in a table file IF data and identifier are available
-        if ocrdata and len(sids) == 1 and data_out_table:
-            fullbarcode = allbkdata[0]
-            ocrdata.prepend("identifier", fullbarcode)
+        # EXTRACT IDENTIFIERS FROM OCR DATA (NOT IMPLEMENTED)
+
+         # FOR FURTHER PROCESSING, CHECK IF IDENTIFIER LIST CONTAINS A SINGLE VALID IDENTIFIER
+        # In case sample does already have a known identifier, append to to the list
+        if sample.identifier: allbkdata.append(sample.identifier)
+        sampleids = _UNIQUE(allbkdata)
+        if len(sampleids) == 0:
+            log.warning("No usable identifiers found")
+        if len(sampleids) > 1:
+            log.warning("Several  different identifiers for the sample in barcodes/OCR/sample metadata")
+        else: sample.identifier =  sampleids[0] # Sets also sample.shortidentifier
+        
+       # Store interpreted data in a table file IF data and identifier are available
+        if ocrdata and sample.identifier and data_out_table:
+            ocrdata.prepend("identifier", sample.identifier)
             log.debug(f"{sample.name}: Calling OutputCSV.addline with data: {ocrdata}")
             log.debug(f"{sample.name}: data_out_table.fp = {data_out_table.fp}")
             data_out_table.add_line(ocrdata)
             log.debug(f"{sample.name}: ...done")
             
-        # RENAME DIRECTORIES (this should be before file renaming
-        if conf.getb( "basic", "directories_rename_by_barcode_id") and allbkdata:
+        # RENAME DIRECTORIES (this should be before file renaming!)
+        if conf.getb( "basic", "directories_rename_by_barcode_id") and sample.identifier:
             prefix = sample.datapath.name # last element of directory path
             log.debug("Renaming directory based on barcode content")
             try:            
-                sample.datapath = sample.rename_directories(sids,conf,prefix)
+                sample.rename_directories(conf,prefix)
             except jkm.errors.JKError as msg: 
                 log.warning(f"Renaming directory failed: {msg}")                
 
         # RENAME FILES
-        if conf.getb( "basic", "files_rename_by_barcode_id") and allbkdata and len(sids) == 1:
-            # TODO: THIS DOES NOT PROPERLY UPDATE DATA IN SAMPLE CLASSES
-            # TODO: THIS SHOULD ROLLBACK ON FAILURE?
-            try:            
-                for filepath in sample.filelist:
-                    file_add_prefix(sids[0], filepath)
-            except jkm.errors.JKError as msg: 
+        if conf.getb( "basic", "files_rename_by_barcode_id") and sample.shortidentifier:
+            try:
+                sample.rename_all_files(sample.shortidentifier)
+            except jkm.errors.JKError as msg:
                 log.warning(f"Renaming files failed: {msg}")                
 
         # Write records to JSON Metadata file (should this be before renaming?)
@@ -206,30 +166,21 @@ def processSampleEvents(conf, sleep_s, data_out_table):
 
         # FOR MZH IMAGING LINE SAMPLES
         if conf.get("sampleformat", "datatype_to_load").lower()  in ["mzh_insectline", "mzh_plantline"]:
-            # Insect line-specific stuff, should be moved into a subclass
-            if len(sids) == 1: # Only one identifier-containing barcode was found
-                outsid = sids[0]
-                fullbarcode = allbkdata[0]
-                url_OK = verify_URI(fullbarcode)
-                log.debug(f"{sample.name}: URI prefix {grab_identifier_prefix(fullbarcode)}")
-                if not url_OK: log.critical(f"{sample.name}: *******\n\n\n\nMALFORMED IDENTIFIER {fullbarcode}*******\n\n\n\n")
-            else:
-                log.warning(f"{sample.name}: No readable QR code, or several QR codes")
-                outsid = ""
-                fullbarcode = ""
-                url_OK = False
-                
+            if sample.identifier: # Only one identifier-containing barcode was found
+                id_OK = sample.verify_identifier()
+                if not id_OK: log.critical(f"{sample.name}: *******\n\n\n\nMALFORMED IDENTIFIER {sample.identifier}*******\n\n\n\n")
             # Write postprocessor.properties file 
             sample.digipropfile.setheader( f"# {datetime.now()}" )
-            sample.digipropfile.update("full_barcode_data",fullbarcode)
-            sample.digipropfile.update("identifier",outsid)
+            sample.digipropfile.update("full_barcode_data",sample.identifier or "")
+            sample.digipropfile.update("identifier",sample.shortidentifier  or "")
             sample.digipropfile.update("timestamp",sample.original_timestamp())
-            sample.digipropfile.update("URI_format_OK", str(url_OK) )
+#            sample.digipropfile.update("URI_format_OK", str(url_OK) )
             sample.digipropfile.update("Q-sharp", "" )
             sample.digipropfile.update("Q-color", "" )
             if conf.getb( "postprocessor", "ocr"): 
                 sample.digipropfile.update("OCR_result", alltext.replace("\n"," "))
             sample.digipropfile.save( sample.datapath /  Path(r"postprocessor.properties") )
+        #DONE
         log.info(f"Sample events in process queue: {q.qsize()-1}\n\n") # Queue still contains this item, thus -1 in the number reported
            
 
@@ -258,7 +209,7 @@ if __name__ == '__main__':
         datafile_patterns = [filetype]
         if conf.getb("postprocessor", "process_existing"):
             print (filetype)
-            existingevents = find_meta_files( conf.basepath,datafile_patterns )
+            existingevents = find_samples( conf.basepath,datafile_patterns )
             for fn in existingevents: q.put(fn)
             log.info(f"Approximate number of sample events to process at launch is {q.qsize()}")
         

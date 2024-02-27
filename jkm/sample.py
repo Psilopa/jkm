@@ -1,4 +1,4 @@
-from abc import ABC
+import abc
 from pathlib import Path
 import datetime,  logging,  os
 #import  pickle
@@ -8,6 +8,7 @@ import jkm.metadata
 import jkm.ocr
 import jkm.tools
 from jkm.digitisation_properties import DigipropFile
+import jkm.errors
 
 log = logging.getLogger() # Overwrite if needed
 deg2rotcode = {90: cv2.ROTATE_90_CLOCKWISE,
@@ -27,7 +28,7 @@ def getFileCreationDateTime(fn):
 #    if imgtype.lower().strip() == 'label': return LabelImage()
 #    if imgtype.lower().strip() == 'specimen': return SpecimenImage()
 #------------------------------------------------------------------------------------------------------    
-class SampleBase(ABC):
+class SampleBase(abc.ABC):
     def __init__(self, time = None): 
         if not time: self._time = datetime.datetime.now()
         else: self._time = time
@@ -43,7 +44,7 @@ class SampleBase(ABC):
         with open(fn) as f:
             return  jsonpickle.decode(f.read())
 #------------------------------------------------------------------------------------------------------    
-class SampleEvent(SampleBase):
+class SampleEvent(SampleBase,  abc.ABC):
     "Container for 0+ photos of an sample and event-level metadata."
     def __init__(self,  time = None):
         super().__init__(time)
@@ -53,6 +54,16 @@ class SampleEvent(SampleBase):
         self.meta = jkm.metadata.EventMetadata() # Event-level metadata
 #        self._has_metadatafile = False
 #        self._is_directory = False
+        self._identifier = None
+        self._shortidentifier = None
+    @property
+    def identifier(self):  return self._identifier
+    @identifier.setter
+    def identifier(self, x):  
+        self._identifier = x    
+        self._shortidentifier = self._shortenidentifier(x)
+    @property
+    def shortidentifier(self):  return self._shortidentifier
     @property
     def is_directory(self):  return self._is_directory
     @property
@@ -64,11 +75,14 @@ class SampleEvent(SampleBase):
         else: 
             #Only return images with certain labels
             return [x for x in self._imagelist if x.label in labels] 
-    @property
-    def filelist(self):
-        # INCOMPLETE IMPLEMENTATION, ONLY IMAGE FILES
-        filelist = [Path(x.filename) for x in self._imagelist]
-        return tuple(filelist) 
+#    @property
+#    def filelist(self):
+#        # INCOMPLETE IMPLEMENTATION, ONLY IMAGE FILES
+#        filelist = [Path(x.filename) for x in self._imagelist]
+#        return tuple(filelist) 
+    @abc.abstractmethod
+    def _shortenidentifier(self, x): 
+        return x
     def writeMetaJSON(self,  extension = ".json"): 
         "Save SampleEvent metadata to a file"
         for img in self._imagelist: img.unloadImageData()
@@ -107,19 +121,20 @@ class SampleImage(SampleBase):
         self.meta = jkm.metadata.ImageMetadata(self.label)  #Image-level metadata
         self.confsection= None
         self._img = None  # Full image data loaded to memory (set to None if not yet loaded)
-        if fn is not None: self._fn = fn
-        else: self._fn  = None
+        self._fn = fn
         # Record colorspace!
     @property
-    def filename(self):  
-        "Name of image file"
-        return self._fn
+    def filename(self):  return self._fn
     @property
-    def path(self):  
+    def path(self):  # Note: fails is _self._fn is still set to None
         return Path(self._fn)
     def samefile(self,fn):
         "returns true is this image is a link to filename fn"
         return self.path.samefile(Path(fn))
+    def rename(self,newpath):
+        "Rename the corresponding file on the file system"
+        self.path.rename(newpath)
+        self._fn = newpath
     def unloadImageData(self): 
         self._img = None  # Delete in-memory copy of image data 
     def encodeJSON(self):
@@ -239,11 +254,29 @@ if __name__ == '__main__': #SImple testing
   
 #------------------------------------------------------------------------------------------------------    
 class MZHLineSample(SampleEvent): 
+    allowed_URI_domains = ["http://tun.fi/", "http://id.luomus.fi/",""]
     def __init__(self,  time=None):
         super().__init__(time)
 #        self._has_metadatafile = True
 #        self._is_directory = True
         self.digipropfile = DigipropFile() 
+    def grab_identifier_prefix(self, ident): # everything up to the last /
+        if not "/" in ident:
+            return None
+        else:
+            parts = ident.split("/")
+            noend = "/".join(parts[:-1]) + "/"
+            return noend        
+    def verify_identifier(self):  # Check if thosed identifier is a valid Luomus identifier
+        # SIMPLISTIC IMPLEMENTATION
+        pref = self.grab_identifier_prefix(self.identifier)
+        if pref is None: return True  # No URI to test
+        for uriok in self.allowed_URI_domains:
+            if uriok in self.identifier: return True
+        return False # No matching URI pattern found    
+    def _shortenidentifier(self, x): # Overrides base class
+        separator = r'/'
+        return x.split(separator)[-1] 
     def original_timestamp(self): #helper function for insect line processing
         marker = "dc1."
         x = str(self.datapath.name).split(marker) # Look for marker in last element of directory name
@@ -271,42 +304,54 @@ class MZHLineSample(SampleEvent):
         for ofp, ofn in zip(objectfilepaths, object_titles):
             s.addImage( SpecimenImage(ofn, fn = ofp)  )
         return s           
-    def rename_directories(self, ids,config,prefix,ignore_domain=True, separator = '\\'):
+    def rename_directories(self, config,prefix,ignore_domain=True):
         """Rename files/dirs if sample ID data is available (from QR code parsing or other source)
 
-        ids = iterable (list, tuple or similar) with (long) identifiers
+        id0: a single (long or short)
         ignore_domain = if True, only the namespace.number part is used 
         Renaming details are provided in the config class instance passed as an argument
 
-        """
-        ids = _UNIQUE(ids) # Remove duplicates
-        if len(ids) == 0:
-            log.warning("File renaming requested but no usable identifiers found")
-            return self.datapath # Silently fail if no usable identifier (not the best)        
-        if len(ids) > 1:
-            log.warning("File renaming requested but several different identifiers found")
-            return self.datapath # Silently fail if no usable identifier (not the best)        
-        id0 = ids[0]
-        if ignore_domain: # Remove http//domains/ from ID
-            id0 = id0.split(separator)[-1]
-
-        try: # TODO: EXTEND TO POSSIBLE SUBDIRECTORIES?
-            basepath = Path(config.get("basic","main_data_directory"))
-            newprefix = id0 + "_" + prefix
-            if config.getb("basic","create_directories"): # if a subdirectory was created for data
-                newbase = basepath / id0 # example [basebath]/GX.38276
-                newpath = newbase / newprefix # example [basebath]/GX.38276/GX.38276_timestamp
-                if not newbase.exists(): newbase.mkdir() 
-            else:
-                newpath = basepath / newprefix 
-            log.debug(f"Renaming {self.datapath} to {newpath}")        
-            self.datapath.rename(newpath) 
+        """        
+        # TODO: EXTEND TO POSSIBLE SUBDIRECTORIES?
+        try:
+                newpath = self.datapath # Default to no change
+                basepath = self.datapath.parent
+                if ignore_domain: id0 = self.shortidentifier
+                else: id0 = self.identifier
+                if not id0: raise jkm.errors.JKError("No identifier known, cannot rename directory")
+                newprefix = "_".join([id0 , prefix])            
+                if config.getb("basic","create_directories"): # if a subdirectory was created for data
+                    newbase = basepath / id0 # example [basebath]/GX.38276
+                    newpath = newbase / newprefix # example [basebath]/GX.38276/GX.38276_timestamp
+                    if not newbase.exists(): newbase.mkdir() 
+                else:
+                    newpath = basepath / newprefix 
+                log.debug(f"Renaming {self.datapath} to {newpath}")        
+                self.datapath.rename(newpath) 
         except PermissionError as msg:
             log.warning("Renaming directory failed with error message: %s" % msg)
         except FileExistsError as msg:
             log.warning("Target directory name already exists, skipping: %s" % msg)
         finally: 
-            return newpath
+             self.datapath= newpath
+             
+    def rename_all_files(self, prefix,  prefix_separator= "_"):
+        """Rename files/dirs if sample ID data is available (from QR code parsing or other source)"""
+            # TODO: Current implementation renames only original image files
+            # TODO: THIS SHOULD ROLLBACK ON FAILURE?        
+        if not self.identifier: raise jkm.errors.JKError("No known sample identifier, cannot rename files")
+        for image in self.imagelist:
+            try: 
+                log.debug(f"Renaming files based on barcode content: prefix {prefix}, oldname {image.path}")
+                newpath = image.path # Default new name = old name
+                new_filename = prefix + prefix_separator + image.path.name
+                newpath= image.path.parent / Path(new_filename)
+                log.debug(f"New name for {image.path} is {newpath}")            
+                image.rename(newpath)
+            except PermissionError as msg:
+                log.warning("Renaming file failed with error message: %s" % msg)
+            except FileExistsError as msg:
+                log.warning("Target file name already exists, skipping: %s" % msg)
 
 #------------------------------------------------------------------------------------------------------    
 class SingleImageSample(SampleEvent): 
