@@ -177,7 +177,7 @@ def processSampleEvents(conf, sleep_s, data_out_table):
             for image in sample.imagelist:
                 try:                    
                     bkdata = image.readbarcodes()
-                    image.meta.addlog(f"{sample.name}:Barcode contents",bkdata)
+                    image.meta.addlog("Barcode contents",bkdata,  log_add_hdr= sample.name)
                     allbkdata += bkdata
                 except jkm.errors.FileLoadingError as msg:
                     log.warning(f"{sample.name}: Barcode detection attempt failed: %s" % msg)
@@ -189,7 +189,7 @@ def processSampleEvents(conf, sleep_s, data_out_table):
                 log.debug(f"Searching for text areas in {image.label} of sample {sample.name}")
                 neuralnet = conf.get( "ocr", "EASTfile")
                 textareas = image.findtextareas(neuralnet)
-                image.meta.addlog("Text areas found", str(textareas))
+                image.meta.addlog("Text areas found", str(textareas),  log_add_hdr= sample.name)
                 if conf.getb( "postprocessor", "save_text_area_images"): 
                     image.savetextareas("_textarea_")
         # PERFORM OCR
@@ -200,7 +200,7 @@ def processSampleEvents(conf, sleep_s, data_out_table):
                 labeltxt = image.ocr() # Default ocr uses fragments created above
                 alltext  += " " + labeltxt
 #                image.meta.addlog("OCR result for image", labeltxt,lvl=logging.DEBUG)
-            sample.meta.addlog(f"{sample.name}: Combined OCR result for all images",alltext)
+            sample.meta.addlog(f"Combined OCR result for all images",alltext,  log_add_hdr= sample.name)
 
         # SUBMIT alltext to component analysis
         ocrdata = None
