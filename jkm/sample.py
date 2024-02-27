@@ -260,7 +260,7 @@ class MZHLineSample(SampleEvent):
 #        self._has_metadatafile = True
 #        self._is_directory = True
         self.digipropfile = DigipropFile() 
-    def grab_identifier_prefix(self, ident): # everything up to the last /
+    def _grab_identifier_prefix(self, ident): # everything up to the last /
         if not "/" in ident:
             return None
         else:
@@ -269,7 +269,7 @@ class MZHLineSample(SampleEvent):
             return noend        
     def verify_identifier(self):  # Check if thosed identifier is a valid Luomus identifier
         # SIMPLISTIC IMPLEMENTATION
-        pref = self.grab_identifier_prefix(self.identifier)
+        pref = self._grab_identifier_prefix(self.identifier)
         if pref is None: return True  # No URI to test
         for uriok in self.allowed_URI_domains:
             if uriok in self.identifier: return True

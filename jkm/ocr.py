@@ -171,6 +171,6 @@ def ocr(rect, timeout=def_timeout,lang=def_lang,fdir=None):
         elapsed_time = time.time() - start_time
         log.debug("Time spent in OCR process %.2f seconds" % elapsed_time)
     except pytesseract.TesseractError as err:
-        log.info("Error in OCR: {err}%s")    
+        log.info(f"Error in OCR: {err}%s")    
         return ""
     return txtf
