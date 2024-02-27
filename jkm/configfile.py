@@ -1,29 +1,33 @@
 from pathlib import Path
-from configparser import ConfigParser
+import configparser
 import logging,  sys, argparse
 import jkm.tools  as tools
+import jkm.errors as errors
 
 log = logging.getLogger() # Overwrite if needed
 
 class Multicamconfig():
 # TODO: write support    
     def __init__(self, fn=None):
-        self._c = ConfigParser(interpolation=None)
+        self._c = configparser.ConfigParser(interpolation=None)
         if fn: self.loadfile(fn)
         self.monitor = False
     def loadfile(self,fn, encoding="utf8"):
             fnp = Path(fn)
             if not fnp.exists() or not fnp.is_file(): raise FileNotFoundError("File not found")
             with fnp.open(encoding=encoding) as f:
-                self._c = ConfigParser(interpolation=None)
+                self._c = configparser.ConfigParser(interpolation=None)
                 self._c.read_file(f)
-    def get(self,*args,**kwargs): return self._c.get(*args, **kwargs)
+    def get(self,*args,**kwargs): 
+        try: return self._c.get(*args, **kwargs)
+        except configparser.Error as msg: raise errors.LoggingError(msg, level = logging.CRITICAL) 
     def getb(self,*args,**kwargs): return self._c.getboolean(*args, **kwargs)
     def geti(self,*args,**kwargs): return self._c.getint(*args, **kwargs)
     def getf(self,*args,**kwargs): return self._c.getfloat(*args, **kwargs)
     def getlist(self,*args,**kwargs):
         return tools.string2list(self._c.get(*args, **kwargs))
     def has_section(self, section): return self._c.has_section(section)
+    def sections(self): return self._c.sections()
     @property
     def basepath(self): return Path(self._c.get("basic","main_data_directory"))  # TODO: Should we create if not_exists()    
  

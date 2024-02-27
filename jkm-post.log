@@ -1964,3 +1964,1053 @@ INFO: Sample events in process queue: 0
 
  [2024-02-22 20:47:10,209]
 INFO: Ending session, closing log files. [2024-02-22 20:47:10,210]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:03:00,303]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:03:00,304]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 13:03:00,327]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 13:03:00,330]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f1e0a8cecd0> [2024-02-27 13:03:01,329]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f1e0a8ee6d0> [2024-02-27 13:03:01,349]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 13:03:01,955]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 13:03:01,956]
+INFO: generic_camera - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 13:03:04,125]
+INFO: generic_camera - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 13:03:04,596]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 13:03:11,785]
+INFO: Updating file postprocessor.properties with identifier F.252693
+ [2024-02-27 13:03:11,786]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 13:03:11,795]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 13:03:11,822]
+INFO: Updating file postprocessor.properties with identifier F.252693
+ [2024-02-27 13:03:11,823]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 13:03:11,823]
+INFO: Ending session, closing log files. [2024-02-27 13:03:11,825]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:13:20,651]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:13:20,652]
+INFO: Approximate number of sample events to process at launch is 0 [2024-02-27 13:13:20,652]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 13:13:20,654]
+INFO: Ending session, closing log files. [2024-02-27 13:13:20,654]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:15:03,054]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:15:03,054]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:16:13,532]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:16:13,533]
+INFO: Approximate number of sample events to process at launch is 0 [2024-02-27 13:16:13,533]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 13:16:13,535]
+INFO: Ending session, closing log files. [2024-02-27 13:16:13,535]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:16:29,353]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:16:29,354]
+INFO: Approximate number of sample events to process at launch is 0 [2024-02-27 13:16:29,354]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 13:16:29,356]
+INFO: Ending session, closing log files. [2024-02-27 13:16:29,356]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:16:44,822]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:16:44,823]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 13:16:44,824]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 13:16:44,825]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f6884909f10> [2024-02-27 13:16:45,825]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f6884919fd0> [2024-02-27 13:16:45,826]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 13:16:46,065]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 13:16:46,080]
+WARNING: Neural net reported error OpenCV(4.6.0) ./modules/dnn/src/net_impl.cpp:566: error: (-215:Assertion failed) !layers[0].outputBlobs.empty() in function 'allocateLayers'
+ [2024-02-27 13:16:46,532]
+INFO: generic_camera - Text areas found: [] [2024-02-27 13:16:46,547]
+INFO: generic_camera - Text areas found: [(2278, 1339, 4882, 1872, 0.025986671), (2292, 1811, 4905, 2434, 0.03574735), (1595, 2374, 4904, 3048, 0.022976875), (2950, 3055, 4547, 3518, -0.0001231432), (2846, 3439, 4566, 3896, 0.035098612)] [2024-02-27 13:16:47,448]
+INFO: Combined OCR result for all images:   - Korpilahti
+ oar q
+  [a] http: //id.luomus. fi/
+AF F.252693
+ Univ. of Helsinki
+e LUOMUS, 2019
+ [2024-02-27 13:16:49,614]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 13:16:49,615]
+INFO: Combined OCR result for all images:  ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 13:16:53,823]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 13:16:53,824]
+INFO: Ending session, closing log files. [2024-02-27 13:16:53,825]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:18:27,775]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:18:27,776]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 13:18:27,777]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 13:18:27,778]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f2b42056dd0> [2024-02-27 13:18:28,778]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f2b42072cd0> [2024-02-27 13:18:28,779]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 13:18:29,021]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 13:18:29,034]
+INFO: generic_camera - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 13:18:30,433]
+INFO: generic_camera - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 13:18:30,624]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 13:18:37,530]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 13:18:37,530]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 13:18:37,638]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 13:18:37,639]
+INFO: Ending session, closing log files. [2024-02-27 13:18:37,639]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:24:55,340]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:24:55,341]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:30:38,809]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:30:38,810]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:31:13,861]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:31:13,862]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:31:25,708]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:31:25,709]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:33:34,873]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:33:34,874]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:36:17,655]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:36:17,656]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:36:46,721]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:36:46,722]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:37:39,428]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:37:39,428]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:37:46,505]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:37:46,506]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:38:01,352]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:38:01,352]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:38:45,349]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:38:45,350]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:39:23,711]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:39:23,711]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:39:26,531]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:39:26,532]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:39:42,855]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:39:42,856]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:40:10,326]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:40:10,327]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:41:10,107]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:41:10,107]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:41:29,717]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:41:29,718]
+CRITICAL: Execution failed with error message No section: 'sampleformat' [2024-02-27 13:41:29,718]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:43:20,346]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:43:20,346]
+CRITICAL: Execution failed with error message "No section: 'sampleformat'" [2024-02-27 13:43:20,347]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:43:32,433]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:43:32,434]
+CRITICAL: Execution failed with error message "No section: 'xxx'" [2024-02-27 13:43:32,434]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:43:42,351]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:43:42,351]
+CRITICAL: Execution failed with error message "No option 'recognize_by_filename_pattern' in section: 'postprocessor'" [2024-02-27 13:43:42,352]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:46:33,042]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:46:33,043]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:46:40,461]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:46:40,461]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:47:00,757]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:47:00,757]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:47:05,072]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:47:05,073]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 13:52:58,694]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 13:52:58,694]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 14:39:58,866]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 14:39:58,867]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 14:40:14,310]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 14:40:14,311]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 14:46:06,177]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 14:46:06,178]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 14:46:16,455]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 14:46:16,456]
+CRITICAL: Execution failed with error message "No option 'recognize_by_filename_pattern' in section: 'postprocessor'" [2024-02-27 14:46:16,456]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 14:46:48,485]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 14:46:48,485]
+CRITICAL: Execution failed with error message "No option 'recognize_by_filename_pattern' in section: 'postprocessor'" [2024-02-27 14:46:48,486]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 14:47:04,174]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 14:47:04,175]
+CRITICAL: Execution failed with error message "No option 'recognize_by_filename_pattern' in section: 'postprocessor'" [2024-02-27 14:47:04,175]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 14:51:10,884]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 14:51:10,884]
+CRITICAL: Execution failed with error message "No section: 'sampleformat'" [2024-02-27 14:51:10,885]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 14:51:23,127]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 14:51:23,127]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 14:51:23,128]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 14:51:23,129]
+INFO: Ending session, closing log files. [2024-02-27 14:51:24,156]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 14:51:26,319]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 14:51:26,319]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 14:51:26,320]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 14:51:26,321]
+INFO: Ending session, closing log files. [2024-02-27 14:51:27,335]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 14:52:17,763]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 14:52:17,764]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 14:52:17,765]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 14:52:17,766]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f72980d2850> [2024-02-27 14:52:18,766]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f72980eed50> [2024-02-27 14:52:18,767]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 14:52:19,016]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 14:52:19,030]
+INFO: generic_camera - Text areas found: [(0, 1954, 8243, 5228, 0.0)] [2024-02-27 14:52:20,418]
+INFO: generic_camera - Text areas found: [(0, 1954, 8243, 5228, 0.0)] [2024-02-27 14:52:20,490]
+INFO: Combined OCR result for all images:   TP 39
+Rem dn
+of
+
+[a] http: //id.luomus. fi/
+“AF OF.252693
+
+Univ. of Helsinki
+
+e LUOMUS, 2019
+
+em are as
+Po ate ate ate ome oe
+
+tt ae we
+
+Pe IE
+
+fa Pee Pee Pw
+
+POP PL POS PAP POP PAP pel
+
+FP PIP FFP OS
+
+Pe ae me oe
+
+Ser tell Me Sell
+
+Pet AD el oN Me Oe
+
+LIAM Ld
+
+?
+;
+7]
+2
+
+Pah pe P ge Me
+ [2024-02-27 14:52:25,132]
+INFO: Combined OCR result for all images:   TP 39
+Rem dn
+of
+
+[a] http: //id.luomus. fi/
+“AF OF.252693
+
+Univ. of Helsinki
+
+e LUOMUS, 2019
+
+em are as
+Po ate ate ate ome oe
+
+tt ae we
+
+Pe IE
+
+fa Pee Pee Pw
+
+POP PL POS PAP POP PAP pel
+
+FP PIP FFP OS
+
+Pe ae me oe
+
+Ser tell Me Sell
+
+Pet AD el oN Me Oe
+
+LIAM Ld
+
+?
+;
+7]
+2
+
+Pah pe P ge Me
+ [2024-02-27 14:52:25,147]
+INFO: Ending session, closing log files. [2024-02-27 14:52:25,150]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 14:53:27,970]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 14:53:27,971]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 14:53:27,972]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 14:53:27,973]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7fb4af54e150> [2024-02-27 14:53:28,973]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7fb4af56aa10> [2024-02-27 14:53:28,975]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 14:53:29,219]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 14:53:29,234]
+INFO: generic_camera - Text areas found: [(2278, 1339, 4882, 1872, 0.025986671), (2292, 1811, 4905, 2434, 0.03574735), (1595, 2374, 4904, 3048, 0.022976875), (2950, 3055, 4547, 3518, -0.0001231432), (2846, 3439, 4566, 3896, 0.035098612)] [2024-02-27 14:53:30,947]
+INFO: generic_camera - Text areas found: [(2278, 1339, 4882, 1872, 0.025986671), (2292, 1811, 4905, 2434, 0.03574735), (1595, 2374, 4904, 3048, 0.022976875), (2950, 3055, 4547, 3518, -0.0001231432), (2846, 3439, 4566, 3896, 0.035098612)] [2024-02-27 14:53:31,139]
+INFO: Combined OCR result for all images:   - Korpilahti
+ oar q
+  [a] http: //id.luomus. fi/
+AF F.252693
+ Univ. of Helsinki
+e LUOMUS, 2019
+ [2024-02-27 14:53:33,174]
+INFO: Combined OCR result for all images:   - Korpilahti
+ oar q
+  [a] http: //id.luomus. fi/
+AF F.252693
+ Univ. of Helsinki
+e LUOMUS, 2019
+ [2024-02-27 14:53:33,295]
+INFO: Ending session, closing log files. [2024-02-27 14:53:33,297]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 14:54:11,402]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 14:54:11,402]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 14:54:11,403]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 14:54:11,404]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f714614e3d0> [2024-02-27 14:54:12,405]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f714616ab90> [2024-02-27 14:54:12,406]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 14:54:12,655]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 14:54:12,668]
+INFO: generic_camera - Text areas found: [(0, 0, 8243, 5501, 1.2337006), (0, 0, -329, 5501, -1.2337006)] [2024-02-27 14:54:14,006]
+INFO: generic_camera - Text areas found: [(0, 0, 8243, 5501, 1.2337006), (0, 0, -329, 5501, -1.2337006)] [2024-02-27 14:54:14,088]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ Korpilahti
+
+TPG 39
+a f
+Riven Ww rain
+OR [a] http: //id.luomus. fi/
+mL F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+|
+
++ a ae ee
+
+et ae ae
+
+Pe oe ae
+
+Lore Pere
+
+POP PLM POT PAP POP PD ple E
+
+tl ll ed ol
+
+Pe ae me oe
+
+Ser tell Me Sell
+
+Pet AD el oN Me Oe
+ [2024-02-27 14:54:28,159]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ Korpilahti
+
+TPG 39
+a f
+Riven Ww rain
+OR [a] http: //id.luomus. fi/
+mL F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+|
+
++ a ae ee
+
+et ae ae
+
+Pe oe ae
+
+Lore Pere
+
+POP PLM POT PAP POP PD ple E
+
+tl ll ed ol
+
+Pe ae me oe
+
+Ser tell Me Sell
+
+Pet AD el oN Me Oe
+ [2024-02-27 14:54:28,249]
+INFO: Ending session, closing log files. [2024-02-27 14:54:28,253]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:02:37,335]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:02:37,336]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:02:37,337]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:02:37,338]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f217ece5e10> [2024-02-27 15:02:38,338]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f217ecfe790> [2024-02-27 15:02:38,339]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:02:38,586]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:02:38,589]
+INFO: generic_camera - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 15:02:39,929]
+INFO: generic_camera - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 15:02:40,284]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 15:02:47,174]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 15:02:47,284]
+INFO: Ending session, closing log files. [2024-02-27 15:02:47,287]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:03:02,481]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:03:02,482]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:03:02,483]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:03:02,484]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7fcf05242b90> [2024-02-27 15:03:03,484]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7fcf04dfb150> [2024-02-27 15:03:03,485]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:03:03,729]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:03:03,744]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:03:54,191]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:03:54,192]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:03:54,193]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:03:54,194]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f39923b2950> [2024-02-27 15:03:55,195]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f397865ef50> [2024-02-27 15:03:55,195]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:03:55,443]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:03:55,457]
+INFO: generic_camera - Text areas found: [(2278, 1339, 4882, 1872, 0.025986671), (2292, 1811, 4905, 2434, 0.03574735), (1595, 2374, 4904, 3048, 0.022976875), (2950, 3055, 4547, 3518, -0.0001231432), (2846, 3439, 4566, 3896, 0.035098612)] [2024-02-27 15:03:57,112]
+INFO: generic_camera - Text areas found: [(2278, 1339, 4882, 1872, 0.025986671), (2292, 1811, 4905, 2434, 0.03574735), (1595, 2374, 4904, 3048, 0.022976875), (2950, 3055, 4547, 3518, -0.0001231432), (2846, 3439, 4566, 3896, 0.035098612)] [2024-02-27 15:03:57,328]
+INFO: Combined OCR result for all images:   - Korpilahti
+ oar q
+  [a] http: //id.luomus. fi/
+AF F.252693
+ Univ. of Helsinki
+e LUOMUS, 2019
+ [2024-02-27 15:03:59,335]
+INFO: Updating file postprocessor.properties with identifier F.252693
+ [2024-02-27 15:03:59,336]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 15:03:59,337]
+INFO: Combined OCR result for all images:   - Korpilahti
+ oar q
+  [a] http: //id.luomus. fi/
+AF F.252693
+ Univ. of Helsinki
+e LUOMUS, 2019
+ [2024-02-27 15:03:59,501]
+INFO: Updating file postprocessor.properties with identifier F.252693
+ [2024-02-27 15:03:59,502]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 15:03:59,502]
+INFO: Ending session, closing log files. [2024-02-27 15:03:59,504]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:04:04,821]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:04:04,822]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:04:04,823]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:04:04,824]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f37a113e210> [2024-02-27 15:04:05,824]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f37a1156710> [2024-02-27 15:04:05,825]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:04:06,069]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:04:06,083]
+INFO: generic_camera - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 15:04:07,394]
+INFO: generic_camera - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 15:04:07,470]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 15:04:14,471]
+INFO: Updating file postprocessor.properties with identifier F.252693
+ [2024-02-27 15:04:14,471]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 15:04:14,472]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 15:04:14,497]
+INFO: Updating file postprocessor.properties with identifier F.252693
+ [2024-02-27 15:04:14,498]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 15:04:14,498]
+INFO: Ending session, closing log files. [2024-02-27 15:04:14,498]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:10:25,844]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:10:25,844]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:10:25,845]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:10:25,846]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f4185eea950> [2024-02-27 15:10:26,847]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f41856a7750> [2024-02-27 15:10:26,848]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:10:27,088]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:10:27,102]
+INFO: generic_camera - Text areas found: [(0, 0, 8243, 5501, 0.0), (11312414209965051372109824, 0, 1717, -736917449785576809037824, 0.0)] [2024-02-27 15:10:28,544]
+INFO: generic_camera - Text areas found: [(0, 0, 8243, 5501, 0.0), (11312414209965051372109824, 0, 1717, -736917449785576809037824, 0.0)] [2024-02-27 15:10:28,618]
+INFO: Ending session, closing log files. [2024-02-27 15:10:35,661]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:10:46,313]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:10:46,313]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:10:46,314]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:10:46,316]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f9c66838050> [2024-02-27 15:10:47,316]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f9c4c316550> [2024-02-27 15:10:47,317]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:10:47,557]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:10:47,575]
+WARNING: Neural net reported error OpenCV(4.6.0) ./modules/dnn/src/net_impl.cpp:566: error: (-215:Assertion failed) !layers[0].outputBlobs.empty() in function 'allocateLayers'
+ [2024-02-27 15:10:48,000]
+INFO: generic_camera - Text areas found: [] [2024-02-27 15:10:48,007]
+INFO: generic_camera - Text areas found: [(2278, 1339, 4882, 1872, 0.025986671), (2292, 1811, 4905, 2434, 0.03574735), (1595, 2374, 4904, 3048, 0.022976875), (2950, 3055, 4547, 3518, -0.0001231432), (2846, 3439, 4566, 3896, 0.035098612)] [2024-02-27 15:10:48,953]
+INFO: Combined OCR result for all images:   - Korpilahti
+ oar q
+  [a] http: //id.luomus. fi/
+AF F.252693
+ Univ. of Helsinki
+e LUOMUS, 2019
+ [2024-02-27 15:10:51,124]
+INFO: Combined OCR result for all images:  ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 15:10:55,284]
+INFO: Ending session, closing log files. [2024-02-27 15:10:55,285]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:11:36,588]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:11:36,589]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:11:36,590]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:11:36,591]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f0ceda38050> [2024-02-27 15:11:37,592]
+INFO: Postprocessing sample <jkm.sample.SampleEvent object at 0x7f0cd3516b50> [2024-02-27 15:11:37,593]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:11:37,835]
+INFO: generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:11:37,849]
+WARNING: Neural net reported error OpenCV(4.6.0) ./modules/dnn/src/net_impl_fuse.cpp:554: error: (-215:Assertion failed) output_slice.isContinuous() && output_slice.size == curr_output.size in function 'fuseLayers'
+ [2024-02-27 15:11:38,327]
+INFO: generic_camera - Text areas found: [] [2024-02-27 15:11:38,328]
+INFO: generic_camera - Text areas found: [] [2024-02-27 15:11:39,131]
+INFO: Combined OCR result for all images:  ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 15:11:45,587]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:16:06,403]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:16:06,403]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:16:06,404]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:16:06,405]
+INFO: Ending session, closing log files. [2024-02-27 15:16:07,409]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:17:04,347]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:17:04,348]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:17:04,349]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:17:04,350]
+INFO: Ending session, closing log files. [2024-02-27 15:17:05,353]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:18:17,390]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:18:17,391]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:18:17,392]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:18:17,393]
+INFO: Ending session, closing log files. [2024-02-27 15:18:18,397]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:19:10,484]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:19:10,485]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:19:10,486]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:19:10,487]
+INFO: Ending session, closing log files. [2024-02-27 15:19:11,492]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:22:59,689]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:22:59,690]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:22:59,691]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:22:59,692]
+INFO: Ending session, closing log files. [2024-02-27 15:23:00,697]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:23:07,739]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:23:07,740]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:23:07,741]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:23:07,742]
+INFO: Ending session, closing log files. [2024-02-27 15:23:08,746]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:23:34,787]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:23:34,788]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:23:34,789]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:23:34,790]
+INFO: Ending session, closing log files. [2024-02-27 15:23:35,793]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:27:41,125]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:27:41,126]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:27:41,126]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:27:41,128]
+INFO: Ending session, closing log files. [2024-02-27 15:27:42,132]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:28:53,564]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:28:53,564]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:28:53,565]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:28:53,566]
+WARNING: Cannot find path /home/kahanpaa/projects/mzh_insectline_testdata/dc1 (copy 1).2019-05-31_11-25-38_81ba6d,  skipping to next sample [2024-02-27 15:28:54,566]
+WARNING: Cannot find path /home/kahanpaa/projects/mzh_insectline_testdata/dc1.2019-05-31_11-25-38_81ba6d,  skipping to next sample [2024-02-27 15:28:54,567]
+INFO: Ending session, closing log files. [2024-02-27 15:28:54,567]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:30:40,258]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:30:40,259]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:30:40,260]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:30:40,261]
+WARNING: Cannot find path /home/kahanpaa/projects/mzh_insectline_testdata/dc1 (copy 1).2019-05-31_11-25-38_81ba6d,  skipping to next sample [2024-02-27 15:30:41,261]
+WARNING: Cannot find path /home/kahanpaa/projects/mzh_insectline_testdata/dc1.2019-05-31_11-25-38_81ba6d,  skipping to next sample [2024-02-27 15:30:41,261]
+INFO: Ending session, closing log files. [2024-02-27 15:30:41,262]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:30:52,310]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:30:52,311]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:30:52,311]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:30:52,313]
+INFO: Ending session, closing log files. [2024-02-27 15:30:53,317]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:33:26,045]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:33:26,046]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:33:26,047]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:33:26,048]
+INFO: Ending session, closing log files. [2024-02-27 15:33:27,053]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:33:50,300]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:33:50,300]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:33:50,301]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:33:50,303]
+INFO: Ending session, closing log files. [2024-02-27 15:33:51,308]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:34:08,485]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:34:08,485]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:34:08,486]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:34:08,488]
+INFO: Ending session, closing log files. [2024-02-27 15:34:09,492]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:35:58,547]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:35:58,547]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:35:58,548]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:35:58,549]
+INFO: Ending session, closing log files. [2024-02-27 15:35:59,569]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:36:39,316]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:36:39,316]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:36:39,317]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:36:39,318]
+INFO: Ending session, closing log files. [2024-02-27 15:36:40,327]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:38:04,755]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:38:04,755]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:38:04,756]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:38:04,757]
+INFO: Ending session, closing log files. [2024-02-27 15:38:05,765]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:39:09,218]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:39:09,218]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:39:09,219]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:39:09,220]
+INFO: Ending session, closing log files. [2024-02-27 15:39:10,228]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:40:33,709]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:40:33,709]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:40:33,710]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:40:33,711]
+INFO: Ending session, closing log files. [2024-02-27 15:40:34,717]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:41:30,602]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:41:30,602]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:41:30,603]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:41:30,605]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7fb7c552f110> [2024-02-27 15:41:31,605]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7fb7c552f750> [2024-02-27 15:41:31,606]
+INFO: labelcam - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:41:31,838]
+INFO: labelcam - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:41:31,854]
+INFO: labelcam - Text areas found: [(2278, 1339, 4882, 1872, 0.025986671), (2292, 1811, 4905, 2434, 0.03574735), (1595, 2374, 4904, 3048, 0.022976875), (2950, 3055, 4547, 3518, -0.0001231432), (2846, 3439, 4566, 3896, 0.035098612)] [2024-02-27 15:41:33,524]
+INFO: labelcam - Text areas found: [(2278, 1339, 4882, 1872, 0.025986671), (2292, 1811, 4905, 2434, 0.03574735), (1595, 2374, 4904, 3048, 0.022976875), (2950, 3055, 4547, 3518, -0.0001231432), (2846, 3439, 4566, 3896, 0.035098612)] [2024-02-27 15:41:33,719]
+INFO: Combined OCR result for all images:   - Korpilahti
+ oar q
+  [a] http: //id.luomus. fi/
+AF F.252693
+ Univ. of Helsinki
+e LUOMUS, 2019
+ [2024-02-27 15:41:35,782]
+INFO: Updating file postprocessor.properties with identifier F.252693
+ [2024-02-27 15:41:35,783]
+INFO: Combined OCR result for all images:   - Korpilahti
+ oar q
+  [a] http: //id.luomus. fi/
+AF F.252693
+ Univ. of Helsinki
+e LUOMUS, 2019
+ [2024-02-27 15:41:35,896]
+INFO: Updating file postprocessor.properties with identifier F.252693
+ [2024-02-27 15:41:35,896]
+INFO: Ending session, closing log files. [2024-02-27 15:41:35,900]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:43:05,810]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:43:05,811]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:43:05,812]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:43:05,813]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7fde78ea2bd0> [2024-02-27 15:43:06,813]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7fde78ea3190> [2024-02-27 15:43:06,815]
+INFO: labelcam - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:43:07,057]
+INFO: labelcam - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:43:07,071]
+INFO: labelcam - Text areas found: [(0, 0, 8176, 5501, 0.0)] [2024-02-27 15:43:08,446]
+INFO: labelcam - Text areas found: [(0, 0, 8243, 5501, 0.0)] [2024-02-27 15:43:08,759]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 15:43:15,670]
+INFO: Updating file postprocessor.properties with identifier F.252693
+ [2024-02-27 15:43:15,671]
+INFO: Combined OCR result for all images:   ei |
+Korpilahti ae
+Te PA9 39
+R¢ ! =
+le 2 |
+oO [a] http: //id.luomus. fi/
+iF F.252693
+Univ. of Helsinki
+LUOMUS, 2019
+pisaauadage Ptah
+PETeHTEEPEP EP EEELTE
+ [2024-02-27 15:43:15,790]
+INFO: Updating file postprocessor.properties with identifier F.252693
+ [2024-02-27 15:43:15,790]
+INFO: Ending session, closing log files. [2024-02-27 15:43:15,791]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:51:49,317]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:51:49,318]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:51:49,319]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:51:49,320]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f2787f97350> [2024-02-27 15:51:50,322]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f2787f97650> [2024-02-27 15:51:50,322]
+INFO: labelcam - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:51:50,567]
+INFO: labelcam - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:51:50,580]
+INFO: labelcam - Text areas found: [(0, 418, 7452, 5393, 0.0)] [2024-02-27 15:51:51,876]
+INFO: labelcam - Text areas found: [(0, 418, 7452, 5393, 0.0)] [2024-02-27 15:51:51,961]
+INFO: Combined OCR result for all images:   Me ‘ < 4
+ie
+Korpilahti ore
+>>
+1T-F44 39
+AN f ao
+} Te PA AAA, Fare a
+http: //id.luomus. fi/
+a F.252693
+Univ. of Helsinki
+» LUOMUS, 2019
+;
+sTecsntatqal eae
+; ‘ i 3 : $ @
+PeEEGEEEPTP PTT ETEE TT
+ [2024-02-27 15:51:58,539]
+INFO: Combined OCR result for all images:   Me ‘ < 4
+ie
+Korpilahti ore
+>>
+1T-F44 39
+AN f ao
+} Te PA AAA, Fare a
+http: //id.luomus. fi/
+a F.252693
+Univ. of Helsinki
+» LUOMUS, 2019
+;
+sTecsntatqal eae
+; ‘ i 3 : $ @
+PeEEGEEEPTP PTT ETEE TT
+ [2024-02-27 15:51:58,569]
+INFO: Ending session, closing log files. [2024-02-27 15:51:58,570]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:52:32,462]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:52:32,463]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:52:32,464]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:52:32,465]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f2a92d16790> [2024-02-27 15:52:33,466]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f2a92d16cd0> [2024-02-27 15:52:33,467]
+INFO: labelcam - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:52:33,715]
+INFO: labelcam - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:52:33,729]
+INFO: labelcam - Text areas found: [(0, 0, 6731, 4308, 0.0)] [2024-02-27 15:52:35,101]
+INFO: labelcam - Text areas found: [(0, 0, 6731, 4308, 0.0)] [2024-02-27 15:52:35,163]
+INFO: Combined OCR result for all images:   Korpilahti
+
+P1939
+Remo
+
+[a] http: //id.luomus. fi/
+“AF OF.252693
+
+Univ. of Helsinki
+» LUOMUS, 2019
+
+ [2024-02-27 15:52:41,120]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 15:52:41,121]
+INFO: Combined OCR result for all images:   Korpilahti
+
+P1939
+Remo
+
+[a] http: //id.luomus. fi/
+“AF OF.252693
+
+Univ. of Helsinki
+» LUOMUS, 2019
+
+ [2024-02-27 15:52:41,147]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 15:52:41,148]
+INFO: Ending session, closing log files. [2024-02-27 15:52:41,149]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.01) [2024-02-27 15:56:45,425]
+INFO: Reading configuration file jkm_lin_ocrtest.ini [2024-02-27 15:56:45,425]
+INFO: Approximate number of sample events to process at launch is 2 [2024-02-27 15:56:45,426]
+INFO: Ending session, waiting for worker threads to finish. [2024-02-27 15:56:45,427]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f7ecf6e2890> [2024-02-27 15:56:46,428]
+INFO: Postprocessing sample <jkm.sample.MZHLineSample object at 0x7f7ecf6e2fd0> [2024-02-27 15:56:46,429]
+INFO: labelcam - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:56:46,670]
+INFO: labelcam - Barcode contents: ['http://id.luomus.fi/F.252693'] [2024-02-27 15:56:46,685]
+INFO: labelcam - Text areas found: [(2278, 1339, 4882, 1872, 0.025986671), (2292, 1811, 4905, 2434, 0.03574735), (1595, 2374, 4904, 3048, 0.022976875), (2950, 3055, 4547, 3518, -0.0001231432), (2846, 3439, 4566, 3896, 0.035098612)] [2024-02-27 15:56:48,413]
+INFO: labelcam - Text areas found: [(2278, 1339, 4882, 1872, 0.025986671), (2292, 1811, 4905, 2434, 0.03574735), (1595, 2374, 4904, 3048, 0.022976875), (2950, 3055, 4547, 3518, -0.0001231432), (2846, 3439, 4566, 3896, 0.035098612)] [2024-02-27 15:56:48,644]
+INFO: Combined OCR result for all images:   - Korpilahti
+ oar q
+  [a] http: //id.luomus. fi/
+AF F.252693
+ Univ. of Helsinki
+e LUOMUS, 2019
+ [2024-02-27 15:56:50,682]
+INFO: Sample events in process queue: 1
+
+ [2024-02-27 15:56:50,682]
+INFO: Combined OCR result for all images:   - Korpilahti
+ oar q
+  [a] http: //id.luomus. fi/
+AF F.252693
+ Univ. of Helsinki
+e LUOMUS, 2019
+ [2024-02-27 15:56:50,812]
+INFO: Sample events in process queue: 0
+
+ [2024-02-27 15:56:50,813]
+INFO: Ending session, closing log files. [2024-02-27 15:56:50,815]

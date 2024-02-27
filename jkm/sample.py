@@ -7,13 +7,13 @@ import jsonpickle
 import jkm.metadata
 import jkm.ocr
 import jkm.tools
+from jkm.digitisation_properties import DigipropFile
 
 log = logging.getLogger() # Overwrite if needed
 deg2rotcode = {90: cv2.ROTATE_90_CLOCKWISE,
                180: cv2.ROTATE_180,
                270: cv2.ROTATE_90_COUNTERCLOCKWISE}
 
-#------------------------------------------------------------------------------------------------------    
 # Helper functions
 def getFileCreationDateTime(fn):
     # Does not work well on POSIX systems, which return the last modified date for getctime
@@ -50,6 +50,12 @@ class SampleEvent(SampleBase):
 #        self.basepath = "" # Common data directory
         self.datapath = "" # Data directory for this record
         self.meta = jkm.metadata.EventMetadata() # Event-level metadata
+        self._has_metadatafile = False
+        self._is_directory = False
+    @property
+    def is_directory(self):  return self._is_directory
+    @property
+    def feature_metadata(self):  return self._has_metadatafile
     @property
     def imagelist(self):  return self._imagelist
     @property
@@ -57,19 +63,6 @@ class SampleEvent(SampleBase):
         # INCOMPLETE IMPLEMENTATION, ONLY IMAGE FILES
         filelist = [Path(x.filename) for x in self._imagelist]
         return tuple(filelist) 
-    @staticmethod
-    def fromJPGfile(imgfile, conf, camname="generic_camera"): # Assumes jpg file name is metadata file name
-        log.debug("Creating sample data from JPEG image and config file metadata")
-        itime = getFileCreationDateTime(imgfile)
-        imgfile = Path(imgfile)
-        image = CombinedImage(camname, fn = imgfile)
-        # Extract creating time from JPG and use it as the Sample event time        
-        s = SampleEvent( time = itime )
-        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
-        s.datapath = imgfile.parent
-        s.addImage(image)
-        s.prefix = imgfile.stem
-        return s
     def writeMetaJSON(self,  extension = ".json"): 
         "Save SampleEvent metadata to a file"
         for img in self._imagelist: img.unloadImageData()
@@ -238,3 +231,58 @@ if __name__ == '__main__': #SImple testing
     si = SampleEvent()
     print(si.toJSON())
   
+#------------------------------------------------------------------------------------------------------    
+class MZHLineSample(SampleEvent): 
+    def __init__(self, labelfilepath, objectlfilepaths = [],  time=None):
+        super().__init__(time)
+        self._has_metadatafile = True
+        self._is_directory = True
+        self.digipropfilepath = None
+        self.digipropfile = DigipropFile() 
+        self._labelfilepath = labelfilepath
+        self._objectlfilepaths = objectlfilepaths
+    def original_timestamp(self): #helper function for insect line processing
+        marker = "dc1."
+        x = str(self.datapath.name).split(marker) # Look for marker in last element of directory name
+        if len(x) != 2: return ""
+        else: return x[-1] # Last element
+    @staticmethod
+    def from_directory(dirpath, conf): # Assumes jpg file name is metadata file name
+        log.debug("Creating sample data from JPEG image and config file metadata")
+        labelpath = dirpath / Path(conf.get("sampleformat", "label_file"))
+        camname = "labelcam"
+        itime = getFileCreationDateTime(labelpath)
+        imgfile = labelpath
+        image = CombinedImage(camname, fn = labelpath)
+        # Extract creating time from JPG and use it as the Sample event time        
+        print(f"dirpath = {dirpath}")
+        objectfiles = conf.getlist("sampleformat", "object_files")
+        print(f'objectfiles = {objectfiles}')
+        objectfilepaths= [dirpath / Path(x) for x in objectfiles]
+        s = MZHLineSample( labelpath, objectfilepaths, time = itime )
+        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
+        s.datapath = dirpath
+        s.addImage(image)
+        s.prefix = imgfile.stem
+        return s           
+
+#------------------------------------------------------------------------------------------------------    
+class SingleImageSample(SampleEvent): 
+    """Dummy holder for a single image based minimal sample event"""
+    def __init__(self,  time = None):
+        self._has_metadatafile = False
+        self._is_directory = False
+        super().__init__(time)
+    @staticmethod
+    def from_image_file(imgfile, conf, camname="generic_camera"): # Assumes jpg file name is metadata file name
+        log.debug("Creating sample data from JPEG image and config file metadata")
+        itime = getFileCreationDateTime(imgfile)
+        imgfile = Path(imgfile)
+        image = CombinedImage(camname, fn = imgfile)
+        # Extract creating time from JPG and use it as the Sample event time        
+        s = SingleImageSample( time = itime )
+        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
+        s.datapath = imgfile.parent
+        s.addImage(image)
+        s.prefix = imgfile.stem
+        return s        
