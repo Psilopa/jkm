@@ -13,7 +13,7 @@ import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.
 _debug = True
 _num_worker_threads = 4
 _program_name = "jkm-post"
-_program_ver = "1.01" 
+_program_ver = "1.3a" 
 _program = f"{_program_name} ({_program_ver})"
 
 def _UNIQUE(s) :return list(set(s))
