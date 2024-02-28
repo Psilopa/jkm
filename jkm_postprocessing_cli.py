@@ -76,13 +76,14 @@ def processSampleEvents(conf, sleep_s, data_out_table):
                 q.task_done(); continue
                 
         # MAIN POSTPROCESSOR STARTS HERE
+        # TODO: CHECK IF THIS WORKS WITH THE REIMPLEMENTED sample
         log.info(f"Postprocessing sample {sample.name}")
         # ROTATE
         rot = conf.geti( "postprocessor", "rotate_before_processing")
         if rot: # non-zero value
-            for i in range(len(sample.imagelist)):
-                log.debug(f"{sample.name}: Rotating image {sample.imagelist[i].name}")
-                sample.imagelist[i].rotate(rot)
+            for image in sample.imagelist:
+                log.debug(f"{sample.name}: Rotating image {image.name}")
+                image.rotate(rot)
         # SAVE ROTATED (NOT IMPLEMENTED)
         
         # FIND BARCODES
@@ -145,7 +146,7 @@ def processSampleEvents(conf, sleep_s, data_out_table):
             data_out_table.add_line(ocrdata)
             log.debug(f"{sample.name}: ...done")
             
-        # RENAME DIRECTORIES (this should be before file renaming!)
+        # RENAME DIRECTORIES (this may need to stay above file renaming)
         if conf.getb( "basic", "directories_rename_by_barcode_id") and sample.identifier:
             prefix = sample.datapath.name # last element of directory path
             log.debug("Renaming directory based on barcode content")
@@ -155,7 +156,7 @@ def processSampleEvents(conf, sleep_s, data_out_table):
                 log.warning(f"Renaming directory failed: {msg}")                
 
         # RENAME FILES
-        # Current implementation renames only image files
+        # Current implementation renames only the original image files as per the configuration file
         if conf.getb( "basic", "files_rename_by_barcode_id") and sample.shortidentifier:
             try:
                 sample.rename_all_files(sample.shortidentifier)
@@ -167,16 +168,16 @@ def processSampleEvents(conf, sleep_s, data_out_table):
 
         # FOR MZH IMAGING LINE SAMPLES
         if conf.get("sampleformat", "datatype_to_load").lower()  in ["mzh_insectline", "mzh_plantline"]:
-            if sample.identifier: # Only one identifier-containing barcode was found
-                id_OK = sample.verify_identifier()
-                if not id_OK: 
-                    log.critical(f"{sample.name}: *******\n\n\n\nMALFORMED IDENTIFIER {sample.identifier}*******\n\n\n\n")
             # Write postprocessor.properties file 
             sample.digipropfile.setheader( f"# {datetime.now()}" )
             sample.digipropfile.update("full_barcode_data",sample.identifier or "")
             sample.digipropfile.update("identifier",sample.shortidentifier  or "")
             sample.digipropfile.update("timestamp",sample.original_timestamp())
-#            sample.digipropfile.update("URI_format_OK", str(url_OK) )
+            if sample.identifier: # Only one identifier-containing barcode was found
+                id_OK = sample.verify_identifier()
+                if not id_OK: 
+                    log.critical(f"{sample.name}: *******\n\n\n\nMALFORMED IDENTIFIER {sample.identifier}*******\n\n\n\n")
+                sample.digipropfile.update("URI_format_OK", str(url_OK) )
             sample.digipropfile.update("Q-sharp", "" )
             sample.digipropfile.update("Q-color", "" )
             if conf.getb( "postprocessor", "ocr"): 
