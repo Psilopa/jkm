@@ -283,8 +283,9 @@ class MZHLineSample(SampleEvent):
         if len(x) != 2: return ""
         else: return x[-1] # Last element
     @staticmethod
-    def from_directory(dirpath, conf): # Assumes jpg file name is metadata file name
-        log.debug("Creating sample data from JPEG image and config file metadata")
+    def from_directory(dirpath, conf): 
+        log.debug("Creating sample data from JPEG image and jkm config file metadata") 
+        # Does not currently read digitization.propersies or the XML file
         labelpath = dirpath / Path(conf.get("sampleformat", "label_file"))
         # Extract creating time from JPG and use it as the Sample event time        
         itime = getFileCreationDateTime(labelpath)
