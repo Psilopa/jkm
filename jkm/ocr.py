@@ -40,11 +40,12 @@ def intersection(a, b):
     else: return False
 
 def boundingbox(a, b): 
+    # A rather non-ideal implementation that does not try to minimize by taking box rotation into account
     startX = min( a[0], b[0] )
     startY = min( a[1], b[1] )
     endX = max( a[2], b[2] )
     endY = max( a[3], b[3] )
-    return (startX, startY, endX, endY, b[4]) # Copies over rotation angle of b
+    return (startX, startY, endX, endY, 0) 
 
 def group_rects(rects): # Primitive implementation!
     len_in = len(rects)
