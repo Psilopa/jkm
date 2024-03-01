@@ -130,7 +130,7 @@ def processSampleEvents(conf, sleep_s, data_out_table):
         sampleids = _UNIQUE(allbkdata)
         if len(sampleids) == 0:
             log.warning("No usable identifiers found")
-        if len(sampleids) > 1:
+        elif len(sampleids) > 1:
             log.warning("Several  different identifiers for the sample in barcodes/OCR/sample metadata")
         else: sample.identifier =  sampleids[0] # Sets also sample.shortidentifier
         
