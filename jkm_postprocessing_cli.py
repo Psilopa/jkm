@@ -148,15 +148,15 @@ def processSampleEvents(conf, sleep_s, data_out_table):
             log.debug("Renaming directory based on barcode content")
             try:            
                 sample.rename_directories(conf,prefix)
-            except jkm.errors.JKError as msg: 
-                log.warning(f"Renaming directory failed: {msg}")                
+            except (jkm.errors.JKError, FileNotFoundError) as msg:
+                log.warning(f"Renaming directory failed: {msg}. Maybe it was already renamed.")                
 
         # RENAME FILES
         # Current implementation renames only the original image files as per the configuration file
         if conf.getb( "basic", "files_rename_by_barcode_id") and sample.shortidentifier:
             try:
                 sample.rename_all_files(sample.shortidentifier)
-            except jkm.errors.JKError as msg:
+            except (jkm.errors.JKError, FileNotFoundError) as msg:
                 log.warning(f"Renaming files failed: {msg}")                
 
         # Write records to JSON Metadata file (should this be before renaming?)
