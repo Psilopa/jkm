@@ -82,7 +82,9 @@ def _pad(x1,y1,x2,y2,pad = 1.2): # Pad as a factor
     return (x1f,y1f,x2f,y2f)
 
 def find_text_rects(img, nnfn, max_textareas = 50, min_areasize = 30):
-    "nnfn = neural net file name"
+    "nnfn = neural net file name. 
+    
+TODO: convert this to return a list/tuple of ImageRegion object instances?"
     # Uses a (module) global neural net _net
     # Resize to a square
 #    orig = img.copy()
