@@ -191,6 +191,25 @@ class SampleImage(SampleBase):
             self._img = cv2.rotate(img, rotateCode = rotcode)
         
 #------------------------------------------------------------------------------------------------------    
+class ImageRegion():
+    def __init__(self,x0,y0,w,h,rot): 
+        """Todo: define units -- in pixels, rotation in radians?"""
+        self._w = w
+        self._h = h
+        self._x0 = x0
+        self._y0 = y0
+        self._rot = rot
+    def scale(self,factor): 
+        pass
+# Create various provider functions.
+# Pre-calculate these as-needed or generate as needed
+# Should be read-only properties?
+#        self._xmin = None
+#        self._xmax = None
+#        self._ymin = None
+#        self._ymax = None
+# def getshape(): # Return a cv2-compatible shape 
+#------------------------------------------------------------------------------------------------------    
 class SpecimenImage(SampleImage):
     has_specimens = True
     has_labels = False
