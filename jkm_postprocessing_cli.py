@@ -35,8 +35,13 @@ def find_samples(dirname,datafile_patterns):
     return res
 
 class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
-    def __init__(self,  *args,  **kwargs): super().__init__(**kwargs)
-    def on_created(self, event): q.put(event.src_path)        
+    _lastinsert = None
+    def __init__(self,  *args,  **kwargs): super().__init__(*args,**kwargs)
+    def on_created(self, event): 
+        if event.src_path != self._lastinsert: q.put(event.src_path)
+        else: log.debug(f"Prevented double insertion of {event.src_path} into the queue")
+        self._lastinsert = event.src_path
+        
 
 def path_in_list(p,pathlist):
     for p2 in pathlist: 
