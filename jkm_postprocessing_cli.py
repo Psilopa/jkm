@@ -124,14 +124,17 @@ def processSampleEvents(conf, sleep_s, data_out_table):
 #                image.meta.addlog("OCR result for image", labeltxt,lvl=logging.DEBUG)
             sample.meta.addlog("Combined OCR result for all images",alltext,  log_add_hdr= sample.name)
 
+        # EXTRACT IDENTIFIERS FROM OCR DATA (NOT IMPLEMENTED)
+
         # SUBMIT alltext to COMPONENT ANALYSIS
-        ocrdata = None # THis should be some structural class element in the future
         # if conf.getb( "postprocessor", "ocr") and conf.getb( "postprocessor", "ocr_analysis"):
             # ocrdata = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
             # log.debug(f"{sample.name}: OCR data parsing output: {ocrdata}")
         # else: log.debug(f"{sample.name}: No OCR data parsing attempted.")           
-
-        # EXTRACT IDENTIFIERS FROM OCR DATA (NOT IMPLEMENTED)
+        # SIMPLE IMPLEMENTATION FOR TESTING
+        cleantext = jkm.ocr_analysis.cleanup(alltext)
+        ocrdata = jkm.ocr_analysis.OCRAnalysisResult()
+        ocrdata.append("ocr",cleantext)
 
          # FOR FURTHER PROCESSING, CHECK IF IDENTIFIER LIST CONTAINS A SINGLE VALID IDENTIFIER
         # In case sample does already have a known identifier, append to to the list
@@ -144,8 +147,8 @@ def processSampleEvents(conf, sleep_s, data_out_table):
         else: sample.identifier =  sampleids[0] # Sets also sample.shortidentifier
         
        # Store interpreted data in a table file IF data and identifier are available
-        if ocrdata and sample.identifier and data_out_table:
-            ocrdata.prepend("identifier", sample.identifier)
+        if sample.identifier and data_out_table:
+            ocrdata.prepend("identifier", sample.identifier) 
             log.debug(f"{sample.name}: Calling OutputCSV.addline with data: {ocrdata}")
             log.debug(f"{sample.name}: data_out_table.fp = {data_out_table.fp}")
             data_out_table.add_line(ocrdata)

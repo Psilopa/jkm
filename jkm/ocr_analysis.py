@@ -3,7 +3,7 @@ Stub OCR result lexeme parsing & context. To be run off an currently non-existin
 
 Add further mapping from API output field titles -> relevant data input column names (for Kotka to start with)
 """
-import sys,  logging,  urllib.request, urllib.parse, urllib.error, json 
+import sys,  logging,  urllib.request, urllib.parse, urllib.error, json, re 
 from pathlib import Path
 #import openpyxl
 import csv
@@ -69,6 +69,14 @@ class OCRAnalysisResult():
         self._data.append( (field,value) )
     def prepend(self,field,value):
         self._data.insert(0,  (field,value) )
+
+def cleanup(text): 
+    t = text
+    t = re.sub(r"\n","",t)
+#    t = re.sub(r"^[\w\s]","",t)  
+    t = re.sub(r"[\n\s]+"," ",t)
+    t = t.strip()
+    return t
 
 def ocr_analysis_Luomus(text): 
     """Call an external service to get raw OCR analysis, mapping lexemes to (Kotka) fields. 
