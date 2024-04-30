@@ -11,3 +11,7 @@ pip3 install watchdog
 pip3 install pytesseract
 pip3 install pyzbar
 pip3 install openpyxl
+
+USING AN UPDATING CSV FILE AS A DATA SOURCE IN EXCEL
+----------------------------------------------------
+Excel files are in principle editable only by one program at a time. We can get around this limitation by having one file open normally in Excel, another one as a read-only updating data source, and pulling data from the latter into the former via VLOOKUP. This is a bit untrivial :/
