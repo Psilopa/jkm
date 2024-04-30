@@ -35,8 +35,12 @@ def find_samples(dirname,datafile_patterns):
     return res
 
 class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
-    def __init__(self,  *args,  **kwargs): super().__init__(**kwargs)
-    def on_created(self, event): q.put(event.src_path)        
+    _lastinsert = None
+    def __init__(self,  *args,  **kwargs): super().__init__(*args,**kwargs)
+    def on_created(self, event): 
+        if event.src_path != self._lastinsert: q.put(event.src_path)
+        else: log.debug(f"Prevented double insertion of {event.src_path} into the queue")
+        self._lastinsert = event.src_path        
 
 def path_in_list(p,pathlist):
     for p2 in pathlist: 
@@ -111,22 +115,26 @@ def processSampleEvents(conf, sleep_s, data_out_table):
 
         # PERFORM OCR
         if conf.getb( "postprocessor", "ocr"):
+            ocr_command = conf.get("ocr", "ocr_command")
             alltext = ""
             for image in sample.imagelist:
                 if not image.has_labels : continue # Skip pure specimen images
-                labeltxt = image.ocr() # Default ocr uses fragments created above
+                labeltxt = image.ocr(ocr_command) # Default ocr uses fragments created above
                 alltext  += " " + labeltxt
 #                image.meta.addlog("OCR result for image", labeltxt,lvl=logging.DEBUG)
             sample.meta.addlog("Combined OCR result for all images",alltext,  log_add_hdr= sample.name)
 
-        # SUBMIT alltext to COMPONENT ANALYSIS
-        ocrdata = None
-        if conf.getb( "postprocessor", "ocr") and conf.getb( "postprocessor", "ocr_analysis"):
-            ocrdata = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
-            log.debug(f"{sample.name}: OCR data parsing output: {ocrdata}")
-        else: log.debug(f"{sample.name}: No OCR data parsing attempted.")           
-
         # EXTRACT IDENTIFIERS FROM OCR DATA (NOT IMPLEMENTED)
+
+        # SUBMIT alltext to COMPONENT ANALYSIS
+        # if conf.getb( "postprocessor", "ocr") and conf.getb( "postprocessor", "ocr_analysis"):
+            # ocrdata = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
+            # log.debug(f"{sample.name}: OCR data parsing output: {ocrdata}")
+        # else: log.debug(f"{sample.name}: No OCR data parsing attempted.")           
+        # SIMPLE IMPLEMENTATION FOR TESTING
+        cleantext = jkm.ocr_analysis.cleanup(alltext)
+        ocrdata = jkm.ocr_analysis.OCRAnalysisResult()
+        ocrdata.append("ocr",cleantext)
 
          # FOR FURTHER PROCESSING, CHECK IF IDENTIFIER LIST CONTAINS A SINGLE VALID IDENTIFIER
         # In case sample does already have a known identifier, append to to the list
@@ -139,8 +147,8 @@ def processSampleEvents(conf, sleep_s, data_out_table):
         else: sample.identifier =  sampleids[0] # Sets also sample.shortidentifier
         
        # Store interpreted data in a table file IF data and identifier are available
-        if ocrdata and sample.identifier and data_out_table:
-            ocrdata.prepend("identifier", sample.identifier)
+        if sample.identifier and data_out_table:
+            ocrdata.prepend("identifier", sample.identifier) 
             log.debug(f"{sample.name}: Calling OutputCSV.addline with data: {ocrdata}")
             log.debug(f"{sample.name}: data_out_table.fp = {data_out_table.fp}")
             data_out_table.add_line(ocrdata)
@@ -217,7 +225,8 @@ if __name__ == '__main__':
             log.info(f"Approximate number of sample events to process at launch is {q.qsize()}")
         
         if conf.getb("postprocessor", "ocr_analysis_to_Excel"):
-            data_out_table = jkm.ocr_analysis.OutputCSV("test.csv")
+            ocr_outfile = conf.get("ocr","ocr_analysis_Excel_file")
+            data_out_table = jkm.ocr_analysis.OutputCSV( ocr_outfile )
             data_out_table.open()
         else: data_out_table = None
          
