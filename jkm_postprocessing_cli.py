@@ -40,8 +40,7 @@ class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
     def on_created(self, event): 
         if event.src_path != self._lastinsert: q.put(event.src_path)
         else: log.debug(f"Prevented double insertion of {event.src_path} into the queue")
-        self._lastinsert = event.src_path
-        
+        self._lastinsert = event.src_path        
 
 def path_in_list(p,pathlist):
     for p2 in pathlist: 
@@ -223,7 +222,8 @@ if __name__ == '__main__':
             log.info(f"Approximate number of sample events to process at launch is {q.qsize()}")
         
         if conf.getb("postprocessor", "ocr_analysis_to_Excel"):
-            data_out_table = jkm.ocr_analysis.OutputCSV("test.csv")
+            ocr_outfile = conf.get("ocr","ocr_analysis_Excel_file")
+            data_out_table = jkm.ocr_analysis.OutputCSV( ocr_outfile )
             data_out_table.open()
         else: data_out_table = None
          
