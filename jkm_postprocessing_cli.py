@@ -10,14 +10,15 @@ import watchdog.events
 # app-specific modules
 import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis
 
-_debug = True
+_debug = True    
 _num_worker_threads = 4
-_program_name = "jkm-postprocessor"
-_program_ver = "1.2a"
+_program_name = "jkm-post"
+_program_ver = "1.2a" 
 _program = f"{_program_name} ({_program_ver})"
 
 def _UNIQUE(s) :return list(set(s))
 
+# Move to Luomus-specific Sample type
 def find_samples(dirname,datafile_patterns):
     log.debug("Finding files to process" )
     d = Path(dirname)
@@ -28,6 +29,9 @@ def find_samples(dirname,datafile_patterns):
         tempr = [x for x in tempr if ( str(x).find("textarea") == -1 )] # Skip files with "textarea" in their name
         res.extend( tempr )
     # Delete duplicate files (hard links to the same file)
+#    r2 = []
+#    for x in res:
+#        if not path_in_list(x,r2): r2.append(x)
     return res
 
 class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
@@ -148,8 +152,8 @@ def processSampleEvents(conf, sleep_s, data_out_table):
             log.debug("Renaming directory based on barcode content")
             try:            
                 sample.rename_directories(conf,prefix)
-            except (jkm.errors.JKError, FileNotFoundError) as msg:
-                log.warning(f"Renaming directory failed: {msg}. Maybe it was already renamed.")                
+            except (jkm.errors.JKError, FileNotFoundError) as msg: 
+                log.warning(f"Renaming directory failed: {msg}. Maybe it has already been renamed.")                
 
         # RENAME FILES
         # Current implementation renames only the original image files as per the configuration file
@@ -157,7 +161,7 @@ def processSampleEvents(conf, sleep_s, data_out_table):
             try:
                 sample.rename_all_files(sample.shortidentifier)
             except (jkm.errors.JKError, FileNotFoundError) as msg:
-                log.warning(f"Renaming files failed: {msg}")                
+                log.warning(f"Renaming files failed: {msg}.")                
 
         # Write records to JSON Metadata file (should this be before renaming?)
         if conf.getb( "basic", "save_JSON"): sample.writeMetaJSON()
@@ -166,21 +170,21 @@ def processSampleEvents(conf, sleep_s, data_out_table):
         if conf.get("sampleformat", "datatype_to_load").lower()  in ["mzh_insectline", "mzh_plantline"]:
             # Write postprocessor.properties file 
             sample.digipropfile.setheader( f"# {datetime.now()}" )
-            sample.digipropfile.update( "full_barcode_data",sample.identifier or "" )
-            sample.digipropfile.update( "identifier",sample.shortidentifier  or "" )
-            sample.digipropfile.update( "timestamp",sample.original_timestamp() )
+            sample.digipropfile.update("full_barcode_data",sample.identifier or "")
+            sample.digipropfile.update("identifier",sample.shortidentifier  or "")
+            sample.digipropfile.update("timestamp",sample.original_timestamp())
             if sample.identifier: # Only one identifier-containing barcode was found
                 id_OK = sample.verify_identifier()
                 if not id_OK: 
-                    log.critical( f"{sample.name}: *******\n\n\n\nMALFORMED IDENTIFIER {sample.identifier}*******\n\n\n\n" )
-                sample.digipropfile.update( "URI_format_OK", str(id_OK) )
-            sample.digipropfile.update( "Q-sharp", "" )
-            sample.digipropfile.update( "Q-color", "" )
-            if conf.getb( "postprocessor", "ocr" ): 
-                sample.digipropfile.update( "OCR_result", alltext.replace("\n"," ") )
+                    log.critical(f"{sample.name}: *******\n\n\n\nMALFORMED IDENTIFIER {sample.identifier}*******\n\n\n\n")
+                sample.digipropfile.update("URI_format_OK", str(id_OK) )
+            sample.digipropfile.update("Q-sharp", "" )
+            sample.digipropfile.update("Q-color", "" )
+            if conf.getb( "postprocessor", "ocr"): 
+                sample.digipropfile.update("OCR_result", alltext.replace("\n"," "))
             sample.digipropfile.save( sample.datapath /  Path(r"postprocessor.properties") )
         #DONE
-        log.info(f"Sample events in process queue: {q.qsize()-1}\n\n") # Queue still contains this item, thus -1 in the number reported
+        log.info(f"Sample events in process queue: {q.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported
            
 
 if __name__ == '__main__':

@@ -11,6 +11,7 @@ _net = None
 
 # DEFAULT SETUP
 #eastfile = r"Z:/EAST/frozen_east_text_detection.pb"
+pytesseract.pytesseract.tesseract_cmd = r"C:/Program Files/Tesseract-OCR/tesseract"
 min_confidence = 0.9
 padding = 1.5 # Increase in text box size as a factor (pre-merging)
 postpadding = 1.2
@@ -40,12 +41,11 @@ def intersection(a, b):
     else: return False
 
 def boundingbox(a, b): 
-    # A rather non-ideal implementation that does not try to minimize by taking box rotation into account
     startX = min( a[0], b[0] )
     startY = min( a[1], b[1] )
     endX = max( a[2], b[2] )
     endY = max( a[3], b[3] )
-    return (startX, startY, endX, endY, 0) 
+    return (startX, startY, endX, endY, b[4]) # Copies over rotation angle of b
 
 def group_rects(rects): # Primitive implementation!
     len_in = len(rects)
@@ -82,9 +82,7 @@ def _pad(x1,y1,x2,y2,pad = 1.2): # Pad as a factor
     return (x1f,y1f,x2f,y2f)
 
 def find_text_rects(img, nnfn, max_textareas = 50, min_areasize = 30):
-    "nnfn = neural net file name. 
-    
-TODO: convert this to return a list/tuple of ImageRegion object instances?"
+    "nnfn = neural net file name"
     # Uses a (module) global neural net _net
     # Resize to a square
 #    orig = img.copy()
