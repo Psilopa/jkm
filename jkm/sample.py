@@ -228,7 +228,7 @@ class LabelImage(SampleImage):
     def ocr(self, ocrcommand, force_all_image_ocr = False): 
         # If not all_image_ocr, examine only text areas previously found
         txt = ""
-        if not self._textareas or force_all_image_ocr :
+        if not self._textareas or force_all_image_ocr:
             log.debug(f"OCR call for {self.label}, full frame")
             img = self.readImage()
             txt = jkm.ocr.ocr(img,ocrcommand)
@@ -236,7 +236,7 @@ class LabelImage(SampleImage):
             x = 1
             for area in self._textareas:
                 log.debug(f"OCR call for {self.label}, text area {x}")
-                txt += " " + jkm.ocr.ocr(self.getsubimage(area))
+                txt += " " + jkm.ocr.ocr(self.getsubimage(area),ocrcommand)
                 x += 1
         return txt
 #    def readMetadata(self): pass
