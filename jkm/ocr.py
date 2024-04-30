@@ -10,8 +10,7 @@ log = logging.getLogger() # Overwrite if needed
 _net = None
 
 # DEFAULT SETUP
-#eastfile = r"Z:/EAST/frozen_east_text_detection.pb"
-pytesseract.pytesseract.tesseract_cmd = r"C:/Program Files/Tesseract-OCR/tesseract"
+pytesseract.pytesseract.tesseract_cmd = None
 min_confidence = 0.9
 padding = 1.5 # Increase in text box size as a factor (pre-merging)
 postpadding = 1.2
@@ -161,8 +160,11 @@ def find_text_rects(img, nnfn, max_textareas = 50, min_areasize = 30):
     log.debug("... Found %i groups" % len(out))
     return out
 
-def ocr(rect, timeout=def_timeout,lang=def_lang,fdir=None):
-    "OCR text from a given rectangle (image array"
+def ocr(rect, ocr_command, timeout=def_timeout,lang=def_lang,fdir=None):
+    "OCR text from a given rectangle (image array). Uses Tesseract"
+    if pytesseract.pytesseract.tesseract_cmd is None:
+        pytesseract.pytesseract.tesseract_cmd = ocr_command
+
     increasecontast = True
     if increasecontast: rect = jkm.tools.gammacorrect(rect,3)
     try:

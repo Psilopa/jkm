@@ -111,20 +111,21 @@ def processSampleEvents(conf, sleep_s, data_out_table):
 
         # PERFORM OCR
         if conf.getb( "postprocessor", "ocr"):
+            ocr_command = conf.get("ocr", "ocr_command")
             alltext = ""
             for image in sample.imagelist:
                 if not image.has_labels : continue # Skip pure specimen images
-                labeltxt = image.ocr() # Default ocr uses fragments created above
+                labeltxt = image.ocr(ocr_command) # Default ocr uses fragments created above
                 alltext  += " " + labeltxt
 #                image.meta.addlog("OCR result for image", labeltxt,lvl=logging.DEBUG)
             sample.meta.addlog("Combined OCR result for all images",alltext,  log_add_hdr= sample.name)
 
         # SUBMIT alltext to COMPONENT ANALYSIS
-        ocrdata = None
-        if conf.getb( "postprocessor", "ocr") and conf.getb( "postprocessor", "ocr_analysis"):
-            ocrdata = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
-            log.debug(f"{sample.name}: OCR data parsing output: {ocrdata}")
-        else: log.debug(f"{sample.name}: No OCR data parsing attempted.")           
+        ocrdata = None # THis should be some structural class element in the future
+        # if conf.getb( "postprocessor", "ocr") and conf.getb( "postprocessor", "ocr_analysis"):
+            # ocrdata = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
+            # log.debug(f"{sample.name}: OCR data parsing output: {ocrdata}")
+        # else: log.debug(f"{sample.name}: No OCR data parsing attempted.")           
 
         # EXTRACT IDENTIFIERS FROM OCR DATA (NOT IMPLEMENTED)
 
