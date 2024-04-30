@@ -10,10 +10,10 @@ import watchdog.events
 # app-specific modules
 import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis
 
-_debug = False
+_debug = True    
 _num_worker_threads = 4
 _program_name = "jkm-post"
-_program_ver = "1.1" 
+_program_ver = "1.2a" 
 _program = f"{_program_name} ({_program_ver})"
 
 def _UNIQUE(s) :return list(set(s))
