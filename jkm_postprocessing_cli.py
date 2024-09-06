@@ -114,9 +114,9 @@ def processSampleEvents(conf, sleep_s, data_out_table):
                     image.savetextareas("_textarea_")
 
         # PERFORM OCR
+        alltext = ""
         if conf.getb( "postprocessor", "ocr"):
             ocr_command = conf.get("ocr", "ocr_command")
-            alltext = ""
             for image in sample.imagelist:
                 if not image.has_labels : continue # Skip pure specimen images
                 labeltxt = image.ocr(ocr_command) # Default ocr uses fragments created above
