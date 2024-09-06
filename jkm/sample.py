@@ -374,3 +374,6 @@ class SingleImageSample(SampleEvent):
         s.addImage(image)
         s.prefix = imgfile.stem
         return s        
+    def _shortenidentifier(self, x): # Overrides base class
+        separator = r'/'
+        return x.split(separator)[-1] # Last element
