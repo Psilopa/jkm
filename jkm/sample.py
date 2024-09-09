@@ -112,6 +112,21 @@ class SampleEvent(SampleBase,  abc.ABC):
 #    @classmethod
 #    def loadPickle(cls,fn): 
 #        with open(fn, "rb") as f: return pickle.load(f)  
+    def rename_all_files(self, prefix,  prefix_separator= "_"):
+        """Rename source file"""
+        if not self.identifier: raise jkm.errors.JKError("No known sample identifier, cannot rename files")
+        for image in self.imagelist:
+            try: 
+                log.debug(f"Renaming files based on barcode content: prefix {prefix}, oldname {image.path}")
+                newpath = image.path # Default new name = old name
+                new_filename = prefix + prefix_separator + image.path.name
+                newpath= image.path.parent / Path(new_filename)
+                log.debug(f"New name for {image.path} is {newpath}")            
+                image.rename(newpath)
+            except PermissionError as msg:
+                log.warning("Renaming file failed with error message: %s" % msg)
+            except FileExistsError as msg:
+                log.warning("Target file name already exists, skipping: %s" % msg)
 #------------------------------------------------------------------------------------------------------    
 class SampleImage(SampleBase): 
     "One image plus metadata"
@@ -335,25 +350,7 @@ class MZHLineSample(SampleEvent):
             log.warning("Target directory name already exists, skipping: %s" % msg)
         finally: 
              self.datapath= newpath
-             
-    def rename_all_files(self, prefix,  prefix_separator= "_"):
-        """Rename files/dirs if sample ID data is available (from QR code parsing or other source)"""
-            # TODO: Current implementation renames only original image files
-            # TODO: THIS SHOULD ROLLBACK ON FAILURE?        
-        if not self.identifier: raise jkm.errors.JKError("No known sample identifier, cannot rename files")
-        for image in self.imagelist:
-            try: 
-                log.debug(f"Renaming files based on barcode content: prefix {prefix}, oldname {image.path}")
-                newpath = image.path # Default new name = old name
-                new_filename = prefix + prefix_separator + image.path.name
-                newpath= image.path.parent / Path(new_filename)
-                log.debug(f"New name for {image.path} is {newpath}")            
-                image.rename(newpath)
-            except PermissionError as msg:
-                log.warning("Renaming file failed with error message: %s" % msg)
-            except FileExistsError as msg:
-                log.warning("Target file name already exists, skipping: %s" % msg)
-
+  
 #------------------------------------------------------------------------------------------------------    
 class SingleImageSample(SampleEvent): 
     """Dummy holder for a single image based minimal sample event"""
@@ -377,3 +374,4 @@ class SingleImageSample(SampleEvent):
     def _shortenidentifier(self, x): # Overrides base class
         separator = r'/'
         return x.split(separator)[-1] # Last element
+
