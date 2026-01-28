@@ -7,8 +7,8 @@ import jkm.tools as tools
 from jkm.errors import BarcodeError
 _CONST_QREADER = "qreader"
 _CONST_PYZBAR = "pyzbar"
-#_QR_PROCESSOR = _CONST_QREADER
-_QR_PROCESSOR = _CONST_PYZBAR
+_QR_PROCESSOR = _CONST_QREADER
+#_QR_PROCESSOR = _CONST_PYZBAR
 
 #
 if _QR_PROCESSOR is _CONST_PYZBAR: from pyzbar import pyzbar 
