@@ -1,21 +1,17 @@
 import logging, re,  sys
+import importlib
 # non-std common libraries
 import cv2
 
 # application-specific modules
 import jkm.tools as tools
 from jkm.errors import BarcodeError
+# Dynamic  import in extractbarcodedata to allow for config fig-based import
 _CONST_QREADER = "qreader"
 _CONST_PYZBAR = "pyzbar"
-_QR_PROCESSOR = _CONST_QREADER
-#_QR_PROCESSOR = _CONST_PYZBAR
-
-#
-if _QR_PROCESSOR is _CONST_PYZBAR: from pyzbar import pyzbar 
-elif _QR_PROCESSOR is _CONST_QREADER: from qreader import QReader
-else:
-    print(f"Unknown barcode reader tool '{_QR_PROCESSOR}'")
-    sys.exit()
+#_QR_PROCESSOR = _CONST_QREADER
+_QR_PROCESSOR = _CONST_PYZBAR
+pyzbar = QReader = None
 
 log = logging.getLogger() # Overwrite if needed
 
@@ -47,12 +43,20 @@ def extractbarcodedata(image, increasecontast=False,
     "Is decite is not None, it is assumed to be a name for the enconding used in decoding the barcode byte stream to text"
 
     "Accepts either a filename, a file object, opencv images. Should also work with PIL or nympy image arrays."
+    global QReader, pyzbar
     img = tools.load_img(image)
     greyimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     if increasecontast: greyimg = tools.increaseTopContrast(greyimg,greyrange)
     qrpackage = _QR_PROCESSOR
-    if qrpackage is _CONST_PYZBAR: d = _extract_pyzbar(greyimg, encoding)    
-    elif qrpackage is _CONST_QREADER: d = _extract_qreader(greyimg)
+    if qrpackage is _CONST_PYZBAR:
+        if not pyzbar: 
+            importlib.import_module("pyzbar")
+            from pyzbar import pyzbar
+        d = _extract_pyzbar(greyimg, encoding)    
+    elif qrpackage is _CONST_QREADER:
+        if not QReader: 
+            QReader = importlib.import_module("qreader").QReader
+        d = _extract_qreader(greyimg)
     else:
         print(f"Unknown barcode reader tool '{_QR_PROCESSOR}'")
         sys.exit()
