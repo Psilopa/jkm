@@ -221,7 +221,6 @@ if __name__ == '__main__':
         filetype = conf.get("sampleformat", "recognize_by_filename_pattern")
         datafile_patterns = [filetype]
         if conf.getb("postprocessor", "process_existing"):
-            print (filetype)
             existingevents = find_samples( conf.basepath,datafile_patterns )
             for fn in existingevents: q.put(fn)
             log.info(f"Approximate number of sample events to process at launch is {q.qsize()}")
