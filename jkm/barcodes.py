@@ -5,19 +5,23 @@ import cv2
 # application-specific modules
 import jkm.tools as tools
 from jkm.errors import BarcodeError
-from pyzbar import pyzbar # Barcode processing
+_CONST_QREADER = "qreader"
+_CONST_PYZBAR = "pyzbar"
+_QR_PROCESSOR = _CONST_QREADER
+#_QR_PROCESSOR = _CONST_PYZBAR
+
+#
+if _QR_PROCESSOR is _CONST_PYZBAR: from pyzbar import pyzbar 
+elif _QR_PROCESSOR is_CONST_QREADER: from qreader import QReader
+else:
+    print(f"Unknown barcode reader tool '{_QR_PROCESSOR}'")
+    sys.exit()
 
 log = logging.getLogger() # Overwrite if needed
 
-def extractbarcodedata(image,increasecontast=False,greyrange=50,  encoding=None):
-    "Is decite is not None, it is assumed to be a name for the enconding used in decoding the barcode byte stream to text"
-
-    "Accepts either a filename, a file object, opencv images. Should also work with PIL or nympy image arrays."
-    img = tools.load_img(image)
-    greyimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    if increasecontast: greyimg = tools.increaseTopContrast(greyimg,greyrange)
-    # try qr recognition at different image sizes
+def _extract_pyzbar(image,increasecontast=False,greyrange=50,  encoding=None):
     barcodes = []
+    # try qr recognition at different image sizes
     for maxdim in (200,600,2000,max(greyimg.shape)):
         smallimg = tools.shrink_to_maxdim(greyimg,maxdim)
         barcodes = pyzbar.decode(smallimg, symbols=[pyzbar.ZBarSymbol.QRCODE])
@@ -27,7 +31,23 @@ def extractbarcodedata(image,increasecontast=False,greyrange=50,  encoding=None)
     for qr in barcodes:
         bkd = qr.data
         if encoding: bkd = bkd.decode(encoding) 
-        d.append(bkd) 
+        d.append(bkd)
+    return d
+
+def _extract_qreader(image,increasecontast=False,greyrange=50,  encoding=None):
+    
+
+def extractbarcodedata(image,increasecontast=False,greyrange=50,  encoding=None):
+    "Is decite is not None, it is assumed to be a name for the enconding used in decoding the barcode byte stream to text"
+
+    "Accepts either a filename, a file object, opencv images. Should also work with PIL or nympy image arrays."
+    img = tools.load_img(image)
+    greyimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    if increasecontast: greyimg = tools.increaseTopContrast(greyimg,greyrange)
+    if _QR_PROCESSOR is _CONST_PYZBAR:
+        d = _extract_pyzbar(image,increasecontast ,greyrange, encoding)    
+    elif _QR_PROCESSOR is _CONST_QREADER:
+        d = _extract_qreader(image,increasecontast ,greyrange, encoding)    
     return d
 
 def sampleids(data):
