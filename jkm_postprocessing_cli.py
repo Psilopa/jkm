@@ -97,7 +97,7 @@ def processSampleEvents(conf, sleep_s, data_out_table):
                 try:
                     # NOTE: the choice of barcose detector tool is hardcoded in jkm/barcodes.py
                     bkdata = image.readbarcodes()
-                    image.meta.addlog("Barcode contents", log_add_hdr= sample.name)
+                    image.meta.addlog("Barcode contents", bkdata, log_add_hdr= sample.name)
                     allbkdata += bkdata
                 except jkm.errors.FileLoadingError as msg:
                     log.warning(f"{sample.name}: Barcode detection attempt failed: %s" % msg)

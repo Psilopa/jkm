@@ -19,7 +19,7 @@ else:
 
 log = logging.getLogger() # Overwrite if needed
 
-def _extract_pyzbar(greyimg,increasecontast=False,greyrange=50,  encoding=None):
+def _extract_pyzbar(greyimg, encoding=None):
     barcodes = []
     # try qr recognition at different image sizes
     for maxdim in (200,600,2000,max(greyimg.shape)):
@@ -34,7 +34,7 @@ def _extract_pyzbar(greyimg,increasecontast=False,greyrange=50,  encoding=None):
         d.append(bkd)
     return d
 
-def _extract_qreader(greyimg,increasecontast=False,greyrange=50,  encoding=None):
+def _extract_qreader(greyimg):
     qreader = QReader( model_size = 'm' )
     decoded_text = qreader.detect_and_decode(image=greyimg)
     print("RETURNED", decoded_text)
@@ -51,10 +51,8 @@ def extractbarcodedata(image, increasecontast=False,
     greyimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     if increasecontast: greyimg = tools.increaseTopContrast(greyimg,greyrange)
     qrpackage = _QR_PROCESSOR
-    if qrpackage is _CONST_PYZBAR:
-        d = _extract_pyzbar(greyimg,increasecontast ,greyrange, encoding)    
-    elif qrpackage is _CONST_QREADER:
-        d = _extract_qreader(greyimg,increasecontast ,greyrange, encoding)
+    if qrpackage is _CONST_PYZBAR: d = _extract_pyzbar(greyimg, encoding)    
+    elif qrpackage is _CONST_QREADER: d = _extract_qreader(greyimg)
     else:
         print(f"Unknown barcode reader tool '{_QR_PROCESSOR}'")
         sys.exit()
