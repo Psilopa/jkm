@@ -231,7 +231,7 @@ if __name__ == '__main__':
             data_out_table = jkm.ocr_analysis.OutputCSV( ocr_outfile )
             data_out_table.open()
         else: data_out_table = None
-         
+        log.debug(f'Using QR code decoder {conf.get( "barcodes", "barcodepackage")}')
          #Start loops looking for data to process and processing it
         for i in range(_num_worker_threads):
             t = threading.Thread(target=processSampleEvents,  args=(conf, sleep_s_before_reading_file, data_out_table))
