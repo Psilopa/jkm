@@ -93,10 +93,11 @@ def processSampleEvents(conf, sleep_s, data_out_table):
         # FIND BARCODES
         allbkdata = []
         if conf.getb( "postprocessor", "read_barcodes"):
+            barcodepackage = conf.get( "barcodes", "barcodepackage").lower()
             for image in sample.imagelist:
                 try:
                     # NOTE: the choice of barcose detector tool is hardcoded in jkm/barcodes.py
-                    bkdata = image.readbarcodes()
+                    bkdata = image.readbarcodes(barcodepackage)
                     image.meta.addlog("Barcode contents", bkdata, log_add_hdr= sample.name)
                     allbkdata += bkdata
                 except jkm.errors.FileLoadingError as msg:
