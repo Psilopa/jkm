@@ -1,0 +1,205 @@
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 12:32:28,773]
+INFO: Reading configuration file setup/jkm_ [2026-01-28 12:32:28,774]
+CRITICAL: Loading configuration file setup/jkm_ failed: File not found [2026-01-28 12:32:28,774]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 12:32:37,683]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 12:32:37,684]
+INFO: Approximate number of sample events to process at launch is 0 [2026-01-28 12:32:37,685]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 12:32:37,686]
+INFO: Ending session, closing log files. [2026-01-28 12:32:37,687]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 12:34:07,627]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 12:34:07,628]
+INFO: Approximate number of sample events to process at launch is 0 [2026-01-28 12:34:07,629]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 12:34:07,630]
+INFO: Ending session, closing log files. [2026-01-28 12:34:07,630]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 12:34:57,959]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 12:34:57,959]
+INFO: Approximate number of sample events to process at launch is 1 [2026-01-28 12:34:57,960]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 12:34:57,961]
+INFO: Postprocessing sample <jkm.sample.SingleImageSample object at 0x7eb8e53701a0> [2026-01-28 12:34:58,962]
+INFO: <jkm.sample.SingleImageSample object at 0x7eb8e53701a0>- generic_camera - Barcode contents: [] [2026-01-28 12:34:59,158]
+WARNING: No usable identifiers found [2026-01-28 12:34:59,158]
+INFO: Sample events in process queue: 1
+
+ [2026-01-28 12:34:59,158]
+INFO: Ending session, closing log files. [2026-01-28 12:34:59,159]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 12:38:12,479]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 12:38:12,479]
+INFO: Approximate number of sample events to process at launch is 0 [2026-01-28 12:38:12,480]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 12:38:12,481]
+INFO: Ending session, closing log files. [2026-01-28 12:38:12,482]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 12:39:08,329]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 12:39:08,330]
+INFO: Approximate number of sample events to process at launch is 1 [2026-01-28 12:39:08,331]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 12:39:08,332]
+INFO: Postprocessing sample <jkm.sample.SingleImageSample object at 0x713b6c36c1a0> [2026-01-28 12:39:09,332]
+INFO: <jkm.sample.SingleImageSample object at 0x713b6c36c1a0>- generic_camera - Barcode contents: [] [2026-01-28 12:39:09,532]
+WARNING: No usable identifiers found [2026-01-28 12:39:09,533]
+INFO: Sample events in process queue: 1
+
+ [2026-01-28 12:39:09,533]
+INFO: Ending session, closing log files. [2026-01-28 12:39:09,533]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 12:41:25,113]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 12:41:25,113]
+INFO: Approximate number of sample events to process at launch is 1 [2026-01-28 12:41:25,114]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 12:41:25,115]
+INFO: Postprocessing sample <jkm.sample.SingleImageSample object at 0x72e7e81682f0> [2026-01-28 12:41:26,116]
+INFO: <jkm.sample.SingleImageSample object at 0x72e7e81682f0>- generic_camera - Barcode contents: ['http:/TEST', ''] [2026-01-28 12:41:26,320]
+WARNING: Several  different identifiers for the sample in barcodes/OCR/sample metadata [2026-01-28 12:41:26,320]
+INFO: Sample events in process queue: 1
+
+ [2026-01-28 12:41:26,320]
+INFO: Ending session, closing log files. [2026-01-28 12:41:26,321]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 12:43:14,039]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 12:43:14,039]
+INFO: Approximate number of sample events to process at launch is 1 [2026-01-28 12:43:14,040]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 12:43:14,041]
+INFO: Postprocessing sample <jkm.sample.SingleImageSample object at 0x75fffef602f0> [2026-01-28 12:43:15,042]
+INFO: Ending session, closing log files. [2026-01-28 12:43:24,655]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 12:46:07,002]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 12:46:07,003]
+INFO: Approximate number of sample events to process at launch is 1 [2026-01-28 12:46:07,004]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 12:46:07,005]
+INFO: Postprocessing sample <jkm.sample.SingleImageSample object at 0x7efafe46c2f0> [2026-01-28 12:46:08,006]
+INFO: Ending session, closing log files. [2026-01-28 12:46:20,056]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 12:56:49,018]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 12:56:49,018]
+INFO: Approximate number of sample events to process at launch is 1 [2026-01-28 12:56:49,019]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 12:56:49,020]
+INFO: Postprocessing sample <jkm.sample.SingleImageSample object at 0x79cfe9f702f0> [2026-01-28 12:56:50,021]
+INFO: Ending session, closing log files. [2026-01-28 12:56:50,684]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 13:01:17,777]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 13:01:17,777]
+INFO: Approximate number of sample events to process at launch is 1 [2026-01-28 13:01:17,778]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 13:01:17,779]
+INFO: Postprocessing sample <jkm.sample.SingleImageSample object at 0x7ae1ebfa2f90> [2026-01-28 13:01:18,780]
+INFO: Ending session, closing log files. [2026-01-28 13:01:21,081]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 13:02:39,080]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 13:02:39,081]
+INFO: Approximate number of sample events to process at launch is 1 [2026-01-28 13:02:39,082]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 13:02:39,083]
+INFO: Postprocessing sample <jkm.sample.SingleImageSample object at 0x74eec35602f0> [2026-01-28 13:02:40,084]
+INFO: Ending session, closing log files. [2026-01-28 13:02:40,757]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 13:04:03,526]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 13:04:03,527]
+INFO: Approximate number of sample events to process at launch is 1 [2026-01-28 13:04:03,528]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 13:04:03,528]
+INFO: Postprocessing sample <jkm.sample.SingleImageSample object at 0x7745a6ba3380> [2026-01-28 13:04:04,529]
+INFO: Ending session, closing log files. [2026-01-28 13:04:04,734]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 13:04:38,406]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 13:04:38,406]
+INFO: Approximate number of sample events to process at launch is 1 [2026-01-28 13:04:38,407]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 13:04:38,408]
+INFO: Postprocessing sample <jkm.sample.SingleImageSample object at 0x786d6c9af380> [2026-01-28 13:04:39,409]
+INFO: Ending session, closing log files. [2026-01-28 13:04:39,617]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 13:05:05,078]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 13:05:05,079]
+INFO: Approximate number of sample events to process at launch is 1 [2026-01-28 13:05:05,080]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 13:05:05,081]
+INFO: Postprocessing sample <jkm.sample.SingleImageSample object at 0x7e68e539f380> [2026-01-28 13:05:06,081]
+INFO: <jkm.sample.SingleImageSample object at 0x7e68e539f380>- generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2026-01-28 13:05:06,293]
+INFO: Sample events in process queue: 1
+
+ [2026-01-28 13:05:06,293]
+INFO: Ending session, closing log files. [2026-01-28 13:05:06,294]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 13:08:36,910]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 13:08:36,911]
+INFO: Approximate number of sample events to process at launch is 1 [2026-01-28 13:08:36,912]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 13:08:36,913]
+INFO: Postprocessing sample <jkm.sample.SingleImageSample object at 0x7d6c895af230> [2026-01-28 13:08:37,913]
+INFO: Ending session, closing log files. [2026-01-28 13:08:38,101]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 13:13:22,879]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 13:13:22,879]
+INFO: Approximate number of sample events to process at launch is 1 [2026-01-28 13:13:22,880]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 13:13:22,881]
+INFO: Postprocessing sample <jkm.sample.SingleImageSample object at 0x7fbc3f1a70e0> [2026-01-28 13:13:23,882]
+INFO: <jkm.sample.SingleImageSample object at 0x7fbc3f1a70e0>- generic_camera - Barcode contents: ['http://id.luomus.fi/F.252693'] [2026-01-28 13:13:24,094]
+INFO: Sample events in process queue: 1
+
+ [2026-01-28 13:13:24,094]
+INFO: Ending session, closing log files. [2026-01-28 13:13:24,095]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 13:18:00,719]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 13:18:00,720]
+INFO: Approximate number of sample events to process at launch is 1 [2026-01-28 13:18:00,721]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 13:18:00,722]
+INFO: Postprocessing sample <jkm.sample.SingleImageSample object at 0x731ddcfbb0e0> [2026-01-28 13:18:01,723]
+INFO: Ending session, closing log files. [2026-01-28 13:18:01,906]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 13:18:15,800]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 13:18:15,801]
+INFO: Approximate number of sample events to process at launch is 1 [2026-01-28 13:18:15,802]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 13:18:15,803]
+INFO: Postprocessing sample <jkm.sample.SingleImageSample object at 0x7172aa5af230> [2026-01-28 13:18:16,804]
+INFO: Ending session, closing log files. [2026-01-28 13:18:17,008]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 13:18:36,458]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 13:18:36,458]
+INFO: Approximate number of sample events to process at launch is 1 [2026-01-28 13:18:36,460]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 13:18:36,460]
+INFO: Postprocessing sample <jkm.sample.SingleImageSample object at 0x7461285a7230> [2026-01-28 13:18:37,461]
+INFO: <jkm.sample.SingleImageSample object at 0x7461285a7230>- generic_camera - Barcode contents:  [2026-01-28 13:18:37,679]
+INFO: Sample events in process queue: 1
+
+ [2026-01-28 13:18:37,679]
+INFO: Ending session, closing log files. [2026-01-28 13:18:37,680]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 13:18:55,984]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 13:18:55,984]
+INFO: Approximate number of sample events to process at launch is 1 [2026-01-28 13:18:55,985]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 13:18:55,986]
+INFO: Postprocessing sample <jkm.sample.SingleImageSample object at 0x7aca747a7230> [2026-01-28 13:18:56,987]
+INFO: <jkm.sample.SingleImageSample object at 0x7aca747a7230>- generic_camera - Barcode contents:  [2026-01-28 13:18:57,206]
+INFO: Sample events in process queue: 1
+
+ [2026-01-28 13:18:57,206]
+INFO: Ending session, closing log files. [2026-01-28 13:18:57,207]
+
+
+INFO: STARTING NEW SESSION of jkm-post (1.3a) [2026-01-28 13:22:39,149]
+INFO: Reading configuration file setup/jkm_test_qreader.ini [2026-01-28 13:22:39,150]
+INFO: Approximate number of sample events to process at launch is 1 [2026-01-28 13:22:39,151]
+INFO: Ending session, waiting for worker threads to finish. [2026-01-28 13:22:39,151]
+INFO: Postprocessing sample <jkm.sample.SingleImageSample object at 0x754b315a3230> [2026-01-28 13:22:40,152]
+INFO: <jkm.sample.SingleImageSample object at 0x754b315a3230>- generic_camera - Barcode contents:  [2026-01-28 13:22:40,366]
+INFO: Sample events in process queue: 1
+
+ [2026-01-28 13:22:40,366]
+INFO: Ending session, closing log files. [2026-01-28 13:22:40,367]
