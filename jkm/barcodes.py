@@ -30,7 +30,7 @@ def _extract_pyzbar(greyimg, encoding=None):
 
 def _extract_qreader(greyimg):
     try:
-        qreader = QReader( model_size='m',min_confidence=0.2 )
+        qreader = QReader( model_size='s',min_confidence=0.2 )
         decoded_text = qreader.detect_and_decode(image=greyimg)
         # Make sure the result is a tupel of strings with no None or "" values
         d = [x for x in decoded_text if x]
