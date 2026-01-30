@@ -1,6 +1,6 @@
 # Check: Watchdog in licences using the Apache License, Version 2.0 
 # TODO: ADD ATEXIT CALL TO CLOSE LOG FILES ON CRASH
-import time,  logging,  threading
+import time,  logging,  threading, sys
 from datetime import datetime
 from pathlib import Path
 import queue
@@ -16,23 +16,27 @@ _program_name = "jkm-post"
 _program_ver = "1.3a" 
 _program = f"{_program_name} ({_program_ver})"
 
-def _UNIQUE(s) :return list(set(s))
+def _UNIQUE(s) :return tuple(set(s))
+
+def quit_if_not_exists(pathname):
+    if not pathname.exists():
+        log.critical(f"Path {pathname} not found. Quitting.")
+        sys.exit()
 
 # Move to Luomus-specific Sample type
 def find_samples(dirname,datafile_patterns):
-    log.debug("Finding files to process" )
-    d = Path(dirname)
-    res = []
+    #This just returns a list of matching file names
+    log.debug(f"Finding '{datafile_patterns}' files to process if {dirname}" )
+    d = Path(dirname) 
+    result = []
     for pat in datafile_patterns: 
         tempr = d.rglob(pat)
         log.debug(f"Looking for pattern {pat} in {dirname}")
         tempr = [x for x in tempr if ( str(x).find("textarea") == -1 )] # Skip files with "textarea" in their name
-        res.extend( tempr )
+        result.extend( tempr )
     # Delete duplicate files (hard links to the same file)
-#    r2 = []
-#    for x in res:
-#        if not path_in_list(x,r2): r2.append(x)
-    return res
+    return _UNIQUE(result)
+
 
 class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
     _lastinsert = None
@@ -218,15 +222,18 @@ if __name__ == '__main__':
         # Allows for enough time for transfer of a file(s)  to be completed
         sleep_s_before_reading_file = conf.getf("postprocessor", "sleep_after_new_sample_detected")
         # TODO: get data types to process from config file: event packages (identified by metadata files) or simple image files
-        filetype = conf.get("sampleformat", "recognize_by_filename_pattern")
-        datafile_patterns = [filetype]
+        #datatype = conf.get("sampleformat", "datatype_to_load")
+        filename_pattern = conf.get("sampleformat", "recognize_by_filename_pattern")        
+        datafile_patterns = [filename_pattern]
         if conf.getb("postprocessor", "process_existing"):
+            # TODO: find_samples should search for proper samples, not just via filename pattern
             existingevents = find_samples( conf.basepath,datafile_patterns )
             for fn in existingevents: q.put(fn)
             log.info(f"Approximate number of sample events to process at launch is {q.qsize()}")
         
         if conf.getb("postprocessor", "ocr_analysis_to_Excel"):
             ocr_outfile = conf.get("ocr","ocr_analysis_Excel_file")
+            # TODO: should check if file exists, create as needed
             data_out_table = jkm.ocr_analysis.OutputCSV( ocr_outfile )
             data_out_table.open()
         else: data_out_table = None
@@ -244,6 +251,7 @@ if __name__ == '__main__':
             # Start a filesystem watchdog thread watching for NEW .metadata files
             event_handler = myFileEventHandler(patterns=datafile_patterns) 
             observer = Observer()
+            quit_if_not_exists(conf.basepath)
             observer.schedule(event_handler, str(conf.basepath), recursive=True)
             observer.start()
             # Process data from queue while waiting
