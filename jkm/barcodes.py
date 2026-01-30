@@ -29,11 +29,16 @@ def _extract_pyzbar(greyimg, encoding=None):
     return d
 
 def _extract_qreader(greyimg):
-    qreader = QReader( model_size = 'm' )
-    decoded_text = qreader.detect_and_decode(image=greyimg)
-    print("RETURNED", decoded_text)
-    # Make sure the result is a tupel of strings with no None or "" values
-    d = [x for x in decoded_text if x]
+    try:
+        qreader = QReader( model_size = 'm' )
+        decoded_text = qreader.detect_and_decode(image=greyimg)
+        print("RETURNED", decoded_text)
+        # Make sure the result is a tupel of strings with no None or "" values
+        d = [x for x in decoded_text if x]
+    except ModuleNotFoundError as msg:
+        # qreader install on my computer lacks the ultralytics.yolo package
+        log.warning(msg)
+        d = []
     return d # Returns a tuple of strings
 
 def extractbarcodedata(image, qrpackage, increasecontast=False,
