@@ -13,7 +13,7 @@ import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.
 _debug = True    
 _num_worker_threads = 4
 _program_name = "jkm-post"
-_program_ver = "1.2a" 
+_program_ver = "1.3a" 
 _program = f"{_program_name} ({_program_ver})"
 
 def _UNIQUE(s) :return list(set(s))
@@ -92,11 +92,13 @@ def processSampleEvents(conf, sleep_s, data_out_table):
         
         # FIND BARCODES
         allbkdata = []
-        if conf.getb( "postprocessor", "read_barcodes"):            
+        if conf.getb( "postprocessor", "read_barcodes"):
+            barcodepackage = conf.get( "barcodes", "barcodepackage").lower()
             for image in sample.imagelist:
-                try:                    
-                    bkdata = image.readbarcodes()
-                    image.meta.addlog("Barcode contents",bkdata,  log_add_hdr= sample.name)
+                try:
+                    # NOTE: the choice of barcose detector tool is hardcoded in jkm/barcodes.py
+                    bkdata = image.readbarcodes(barcodepackage)
+                    image.meta.addlog("Barcode contents", bkdata, log_add_hdr= sample.name)
                     allbkdata += bkdata
                 except jkm.errors.FileLoadingError as msg:
                     log.warning(f"{sample.name}: Barcode detection attempt failed: %s" % msg)
@@ -219,7 +221,6 @@ if __name__ == '__main__':
         filetype = conf.get("sampleformat", "recognize_by_filename_pattern")
         datafile_patterns = [filetype]
         if conf.getb("postprocessor", "process_existing"):
-            print (filetype)
             existingevents = find_samples( conf.basepath,datafile_patterns )
             for fn in existingevents: q.put(fn)
             log.info(f"Approximate number of sample events to process at launch is {q.qsize()}")
@@ -229,7 +230,7 @@ if __name__ == '__main__':
             data_out_table = jkm.ocr_analysis.OutputCSV( ocr_outfile )
             data_out_table.open()
         else: data_out_table = None
-         
+        log.debug(f'Using QR code decoder {conf.get( "barcodes", "barcodepackage")}')
          #Start loops looking for data to process and processing it
         for i in range(_num_worker_threads):
             t = threading.Thread(target=processSampleEvents,  args=(conf, sleep_s_before_reading_file, data_out_table))

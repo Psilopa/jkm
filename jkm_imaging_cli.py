@@ -19,7 +19,7 @@ e/q = exit program
 formatext = ".jpg"
 _spacewarn = 300*(1024)**2 # 300 MB
 _program_name = "jkm"
-_program_ver = "0.2"
+_program_ver = "1,3a"
 _program = f"{_program_name} ({_program_ver})"
 
 # keyboard import processing helpers

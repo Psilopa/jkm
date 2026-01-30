@@ -1,5 +1,5 @@
 import logging
-import pytesseract
+#import pytesseract
 import numpy as np
 import cv2
 import jkm.tools
@@ -10,7 +10,7 @@ log = logging.getLogger() # Overwrite if needed
 _net = None
 
 # DEFAULT SETUP
-pytesseract.pytesseract.tesseract_cmd = None
+#pytesseract.pytesseract.tesseract_cmd = None
 min_confidence = 0.9
 padding = 1.5 # Increase in text box size as a factor (pre-merging)
 postpadding = 1.2

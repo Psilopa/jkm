@@ -1,23 +1,21 @@
 import logging, re,  sys
+import importlib
 # non-std common libraries
 import cv2
 
 # application-specific modules
 import jkm.tools as tools
 from jkm.errors import BarcodeError
-from pyzbar import pyzbar # Barcode processing
+# Dynamic  import in extractbarcodedata to allow for config fig-based import
+CONST_QREADER = "qreader"
+CONST_PYZBAR = "pyzbar"
+pyzbar = QReader = None
 
 log = logging.getLogger() # Overwrite if needed
 
-def extractbarcodedata(image,increasecontast=False,greyrange=50,  encoding=None):
-    "Is decite is not None, it is assumed to be a name for the enconding used in decoding the barcode byte stream to text"
-
-    "Accepts either a filename, a file object, opencv images. Should also work with PIL or nympy image arrays."
-    img = tools.load_img(image)
-    greyimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    if increasecontast: greyimg = tools.increaseTopContrast(greyimg,greyrange)
-    # try qr recognition at different image sizes
+def _extract_pyzbar(greyimg, encoding=None):
     barcodes = []
+    # try qr recognition at different image sizes
     for maxdim in (200,600,2000,max(greyimg.shape)):
         smallimg = tools.shrink_to_maxdim(greyimg,maxdim)
         barcodes = pyzbar.decode(smallimg, symbols=[pyzbar.ZBarSymbol.QRCODE])
@@ -27,7 +25,39 @@ def extractbarcodedata(image,increasecontast=False,greyrange=50,  encoding=None)
     for qr in barcodes:
         bkd = qr.data
         if encoding: bkd = bkd.decode(encoding) 
-        d.append(bkd) 
+        d.append(bkd)
+    return d
+
+def _extract_qreader(greyimg):
+    qreader = QReader( model_size = 'm' )
+    decoded_text = qreader.detect_and_decode(image=greyimg)
+    print("RETURNED", decoded_text)
+    # Make sure the result is a tupel of strings with no None or "" values
+    d = [x for x in decoded_text if x]
+    return d # Returns a tuple of strings
+
+def extractbarcodedata(image, qrpackage, increasecontast=False,
+                       greyrange=50,  encoding=None):
+    "Is decite is not None, it is assumed to be a name for the enconding used in decoding the barcode byte stream to text"
+
+    "Accepts either a filename, a file object, opencv images. Should also work with PIL or nympy image arrays."
+    global QReader, pyzbar
+    if qrpackage not in (CONST_QREADER, CONST_PYZBAR):
+        log.critical(f"Unknown barcode reader tool '{qrpackage}'")
+        sys.exit()
+    img = tools.load_img(image)
+    greyimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    if increasecontast: greyimg = tools.increaseTopContrast(greyimg,greyrange)
+    if qrpackage == CONST_PYZBAR:
+        if not pyzbar: 
+            importlib.import_module("pyzbar")
+            from pyzbar import pyzbar
+        d = _extract_pyzbar(greyimg, encoding)    
+    elif qrpackage == CONST_QREADER:
+        if not QReader: 
+            QReader = importlib.import_module("qreader").QReader
+        d = _extract_qreader(greyimg)
+    # else: should not happen as tested above
     return d
 
 def sampleids(data):
