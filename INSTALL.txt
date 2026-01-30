@@ -9,8 +9,11 @@ pip3 install opencv-python
 pip3 install numpy
 pip3 install watchdog
 pip3 install pytesseract
-pip3 install pyzbar
 pip3 install openpyxl
+
+Depending on the QRcode library used, one of:
+pip3 install pyzbar
+pip3 install qreader
 
 USING AN UPDATING CSV FILE AS A DATA SOURCE IN EXCEL (TODO)
 -----------------------------------------------------------
