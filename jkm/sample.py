@@ -263,12 +263,8 @@ class CombinedImage(SpecimenImage, LabelImage): # Note: potential problems with 
     def __init__(self,  label,  fn = None): 
         super().__init__(label,  fn)
 
-if __name__ == '__main__': #SImple testing
-    si = SampleEvent()
-    print(si.toJSON())
-  
 #------------------------------------------------------------------------------------------------------    
-class MZHLineSample(SampleEvent): 
+class LuomusLineSample(SampleEvent): 
     allowed_URI_domains = ["http://tun.fi/", "http://id.luomus.fi/",""]
     def __init__(self,  time=None):
         super().__init__(time)
@@ -297,29 +293,6 @@ class MZHLineSample(SampleEvent):
         x = str(self.datapath.name).split(marker) # Look for marker in last element of directory name
         if len(x) != 2: return ""
         else: return x[-1] # Last element
-    @staticmethod
-    def from_directory(dirpath, conf): 
-        log.debug("Creating sample data from JPEG image and jkm config file metadata") 
-        # Does not currently read digitization.propersies or the XML file
-        labelpath = dirpath / Path(conf.get("sampleformat", "label_file"))
-        # Extract creating time from JPG and use it as the Sample event time        
-        itime = getFileCreationDateTime(labelpath)
-        s = MZHLineSample( time = itime )
-        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
-        s.datapath = dirpath
-        s.name = f"{dirpath.name}"        
-        s.prefix = dirpath
-        #Load label image
-        label_label = conf.get("sampleformat", "label_title")
-        labelimage = LabelImage(label_label, fn = labelpath)
-        s.addImage(labelimage)
-        #Load object (insect/plant) images
-        objectfiles = conf.getlist("sampleformat", "object_files")
-        object_titles = conf.getlist("sampleformat", "object_titles")
-        objectfilepaths= [dirpath / Path(x) for x in objectfiles]
-        for ofp, ofn in zip(objectfilepaths, object_titles):
-            s.addImage( SpecimenImage(ofn, fn = ofp)  )
-        return s           
     def rename_directories(self, config,prefix,ignore_domain=True):
         """Rename files/dirs if sample ID data is available (from QR code parsing or other source)
 
@@ -349,17 +322,72 @@ class MZHLineSample(SampleEvent):
         except FileExistsError as msg:
             log.warning("Target directory name already exists, skipping: %s" % msg)
         finally: 
-             self.datapath= newpath
-  
+             self.datapath= newpath             
+#------------------------------------------------------------------------------------------------------    
+class LuomusPlantLineSample(LuomusLineSample): 
+    def __init__(self,  time=None):
+        super().__init__(time)
+    @staticmethod    
+    def from_directory(dirpath, conf): 
+        """Create a Sample object from a directory path with files like those created by the Luomus Plant Imaging Line.
+    
+arguments: 
+    dirpath = a Path instance pointing to the directory containing the data files
+    conf = a JKM configuration data instance
+"""
+        # Most code shared with MZHInsectLineSample!
+        log.debug("Creating sample data from JPEG image and jkm config file metadata") 
+        # Does not currently read digitization.propersies or the XML file
+        filepath = dirpath / Path(conf.get("sampleformat", "label_file"))
+        # Extract creating time from JPG and use it as the Sample event time        
+        itime = getFileCreationDateTime(filepath)
+        s = LuomusLineSample( time = itime )
+        s.copyMetadatafFomConf(conf, no_new_directiories=True)
+        s.datapath = dirpath
+        s.name = f"{dirpath.name}"        
+        s.prefix = dirpath
+        # Load image (just one on plant line)
+        title = conf.get("sampleformat", "label_title")
+        image = CombinedImage(title, fn = filepath)
+        s.addImage(image)
+        return s           
+#------------------------------------------------------------------------------------------------------            
+class LuomusInsectLineSample(LuomusLineSample): 
+    def __init__(self,  time=None):
+        super().__init__(time)
+    @staticmethod
+    def from_directory(dirpath, conf): 
+        log.debug("Creating sample data from JPEG image and jkm config file metadata") 
+        # Does not currently read digitization.propersies or the XML file
+        labelpath = dirpath / Path(conf.get("sampleformat", "label_file"))
+        # Extract creating time from JPG and use it as the Sample event time        
+        itime = getFileCreationDateTime(labelpath)
+        s = LuomusLineSample( time = itime )
+        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
+        s.datapath = dirpath
+        s.name = f"{dirpath.name}"        
+        s.prefix = dirpath
+        #Load label image
+        label_label = conf.get("sampleformat", "label_title")
+        labelimage = LabelImage(label_label, fn = labelpath)
+        s.addImage(labelimage)
+        #Load object (insect/plant) images
+        objectfiles = conf.getlist("sampleformat", "object_files")
+        object_titles = conf.getlist("sampleformat", "object_titles")
+        objectfilepaths= [dirpath / Path(x) for x in objectfiles]
+        for ofp, ofn in zip(objectfilepaths, object_titles):
+            s.addImage( SpecimenImage(ofn, fn = ofp)  )
+        return s             
 #------------------------------------------------------------------------------------------------------    
 class SingleImageSample(SampleEvent): 
-    """Dummy holder for a single image based minimal sample event"""
+    """A single image based minimal sample event"""
     def __init__(self,  time = None):
 #        self._has_metadatafile = False
 #        self._is_directory = False
         super().__init__(time)
     @staticmethod
-    def from_image_file(imgfile, conf, label="generic_camera"): # Assumes jpg file name is metadata file name
+    def from_image_file(imgfile, conf, label="generic_camera"): 
+        # Assumes jpg file name is metadata file name
         log.debug("Creating sample data from JPEG image and config file metadata")
         itime = getFileCreationDateTime(imgfile)
         imgfile = Path(imgfile)
@@ -374,4 +402,8 @@ class SingleImageSample(SampleEvent):
     def _shortenidentifier(self, x): # Overrides base class
         separator = r'/'
         return x.split(separator)[-1] # Last element
+#------------------------------------------------------------------------------------------------------    
 
+#if __name__ == '__main__': #SImple testing
+#    si = SampleEvent()
+#    print(si.toJSON())
