@@ -10,7 +10,7 @@ import watchdog.events
 # app-specific modules
 import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis
 
-_debug = True    
+_debug = False    
 _num_worker_threads = 4
 _program_name = "jkm-post"
 _program_ver = "1.3a" 
@@ -76,10 +76,10 @@ def processSampleEvents(conf, sleep_s, data_out_table):
                 sample = jkm.sample.MZHLineSample.from_directory(dirpath, conf)
             elif sample_format.lower() == "singlefile":                
                 sample = jkm.sample.SingleImageSample.from_image_file(filename, conf, "generic_camera")
-            else:
 #                sample = jkm.sample.SampleEvent.fromJSONfile(filename)
+            else:
                 raise jkm.errors.FileLoadingError(f"Unknown sample file/directory format {sample_format}")
-                q.task_done(); continue
+#                q.task_done(); continue
         except jkm.errors.FileLoadingError:
                 q.task_done(); continue
                 
@@ -226,7 +226,7 @@ if __name__ == '__main__':
         filename_pattern = conf.get("sampleformat", "recognize_by_filename_pattern")        
         datafile_patterns = [filename_pattern]
         if conf.getb("postprocessor", "process_existing"):
-            # TODO: find_samples should search for proper samples, not just via filename pattern
+            # Find list of file names matching a pattern and put them into the queue
             existingevents = find_samples( conf.basepath,datafile_patterns )
             for fn in existingevents: q.put(fn)
             log.info(f"Approximate number of sample events to process at launch is {q.qsize()}")
