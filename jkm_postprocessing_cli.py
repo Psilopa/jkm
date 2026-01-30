@@ -10,7 +10,7 @@ import watchdog.events
 # app-specific modules
 import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis
 
-_debug = True    
+_debug = False    
 _num_worker_threads = 1
 _program_name = "jkm-post"
 _program_ver = "1.3a" 
