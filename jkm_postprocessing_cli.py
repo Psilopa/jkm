@@ -10,7 +10,7 @@ import watchdog.events
 # app-specific modules
 import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis
 
-_debug = False    
+_debug = True    
 _num_worker_threads = 1
 _program_name = "jkm-post"
 _program_ver = "1.3a" 
@@ -66,20 +66,20 @@ def processSampleEvents(conf, sleep_s, data_out_table):
         log.debug(f"Processing data file {filename}" )
         # Create SampleEvent instances based on (meta)data file(s)
         #Recognise type to load
-        sample_format = conf.get("sampleformat", "datatype_to_load")
+        sample_format = conf.get("sampleformat", "datatype_to_load")        
         try:
-            if sample_format.lower() in ["mzh_insectline", "mzh_plantline"]: 
-                dirpath= filename.parent
-                if not dirpath.is_dir():
-                    log.warning(f"Cannot find path {dirpath},  skipping to next sample")
-                    continue
-                sample = jkm.sample.MZHLineSample.from_directory(dirpath, conf)
-            elif sample_format.lower() == "singlefile":                
+            dirpath= filename.parent
+            if not dirpath.is_dir():
+                log.warning(f"Cannot find path {dirpath},  skipping to next sample")
+                continue
+            if sample_format.lower() == "mzh_insectline": 
+                sample = jkm.sample.LuomusInsectLineSample.from_directory(dirpath, conf)
+            if sample_format.lower() ==  "mzh_plantline": 
+                sample = jkm.sample.LuomusPlantLineSample.from_directory(dirpath, conf)
+            elif sample_format.lower() == "singlefile":
                 sample = jkm.sample.SingleImageSample.from_image_file(filename, conf, "generic_camera")
-#                sample = jkm.sample.SampleEvent.fromJSONfile(filename)
             else:
                 raise jkm.errors.FileLoadingError(f"Unknown sample file/directory format {sample_format}")
-#                q.task_done(); continue
         except jkm.errors.FileLoadingError:
                 q.task_done(); continue
                 
