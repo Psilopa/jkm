@@ -32,7 +32,6 @@ def _extract_qreader(greyimg):
     try:
         qreader = QReader( model_size = 'm' )
         decoded_text = qreader.detect_and_decode(image=greyimg)
-        print("RETURNED", decoded_text)
         # Make sure the result is a tupel of strings with no None or "" values
         d = [x for x in decoded_text if x]
     except ModuleNotFoundError as msg:
