@@ -26,13 +26,13 @@ def _extract_pyzbar(greyimg, encoding=None):
         bkd = qr.data
         if encoding: bkd = bkd.decode(encoding) 
         d.append(bkd)
-    return d
+    return [x for x in d if x] # Make sure the result is a list of non-empty string
 
 def _extract_qreader(greyimg):
     try:
-        qreader = QReader( model_size='s',min_confidence=0.2 )
+        qreader = QReader( model_size='l',min_confidence=0.05 )
         decoded_text = qreader.detect_and_decode(image=greyimg)
-        # Make sure the result is a tupel of strings with no None or "" values
+        # Make sure the result is a list of non-empty strings (removes None values and empty strings)
         d = [x for x in decoded_text if x]
     except ModuleNotFoundError as msg:
         # qreader install on my computer lacks the ultralytics.yolo package
