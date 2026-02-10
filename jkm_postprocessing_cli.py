@@ -50,7 +50,29 @@ def path_in_list(p,pathlist):
     for p2 in pathlist: 
         if p.samefile(p2): return True
     return False		
-    
+
+def write_postprocessor_properties_file(sample):
+    """Write postprocessor.properties file"""
+    try:
+            sample.digipropfile.setheader( f"# {datetime.now()}" )
+            sample.digipropfile.update("full_barcode_data",sample.identifier or "")
+            sample.digipropfile.update("identifier",sample.shortidentifier  or "")
+            sample.digipropfile.update("timestamp",sample.original_timestamp())
+            if sample.identifier: # Only one identifier-containing barcode was found
+                id_OK = sample.verify_identifier()
+                if not id_OK: 
+                    log.critical(f"{sample.name}: *******\n\n\n\nMALFORMED IDENTIFIER {sample.identifier}*******\n\n\n\n")
+                sample.digipropfile.update("URI_format_OK", str(id_OK) )
+            sample.digipropfile.update("Q-sharp", "" )
+            sample.digipropfile.update("Q-color", "" )
+            if conf.getb( "postprocessor", "ocr"): 
+                sample.digipropfile.update("OCR_result", alltext.replace("\n"," "))
+            propfilepath = sample.datapath /  Path(r"postprocessor.properties") 
+            sample.digipropfile.save( sample.datapath /  Path(r"postprocessor.properties") )
+    except OSError as msg:
+        assert(propfilepath) # Should exist if this exception was triggered
+        log.error( f"Saving a properties file failed with error message: {msg}" )
+
 # ----------------- main worker function ------------------------
 def processSampleEvents(conf, sleep_s, data_out_table):
     while True:
@@ -182,21 +204,8 @@ def processSampleEvents(conf, sleep_s, data_out_table):
 
         # FOR MZH IMAGING LINE SAMPLES
         if conf.get("sampleformat", "datatype_to_load").lower()  in ["mzh_insectline", "mzh_plantline"]:
-            # Write postprocessor.properties file 
-            sample.digipropfile.setheader( f"# {datetime.now()}" )
-            sample.digipropfile.update("full_barcode_data",sample.identifier or "")
-            sample.digipropfile.update("identifier",sample.shortidentifier  or "")
-            sample.digipropfile.update("timestamp",sample.original_timestamp())
-            if sample.identifier: # Only one identifier-containing barcode was found
-                id_OK = sample.verify_identifier()
-                if not id_OK: 
-                    log.critical(f"{sample.name}: *******\n\n\n\nMALFORMED IDENTIFIER {sample.identifier}*******\n\n\n\n")
-                sample.digipropfile.update("URI_format_OK", str(id_OK) )
-            sample.digipropfile.update("Q-sharp", "" )
-            sample.digipropfile.update("Q-color", "" )
-            if conf.getb( "postprocessor", "ocr"): 
-                sample.digipropfile.update("OCR_result", alltext.replace("\n"," "))
-            sample.digipropfile.save( sample.datapath /  Path(r"postprocessor.properties") )
+            write_postprocessor_properties_file(sample)
+
         #DONE
         log.info(f"Sample events in process queue: {q.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported
            
