@@ -317,12 +317,11 @@ class LuomusLineSample(SampleEvent):
                     newpath = basepath / newprefix 
                 log.debug(f"Renaming {self.datapath} to {newpath}")        
                 self.datapath.rename(newpath) 
+                self.datapath= newpath # Set datapath to the new value only if everything preceding was successful
         except PermissionError as msg:
             log.warning("Renaming directory failed with error message: %s" % msg)
         except FileExistsError as msg:
             log.warning("Target directory name already exists, skipping: %s" % msg)
-        finally: 
-             self.datapath= newpath             
 #------------------------------------------------------------------------------------------------------    
 class LuomusPlantLineSample(LuomusLineSample): 
     def __init__(self,  time=None):
