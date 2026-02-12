@@ -19,7 +19,9 @@ def setup_logging(name, debug = False):
     log.addHandler(chc)
     # To log file
     chf = logging.FileHandler(f"{name}.log")
-    chf.setLevel(logging.INFO)
+    if debug: chf.setLevel(logging.DEBUG)
+    else: chf.setLevel(logging.INFO)
+#    chf.setLevel(logging.INFO)
     log.addHandler(chf)
     for l in log.handlers[:]: l.setFormatter(emptyformat)
     log.info("\n") # Print some empty lines using a simplified format
