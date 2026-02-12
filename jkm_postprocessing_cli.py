@@ -182,14 +182,28 @@ def processSampleEvents(conf, sleep_s, data_out_table):
             data_out_table.add_line(ocrdata)
             log.debug(f"{sample.name}: ...done")
             
-        # RENAME DIRECTORIES (this may need to stay above file renaming)
+        # RENAME DIRECTORIES (this may need to stay above file renaming)  
+        # Tries a few times in case directory renaming is blocked by other processes
         if conf.getb( "basic", "directories_rename_by_barcode_id") and sample.identifier:
             prefix = sample.datapath.name # last element of directory path
             log.debug("Renaming directory based on barcode content")
-            try:            
-                sample.rename_directories(conf,prefix)
-            except (jkm.errors.JKError, FileNotFoundError) as msg: 
-                log.warning(f"Renaming directory failed: {msg}. Maybe it has already been renamed.")                
+            attempt_times = 2
+            wait_time = 2
+            attempt_count = 0
+            while (attempt_count < attempt_times) :
+                try:            
+                    sample.rename_directories(conf,prefix)
+                    break # Exit the while loop 
+                except (jkm.errors.JKError) as msg: 
+                    log.warning(f"Renaming directory failed: {msg}. Maybe it has already been renamed.")                
+                    break # Exit the while loop 
+                except FileExistsError as mgs:
+                    log.warning(f"Renaming directory failed Fire exists: {msg}")                
+                    break # Exit the while loop 
+                except PermissionError as mgs:                  
+                    attempt_count += 1
+                    log.warning(f"No write access: {msg}. Will attempt again in {wait_time} seconds {attempt_count} times.")                    
+                    time.sleep(wait_time)
 
         # RENAME FILES
         # Current implementation renames only the original image files as per the configuration file
