@@ -196,13 +196,16 @@ def processSingleEvent(filename, data_out_table):
                     sample.rename_directories(conf,prefix)
                     break # Exit the while loop 
                 except (jkm.errors.JKError) as msg: 
-                    log.error(f"Renaming directory failed: {msg}. Maybe it has already been renamed.")                
+                    log.error(f"Renaming directory failed: {msg}.")                
                     break # Exit the while loop 
-                except FileExistsError as mgs:
-                    log.error(f"Renaming directory failed, file exists: {msg}")                
+                except FileExistsError as msg:
+                    log.error(f"Renaming directory failed, there is already a directory with this name: {msg}")                
                     break # Exit the while loop 
-                except (PermissionError, FileNotFoundError) as msg:                
-                    log.error(f"No write access: {msg}. Will attempt again in {wait_time} seconds {attempt_times-attempt_current} times.")                    
+                except FileNotFoundError as msg:
+                    log.error(f"Renaming directory failed, original directory does not exist anymore: {msg}")                
+                    break # Exit the while loop 
+                except PermissionError as msg:                
+                    log.error(f"No write access: {msg}. \nWill attempt again in {wait_time} seconds {attempt_times-attempt_current} times.")                    
                     attempt_current += 1
                     time.sleep(wait_time)
         else: log.debug(f"{sample.name}: No directory rename.")
