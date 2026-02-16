@@ -10,11 +10,15 @@ import watchdog.events
 # app-specific modules
 import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis
 
-_debug = False    
+_DEBUG = False  
 _num_worker_threads = 1
 _program_name = "jkm-post"
-_program_ver = "1.3a" 
+_program_ver = "1.31a" 
 _program = f"{_program_name} ({_program_ver})"
+
+_SUCCESS = 0
+_FAIL_IGNORE = 1
+_FAIL_RETRY = 2
 
 def _UNIQUE(s) :return tuple(set(s))
 
@@ -71,29 +75,20 @@ def write_postprocessor_properties_file(sample):
             sample.digipropfile.save( sample.datapath /  Path(r"postprocessor.properties") )
     except OSError as msg:
         assert(propfilepath) # Should exist if this exception was triggered
-        log.error( f"Saving a properties file failed with error message: {msg}" )
+        log.warning( f"Saving a properties file failed with error message: {msg}" )
 
-# ----------------- main worker function ------------------------
-def processSampleEvents(conf, sleep_s, data_out_table):
-    while True:
-        # Input queue = name of file found by the directory watcher tool
-        input = q.get()
-        if input is None: break
-        filename = Path(input)
-        time.sleep(sleep_s) # Wait for all data to arrive
-        if not filename.exists():  #" File may aleady have been deleted, renamed etc.
-            log.warning(f"Could not find file {filename}, skipping")
-            q.task_done()
-            continue
+# ----------------- Process a single event ------------------------
+def processSingleEvent(filename, data_out_table):
         log.debug(f"Processing data file {filename}" )
         # Create SampleEvent instances based on (meta)data file(s)
         #Recognise type to load
         sample_format = conf.get("sampleformat", "datatype_to_load")        
         try:
             dirpath= filename.parent
-            if not dirpath.is_dir():
-                log.warning(f"Cannot find path {dirpath},  skipping to next sample")
-                continue
+            if not dirpath.is_dir():                
+                raise jkm.errors.FileLoadingError(f"Cannot find path {dirpath},  skipping to next sample.")
+            if not filename.exists():
+                raise jkm.errors.FileLoadingError(f"Could not find file {filename}, skipping.")
             if sample_format.lower() == "mzh_insectline": 
                 sample = jkm.sample.LuomusInsectLineSample.from_directory(dirpath, conf)
             if sample_format.lower() ==  "mzh_plantline": 
@@ -101,9 +96,11 @@ def processSampleEvents(conf, sleep_s, data_out_table):
             elif sample_format.lower() == "singlefile":
                 sample = jkm.sample.SingleImageSample.from_image_file(filename, conf, "generic_camera")
             else:
-                raise jkm.errors.FileLoadingError(f"Unknown sample file/directory format {sample_format}")
-        except jkm.errors.FileLoadingError:
-                q.task_done(); continue
+                raise jkm.errors.FileLoadingError(f"Unknown sample file/directory format {sample_format}, skippping to next.")
+        except jkm.errors.FileLoadingError as msg:
+                log.error(msg)
+                q.task_done(); 
+                return _FAIL_IGNORE
                 
         # MAIN POSTPROCESSOR STARTS HERE
         # TODO: CHECK IF THIS WORKS WITH THE REIMPLEMENTED sample
@@ -114,6 +111,7 @@ def processSampleEvents(conf, sleep_s, data_out_table):
             for image in sample.imagelist:
                 log.debug(f"{sample.name}: Rotating image {image.name}")
                 image.rotate(rot)
+        else: log.debug(f"{sample.name}: No rotation performed.")
         # SAVE ROTATED (NOT IMPLEMENTED)
         
         # FIND BARCODES
@@ -129,6 +127,7 @@ def processSampleEvents(conf, sleep_s, data_out_table):
                 except jkm.errors.FileLoadingError as msg:
                     log.warning(f"{sample.name}: Barcode detection attempt failed: %s" % msg)
                     continue
+        else: log.debug(f"{sample.name}: No barcode extraction.")
                     
         # FIND TEXT ARES
         if conf.getb( "postprocessor", "find_text_areas"):
@@ -140,6 +139,7 @@ def processSampleEvents(conf, sleep_s, data_out_table):
                 image.meta.addlog("Text areas found", str(textareas),  log_add_hdr= sample.name)
                 if conf.getb( "postprocessor", "save_text_area_images"): 
                     image.savetextareas("_textarea_")
+        else: log.debug(f"{sample.name}: No text area recognition.")
 
         # PERFORM OCR
         alltext = ""
@@ -151,6 +151,7 @@ def processSampleEvents(conf, sleep_s, data_out_table):
                 alltext  += " " + labeltxt
 #                image.meta.addlog("OCR result for image", labeltxt,lvl=logging.DEBUG)
             sample.meta.addlog("Combined OCR result for all images",alltext,  log_add_hdr= sample.name)
+        else: log.debug(f"{sample.name}: No OCR.")
 
         # EXTRACT IDENTIFIERS FROM OCR DATA (NOT IMPLEMENTED)
 
@@ -188,22 +189,23 @@ def processSampleEvents(conf, sleep_s, data_out_table):
             prefix = sample.datapath.name # last element of directory path
             log.debug("Renaming directory based on barcode content")
             attempt_times = 2
-            wait_time = 2
-            attempt_count = 0
-            while (attempt_count < attempt_times) :
+            wait_time = 2 # seconds
+            attempt_current = 1
+            while (attempt_current <= attempt_times) :
                 try:            
                     sample.rename_directories(conf,prefix)
                     break # Exit the while loop 
                 except (jkm.errors.JKError) as msg: 
-                    log.warning(f"Renaming directory failed: {msg}. Maybe it has already been renamed.")                
+                    log.error(f"Renaming directory failed: {msg}. Maybe it has already been renamed.")                
                     break # Exit the while loop 
                 except FileExistsError as mgs:
-                    log.warning(f"Renaming directory failed Fire exists: {msg}")                
+                    log.error(f"Renaming directory failed, file exists: {msg}")                
                     break # Exit the while loop 
-                except PermissionError as mgs:                  
-                    attempt_count += 1
-                    log.warning(f"No write access: {msg}. Will attempt again in {wait_time} seconds {attempt_count} times.")                    
+                except (PermissionError, FileNotFoundError) as msg:                
+                    log.error(f"No write access: {msg}. Will attempt again in {wait_time} seconds {attempt_times-attempt_current} times.")                    
+                    attempt_current += 1
                     time.sleep(wait_time)
+        else: log.debug(f"{sample.name}: No directory rename.")
 
         # RENAME FILES
         # Current implementation renames only the original image files as per the configuration file
@@ -212,23 +214,36 @@ def processSampleEvents(conf, sleep_s, data_out_table):
                 sample.rename_all_files(sample.shortidentifier)
             except (jkm.errors.JKError, FileNotFoundError) as msg:
                 log.warning(f"Renaming files failed: {msg}.")                
+        else: log.debug(f"{sample.name}: No file(s) rename.")
 
         # Write records to JSON Metadata file (should this be before renaming?)
         if conf.getb( "basic", "save_JSON"): sample.writeMetaJSON()
+        else: log.debug(f"{sample.name}: No JSON metadata file created.")
 
         # FOR MZH IMAGING LINE SAMPLES
         if conf.get("sampleformat", "datatype_to_load").lower()  in ["mzh_insectline", "mzh_plantline"]:
             write_postprocessor_properties_file(sample)
-
+        else: log.debug(f"{sample.name}: No postprocessor.properties file created.")
+        return _SUCCESS
+# ----------------- main worker function ------------------------
+def processSampleEvents(conf, sleep_s, data_out_table):
+    while True:
+        # Input queue = name of file found by the directory watcher tool
+        input = q.get()
+        if input is None: break
+        filename = Path(input)
+        time.sleep(sleep_s) # Wait for all data to arrive
+        successQ = processSingleEvent(filename,data_out_table)        
+        if successQ in [_FAIL_RETRY]: q.put(input) # retry from start 
+        elif successQ in [_SUCCESS, _FAIL_IGNORE]: pass # Do nothing
         #DONE
-        log.info(f"Sample events in process queue: {q.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported
-           
+        log.info(f"Sample events in process queue: {q.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported           
 
 if __name__ == '__main__':
     threads = []
     excel = None
     q = queue.Queue() # a FIFO queue of metafile names
-    log = jkm.tools.setup_logging(_program_name, debug = _debug)
+    log = jkm.tools.setup_logging(_program_name, debug = _DEBUG)
     # Set loggers in other modules
     jkm.configfile.log = log    
     jkm.tools.log = log

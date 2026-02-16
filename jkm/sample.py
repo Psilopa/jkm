@@ -148,6 +148,7 @@ class SampleImage(SampleBase):
         return self.path.samefile(Path(fn))
     def rename(self,newpath):
         "Rename the corresponding file on the file system"
+        #TODO: needs error state handling and documentation
         self.path.rename(newpath)
         self._fn = newpath
     def unloadImageData(self): 
