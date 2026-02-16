@@ -1,5 +1,12 @@
 # Check: Watchdog in licences using the Apache License, Version 2.0 
 # TODO: ADD ATEXIT CALL TO CLOSE LOG FILES ON CRASH
+
+# Set a environment variable to disable problematic CTRL-C handling in 
+# some apparently scipy-related Fortran code. Needs to be before scipy
+# is imported.
+import os
+os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
+
 import time,  logging,  threading, sys
 from datetime import datetime
 from pathlib import Path
