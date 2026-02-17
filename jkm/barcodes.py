@@ -14,6 +14,10 @@ pyzbar = QReader = None
 log = logging.getLogger() # Overwrite if needed
 
 def _extract_pyzbar(greyimg, encoding=None):
+    """Extract barcode data using PyZBar.
+    
+    Returns a list of found (nonempty) values. Can contain duplicates.
+    """
     barcodes = []
     # try qr recognition at different image sizes
     for maxdim in (200,600,2000,max(greyimg.shape)):
@@ -52,11 +56,10 @@ def extractbarcodedata(image, qrpackage, increasecontast=False,
     
     Parameters: 
     image -- Accepts either a filename, a file object, opencv images. Should also work with PIL or nympy image arrays.
-    qrpackage -- name of barcode decoding backage to be used: see constants ONST_PYZBAR & CONST_QREADER
+    qrpackage -- name of barcode decoding backage to be used: see constants ONST_PYZBAR & CONST_QREADER.
     increasecontast -- if True, calls tools.increaseTopContrast with greyrange as the parameter.
-    greyrange -- 
-    encoding -- None or a name for the enconding used in decoding the barcode byte stream to text
-
+    greyrange -- see above.
+    encoding -- None or a name for the enconding used in decoding the barcode byte stream to text.
     """
     global QReader, pyzbar
     if qrpackage not in (CONST_QREADER, CONST_PYZBAR):
