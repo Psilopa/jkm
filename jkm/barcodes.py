@@ -33,13 +33,13 @@ def _extract_qreader(greyimg):
         qreader = QReader( model_size='l',min_confidence=0.05 )
         decoded_text = qreader.detect_and_decode(image=greyimg)
         # Make sure the result is a list of non-empty strings (removes None values and empty strings)
-        d = [x for x in decoded_text if x]
+        d = [x for x in decoded_text if x] # Make sure the result is a list of non-empty string
     except ModuleNotFoundError as msg:
         # qreader install on my computer lacks the ultralytics.yolo package
         log.warning(msg)
         d = []
-    return d # Returns a tuple of strings
-
+    return d
+    
 def extractbarcodedata(image, qrpackage, increasecontast=False,
                        greyrange=50,  encoding=None):
     "Is decite is not None, it is assumed to be a name for the enconding used in decoding the barcode byte stream to text"
