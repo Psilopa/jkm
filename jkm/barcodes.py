@@ -14,6 +14,10 @@ pyzbar = QReader = None
 log = logging.getLogger() # Overwrite if needed
 
 def _extract_pyzbar(greyimg, encoding=None):
+    """Extract barcode data using PyZBar.
+    
+    Returns a list of found (nonempty) values. Can contain duplicates.
+    """
     barcodes = []
     # try qr recognition at different image sizes
     for maxdim in (200,600,2000,max(greyimg.shape)):
@@ -29,6 +33,10 @@ def _extract_pyzbar(greyimg, encoding=None):
     return [x for x in d if x] # Make sure the result is a list of non-empty string
 
 def _extract_qreader(greyimg):
+    """Extract barcode data using QReader.
+    
+    Returns a list of found (nonempty) values. Can contain duplicates.
+    """
     try:
         qreader = QReader( model_size='l',min_confidence=0.05 )
         decoded_text = qreader.detect_and_decode(image=greyimg)
@@ -42,9 +50,17 @@ def _extract_qreader(greyimg):
     
 def extractbarcodedata(image, qrpackage, increasecontast=False,
                        greyrange=50,  encoding=None):
-    "Is decite is not None, it is assumed to be a name for the enconding used in decoding the barcode byte stream to text"
-
-    "Accepts either a filename, a file object, opencv images. Should also work with PIL or nympy image arrays."
+    """Extract barcode data from an image. 
+    
+    Returns a list of found (nonempty) values. Can contain duplicates.
+    
+    Parameters: 
+    image -- Accepts either a filename, a file object, opencv images. Should also work with PIL or nympy image arrays.
+    qrpackage -- name of barcode decoding backage to be used: see constants ONST_PYZBAR & CONST_QREADER.
+    increasecontast -- if True, calls tools.increaseTopContrast with greyrange as the parameter.
+    greyrange -- see above.
+    encoding -- None or a name for the enconding used in decoding the barcode byte stream to text.
+    """
     global QReader, pyzbar
     if qrpackage not in (CONST_QREADER, CONST_PYZBAR):
         log.critical(f"Unknown barcode reader tool '{qrpackage}'")

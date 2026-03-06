@@ -19,11 +19,15 @@ def setup_logging(name, debug = False):
     log.addHandler(chc)
     # To log file
     chf = logging.FileHandler(f"{name}.log")
-    chf.setLevel(logging.INFO)
+    if debug: chf.setLevel(logging.DEBUG)
+    else: chf.setLevel(logging.INFO)
+#    chf.setLevel(logging.INFO)
     log.addHandler(chf)
     for l in log.handlers[:]: l.setFormatter(emptyformat)
     log.info("\n") # Print some empty lines using a simplified format
     for l in log.handlers[:]: l.setFormatter(logformat)
+    if debug: log.info("Logging set up for debug.")
+    else: log.info("Logging set up for not debuggind data.")
     return log
 
 def monitor_disk_space(dir_name,limit,levels=[1,0.1,0.01]):

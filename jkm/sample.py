@@ -148,6 +148,7 @@ class SampleImage(SampleBase):
         return self.path.samefile(Path(fn))
     def rename(self,newpath):
         "Rename the corresponding file on the file system"
+        #TODO: needs error state handling and documentation
         self.path.rename(newpath)
         self._fn = newpath
     def unloadImageData(self): 
@@ -300,29 +301,26 @@ class LuomusLineSample(SampleEvent):
         ignore_domain = if True, only the namespace.number part is used 
         Renaming details are provided in the config class instance passed as an argument
 
+        On failure, can return at least:
+        - PermissionError
+        - FileExistsError
         """        
         # TODO: EXTEND TO POSSIBLE SUBDIRECTORIES?
-        try:
-                newpath = self.datapath # Default to no change
-                basepath = self.datapath.parent
-                if ignore_domain: id0 = self.shortidentifier
-                else: id0 = self.identifier
-                if not id0: raise jkm.errors.JKError("No identifier known, cannot rename directory")
-                newprefix = "_".join([id0 , prefix])            
-                if config.getb("basic","create_directories"): # if a subdirectory was created for data
-                    newbase = basepath / id0 # example [basebath]/GX.38276
-                    newpath = newbase / newprefix # example [basebath]/GX.38276/GX.38276_timestamp
-                    if not newbase.exists(): newbase.mkdir() 
-                else:
-                    newpath = basepath / newprefix 
-                log.debug(f"Renaming {self.datapath} to {newpath}")        
-                self.datapath.rename(newpath) 
-        except PermissionError as msg:
-            log.warning("Renaming directory failed with error message: %s" % msg)
-        except FileExistsError as msg:
-            log.warning("Target directory name already exists, skipping: %s" % msg)
-        finally: 
-             self.datapath= newpath             
+        newpath = self.datapath # Default to no change
+        basepath = self.datapath.parent
+        if ignore_domain: id0 = self.shortidentifier
+        else: id0 = self.identifier
+        if not id0: raise jkm.errors.JKError("No identifier known, cannot rename directory")
+        newprefix = "_".join([id0 , prefix])            
+        if config.getb("basic","create_directories"): # if a subdirectory was created for data
+             newbase = basepath / id0 # example [basebath]/GX.38276
+             newpath = newbase / newprefix # example [basebath]/GX.38276/GX.38276_timestamp
+             if not newbase.exists(): newbase.mkdir() 
+        else:
+             newpath = basepath / newprefix 
+        log.debug(f"Renaming {self.datapath} to {newpath}")        
+        self.datapath.rename(newpath) 
+        self.datapath= newpath # Set datapath to the new value only if everything preceding was successful
 #------------------------------------------------------------------------------------------------------    
 class LuomusPlantLineSample(LuomusLineSample): 
     def __init__(self,  time=None):
