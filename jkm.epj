@@ -1,8 +1,8 @@
 {
   "header": {
     "comment": "eric project file for project jkm",
-    "copyright": "Copyright (C) 2024 Jere Kahanp\u00e4\u00e4, psilopa@gmail.com",
-    "saved": "2024-02-22, 18:46:23"
+    "copyright": "Copyright (C) 2026 Jere Kahanp\u00e4\u00e4, psilopa@gmail.com",
+    "saved": "2026-03-06, 14:47:40"
   },
   "project": {
     "AUTHOR": "Jere Kahanp\u00e4\u00e4",
@@ -57,8 +57,15 @@
     "OTHERS": [
       ".gitignore",
       "INSTALL.txt",
-      "jkm_lin_ocrtest.ini",
-      "jkm_win.ini"
+      "jkm.epj",
+      "setup/jkm_insectline.ini",
+      "setup/jkm_insectline_singlerun.ini",
+      "setup/jkm_insectline_work_test.ini",
+      "setup/jkm_lin_ocrtest.ini",
+      "setup/jkm_test_ai.ini",
+      "setup/jkm_test_qreader.ini",
+      "setup/jkm_win.ini",
+      "setup/jkm_win_plantline.ini"
     ],
     "OTHERTOOLSPARMS": {},
     "PACKAGERSPARMS": {},
@@ -73,9 +80,10 @@
     },
     "RESOURCES": [],
     "SOURCES": [
-      "build_Kotka_from_JSON.py",
       "jkm/__init__.py",
+      "jkm/ai.py",
       "jkm/barcodes.py",
+      "jkm/build_Kotka_from_JSON.py",
       "jkm/calibration.py",
       "jkm/camera.py",
       "jkm/configfile.py",
@@ -89,6 +97,7 @@
       "jkm_imaging_cli.py",
       "jkm_postprocessing_cli.py"
     ],
+    "SOURCESDIR": "",
     "SPELLEXCLUDES": "",
     "SPELLLANGUAGE": "en_US",
     "SPELLWORDS": "",
