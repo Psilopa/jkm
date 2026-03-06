@@ -7,7 +7,7 @@
 import os
 os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
 
-import time,  logging,  threading, sys
+import time,  logging,  threading, sys,   configparser
 from datetime import datetime
 from pathlib import Path
 import queue
@@ -17,7 +17,7 @@ import watchdog.events
 # app-specific modules
 import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis
 
-_DEBUG = False  
+_DEBUG = True  
 _num_worker_threads = 1
 _program_name = "jkm-post"
 _program_ver = "1.31a" 
@@ -92,13 +92,16 @@ def processSingleEvent(filename, data_out_table):
         sample_format = conf.get("sampleformat", "datatype_to_load")        
         try:
             dirpath= filename.parent
+            # Catch some error states
             if not dirpath.is_dir():                
                 raise jkm.errors.FileLoadingError(f"Cannot find path {dirpath},  skipping to next sample.")
             if not filename.exists():
                 raise jkm.errors.FileLoadingError(f"Could not find file {filename}, skipping.")
+            # Try to recognise input file/directory format
             if sample_format.lower() == "mzh_insectline": 
+                print("TRYING INSECTLINE")
                 sample = jkm.sample.LuomusInsectLineSample.from_directory(dirpath, conf)
-            if sample_format.lower() ==  "mzh_plantline": 
+            elif sample_format.lower() ==  "mzh_plantline": 
                 sample = jkm.sample.LuomusPlantLineSample.from_directory(dirpath, conf)
             elif sample_format.lower() == "singlefile":
                 sample = jkm.sample.SingleImageSample.from_image_file(filename, conf, "generic_camera")
@@ -235,7 +238,8 @@ def processSingleEvent(filename, data_out_table):
             write_postprocessor_properties_file(sample)
         else: log.debug(f"{sample.name}: No postprocessor.properties file created.")
         return _SUCCESS
-# ----------------- main worker function ------------------------
+        
+# ----------------- main worker function, called in a new thread created when a sample arrival event is noticed ------------------------
 def processSampleEvents(conf, sleep_s, data_out_table):
     while True:
         # Input queue = name of file found by the directory watcher tool
@@ -243,11 +247,15 @@ def processSampleEvents(conf, sleep_s, data_out_table):
         if input is None: break
         filename = Path(input)
         time.sleep(sleep_s) # Wait for all data to arrive
-        successQ = processSingleEvent(filename,data_out_table)        
+        try:
+            successQ = processSingleEvent(filename,data_out_table)        
+        except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
+            log.critical(f"Loading SETUP file item failed with message: {msg}")
+            successQ = _FAIL_IGNORE
         if successQ in [_FAIL_RETRY]: q.put(input) # retry from start 
         elif successQ in [_SUCCESS, _FAIL_IGNORE]: pass # Do nothing
         #DONE
-        log.info(f"Sample events in process queue: {q.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported           
+        log.info(f"Sample events in process queue: {q.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
 
 if __name__ == '__main__':
     threads = []
@@ -320,4 +328,4 @@ if __name__ == '__main__':
     except jkm.errors.JKError as msg:
         log.critical(f'Execution failed with error message "{msg}"')
         raise Exception(msg)
-    logging.shutdown()         
+    logging.shutdown()
