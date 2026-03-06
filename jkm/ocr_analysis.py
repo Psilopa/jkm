@@ -8,8 +8,13 @@ from pathlib import Path
 #import openpyxl
 import csv
 
+def isemptyfile(fpath):  
+    "Note: may fail is something happens to the file while we check"
+    return fpath.is_file() and ( fpath.stat().st_size == 0 ) 
+
 # TODO: PASS EXCEPTION INSTEAD OF LOGGING HERE
 log = logging.getLogger() # Overwrite if needed. Setup is in the main script.
+CSV_DIALECT_DEFAULT =  csv.excel()
 _test_dummy_JSON = '[["leg","Skartveit, John"], ["contry","30"], ["locality","New York"]]'
 
 #class OutputExcel(): 
@@ -35,17 +40,19 @@ _test_dummy_JSON = '[["leg","Skartveit, John"], ["contry","30"], ["locality","Ne
 class OutputCSV(): 
     # TODO: Convert to use the DictWriter class (needs data-pre-work to handle duplicate 'keys')
     """ """
-    def __init__(self, filename): 
+    def __init__(self, filename,  fieldnames,  dialect = CSV_DIALECT_DEFAULT): 
         self.fp = Path(filename)
         self.csvfile = None
+        self.fieldnames = fieldnames
         if self.fp.suffix != ".csv": 
             log.critical(f"CSV output file name must end in '.csv'. {self.fp} fails")
             sys.exit() 
     def open(self): 
-        self.csvfile = self.fp.open("a") 
-        self.writer = csv.writer(self.csvfile)
-    def add_line(self, ocrdata):  
-        self.writer.writerow( [str(x[1]) for x in ocrdata.as_list()] )
+        self.csvfile = self.fp.open("a")  # Append mode
+        self.writer = csv.DictWriter(self.csvfile, self.fieldnames,  extrasaction='ignore')
+        if isemptyfile(self.fp): self.writer.writeheader()
+    def add_line(self, datarowdict):  
+        self.writer.writerow(  datarowdict )
         self.csvfile.flush() # Write data to file immediately
     def save(self):  
         if self.csvfile: self.csvfile.close()

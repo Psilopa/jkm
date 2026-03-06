@@ -40,9 +40,8 @@ class AI_output:
     def __init__(self):
         self._text = None
         self._dict = None
-    def to_dictionary(self):
+    def to_dict(self):
         return self._dict 
-        return True # Success
     def from_dict(self, datadict):
         self._text = str(datadict)
         self._dict =  datadict

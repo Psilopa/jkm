@@ -91,6 +91,7 @@ def processSingleEvent(filename, data_out_table):
         # Variables to hold extracted data
         alltext = ""
         ocrdata = []
+        allbkdata = []
         # Create SampleEvent instances based on (meta)data file(s)
         #Recognise type to load
         sample_format = conf.get("sampleformat", "datatype_to_load")        
@@ -129,7 +130,6 @@ def processSingleEvent(filename, data_out_table):
         # SAVE ROTATED (NOT IMPLEMENTED)
         
         # FIND BARCODES
-        allbkdata = []
         if conf.getb( "postprocessor", "read_barcodes"):
             barcodepackage = conf.get( "barcodes", "barcodepackage").lower()
             for image in sample.imagelist:
@@ -147,7 +147,7 @@ def processSingleEvent(filename, data_out_table):
         if conf.getb( "postprocessor", "find_text_areas"):
             for image in sample.imagelist:
                 if not image.has_labels : continue # Skip pure specimen images
-                log.debug(f"Searching for text areas in {image.label} of sample {sample.name}")
+                log.debug(f"{sample.name}: Searching for text areas in {image.label} of sample {sample.name}")
                 neuralnet = conf.get( "ocr", "EASTfile")
                 textareas = image.findtextareas(neuralnet)
                 image.meta.addlog("Text areas found", str(textareas),  log_add_hdr= sample.name)
@@ -172,11 +172,13 @@ def processSingleEvent(filename, data_out_table):
                 myai = jkm.ai.geminiAI(APIKEY)
                 myai.prompt = PROMPT
                 imagepaths = [x.filename for x in sample.imagelist if x.has_labels]
-                ai_result = myai.query_images( imagepaths )        
-                #outpath = imagedir / "ai_output.json"
-                #with open(outpath, "w") as f:
-                    #f.write(ai_result.to_json())            
-                log.info(f"AI call for data extraction returned {ai_result}")
+                airesult = myai.query_images( imagepaths )        
+                log.info(f"{sample.name}:AI call for data extraction returned {airesult}")
+                outfn = conf.get("ai","properties_filename", fallback = False)
+                if outfn: # If a properties_filename was defined
+                    outpath = sample.datapath / outfn
+                    with outpath.open("w") as f: f.write(airesult.to_json())                                                        
+                else: log.debug(f"{sample.name}:No AI properties file generation requested in config file")
             except (IOError,  jkm.ai.AIError) as msg:
                 log.error(f"Error: {msg}"  )
         else: log.debug(f"{sample.name}: No AI label data extraction.")
@@ -196,24 +198,28 @@ def processSingleEvent(filename, data_out_table):
         if sample.identifier: allbkdata.append(sample.identifier)
         sampleids = _UNIQUE(allbkdata)
         if len(sampleids) == 0:
-            log.warning("No usable identifiers found")
+            log.warning(f"{sample.name}:No usable identifiers found")
         elif len(sampleids) > 1:
-            log.warning("Several  different identifiers for the sample in barcodes/OCR/sample metadata")
+            log.warning(f"{sample.name}:Several  different identifiers for the sample in barcodes/OCR/sample metadata")
         else: sample.identifier =  sampleids[0] # Sets also sample.shortidentifier
         
-       # Store interpreted data in a table file IF data and identifier are available
+       # Store interpreted data in a table file if 
+        if data_out_table: 
 #        if sample.identifier and data_out_table:
 #            ocrdata.prepend("identifier", sample.identifier) 
-#            log.debug(f"{sample.name}: Calling OutputCSV.addline with data: {ocrdata}")
+            testdata = {"FOO": "Foo1",  "BAR": "bar2"}
+            testdata.update( airesult.to_dict() ) 
+            testdata["barcode_ID"] = sample.identifier # Should default to None ?
+            log.debug(f"{sample.name}: Calling OutputCSV.addline with data: {testdata}")
 #            log.debug(f"{sample.name}: data_out_table.fp = {data_out_table.fp}")
-#            data_out_table.add_line(ocrdata)
-#            log.debug(f"{sample.name}: ...done")
+            data_out_table.add_line(testdata)
+            log.debug(f"{sample.name}: ...table data adding done")
             
         # RENAME DIRECTORIES (this may need to stay above file renaming)  
         # Tries a few times in case directory renaming is blocked by other processes
         if conf.getb( "basic", "directories_rename_by_barcode_id") and sample.identifier:
             prefix = sample.datapath.name # last element of directory path
-            log.debug("Renaming directory based on barcode content")
+            log.debug(f"{sample.name}: Renaming directory based on barcode content")
             attempt_times = 2
             wait_time = 2 # seconds
             attempt_current = 1
@@ -222,13 +228,13 @@ def processSingleEvent(filename, data_out_table):
                     sample.rename_directories(conf,prefix)
                     break # Exit the while loop 
                 except (jkm.errors.JKError) as msg: 
-                    log.error(f"Renaming directory failed: {msg}.")                
+                    log.error(f"{sample.name}: Renaming directory failed: {msg}.")                
                     break # Exit the while loop 
                 except FileExistsError as msg:
-                    log.error(f"Renaming directory failed, there is already a directory with this name: {msg}")                
+                    log.error(f"{sample.name}: Renaming directory failed, there is already a directory with this name: {msg}")                
                     break # Exit the while loop 
                 except FileNotFoundError as msg:
-                    log.error(f"Renaming directory failed, original directory does not exist anymore: {msg}")                
+                    log.error(f"{sample.name}: Renaming directory failed, original directory does not exist anymore: {msg}")                
                     break # Exit the while loop 
                 except PermissionError as msg:                
                     log.error(f"No write access: {msg}. \nWill attempt again in {wait_time} seconds {attempt_times-attempt_current} times.")                    
@@ -242,7 +248,7 @@ def processSingleEvent(filename, data_out_table):
             try:
                 sample.rename_all_files(sample.shortidentifier)
             except (jkm.errors.JKError, FileNotFoundError) as msg:
-                log.warning(f"Renaming files failed: {msg}.")                
+                log.warning(f"{sample.name}: Renaming files failed: {msg}.")                
         else: log.debug(f"{sample.name}: No file(s) rename.")
 
         # Write records to JSON Metadata file (should this be before renaming?)
@@ -303,12 +309,23 @@ if __name__ == '__main__':
             for fn in existingevents: q.put(fn)
             log.info(f"Approximate number of sample events to process at launch is {q.qsize()}")
         
-        if conf.getb("postprocessor", "ocr_analysis_to_Excel"):
-            ocr_outfile = conf.get("ocr","ocr_analysis_Excel_file")
-            # TODO: should check if file exists, create as needed
-            data_out_table = jkm.ocr_analysis.OutputCSV( ocr_outfile )
-            data_out_table.open()
-        else: data_out_table = None
+        if conf.getb("postprocessor", "labeldata_to_CSV"):
+            _BACK_UP_DATATABLE = False # Not yet implemented
+            try: # Maybe we should open and close a file every time we access it rather than passing an open file around. What appr                
+                table_outfile = Path( conf.get("data2table","filename") ) 
+                format = conf.get("data2table","format") 
+                if format.lower() != "csv": 
+                    log.warning 
+                # TODO: should check if file exists, create as needed
+                fieldnames = ["barcode_ID", "locality", "date",  "collector",  "identifier", "notes"]                
+                table_out = jkm.ocr_analysis.OutputCSV( table_outfile,  fieldnames = fieldnames )
+                table_out.open()
+                log.info(f"Tabular output is appended to file {table_outfile}")
+            except IOError as msg: 
+                log.error(f"Error in opening file {table_out} for output:{msg}")
+                table_out = None
+        else: table_out = None
+        
         log.debug(f'Using QR code decoder {conf.get( "barcodes", "barcodepackage")}')
 
         if conf.getb("postprocessor", "ai_label_text_extraction"):            
@@ -321,7 +338,7 @@ if __name__ == '__main__':
 
          #Start loops looking for data to process and processing it
         for i in range(_num_worker_threads):
-            t = threading.Thread(target=processSampleEvents,  args=(conf, sleep_s_before_reading_file, data_out_table))
+            t = threading.Thread(target=processSampleEvents,  args=(conf, sleep_s_before_reading_file, table_out))
             t.start()
             threads.append(t)    
         if not conf.getb( "postprocessor", "monitor"):
@@ -349,7 +366,7 @@ if __name__ == '__main__':
         for i in range(_num_worker_threads): q.put(None) # Signal end-of-life to worker threads
         for t in threads: t.join()   # Wait for each worker thread to end properly
         log.info("Ending session, closing log files.")
-        if data_out_table: data_out_table.save()
+        if table_out: table_out.save()
     except jkm.errors.JKError as msg:
         log.critical(f'Execution failed with error message "{msg}"')
     except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
