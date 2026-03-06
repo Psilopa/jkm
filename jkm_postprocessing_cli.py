@@ -19,6 +19,8 @@ import watchdog.events
 import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis,  jkm.ai
 
 _DEBUG = True  
+_BACKUP_DATATABLE = True 
+
 _num_worker_threads = 1
 _program_name = "jkm-post"
 _program_ver = "1.31a" 
@@ -77,8 +79,8 @@ def write_postprocessor_properties_file(sample):
                 sample.digipropfile.update("URI_format_OK", str(id_OK) )
             sample.digipropfile.update("Q-sharp", "" )
             sample.digipropfile.update("Q-color", "" )
-            if conf.getb( "postprocessor", "ocr"): 
-                sample.digipropfile.update("OCR_result", alltext.replace("\n"," "))
+#            if conf.getb( "postprocessor", "ocr"): 
+#                sample.digipropfile.update("OCR_result", alltext.replace("\n"," "))
             propfilepath = sample.datapath /  Path(r"postprocessor.properties") 
             sample.digipropfile.save( sample.datapath /  Path(r"postprocessor.properties") )
     except OSError as msg:
@@ -207,8 +209,8 @@ def processSingleEvent(filename, data_out_table):
         if data_out_table: 
 #        if sample.identifier and data_out_table:
 #            ocrdata.prepend("identifier", sample.identifier) 
-            testdata = {"FOO": "Foo1",  "BAR": "bar2"}
-            testdata.update( airesult.to_dict() ) 
+            if airesult:  testdata = airesult.to_dict() 
+            else: testdata = {}
             testdata["barcode_ID"] = sample.identifier # Should default to None ?
             log.debug(f"{sample.name}: Calling OutputCSV.addline with data: {testdata}")
 #            log.debug(f"{sample.name}: data_out_table.fp = {data_out_table.fp}")
@@ -310,9 +312,12 @@ if __name__ == '__main__':
             log.info(f"Approximate number of sample events to process at launch is {q.qsize()}")
         
         if conf.getb("postprocessor", "labeldata_to_CSV"):
-            _BACK_UP_DATATABLE = False # Not yet implemented
             try: # Maybe we should open and close a file every time we access it rather than passing an open file around. What appr                
                 table_outfile = Path( conf.get("data2table","filename") ) 
+                if  _BACKUP_DATATABLE:  
+                    timestr = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
+                    backup_fp = table_outfile.with_stem( table_outfile.stem + "_" + timestr ) 
+                    jkm.tools.backup_file(table_outfile,  backup_fp) # TODO: check return 
                 format = conf.get("data2table","format") 
                 if format.lower() != "csv": 
                     log.warning 
@@ -322,7 +327,7 @@ if __name__ == '__main__':
                 table_out.open()
                 log.info(f"Tabular output is appended to file {table_outfile}")
             except IOError as msg: 
-                log.error(f"Error in opening file {table_out} for output:{msg}")
+                log.critical(f"Error in opening file {table_outfile} for output:{msg}")
                 table_out = None
         else: table_out = None
         

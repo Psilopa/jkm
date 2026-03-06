@@ -15,6 +15,7 @@ def isemptyfile(fpath):
 # TODO: PASS EXCEPTION INSTEAD OF LOGGING HERE
 log = logging.getLogger() # Overwrite if needed. Setup is in the main script.
 CSV_DIALECT_DEFAULT =  csv.excel()
+CSV_DIALECT_DEFAULT.quoting = csv.QUOTE_STRINGS
 _test_dummy_JSON = '[["leg","Skartveit, John"], ["contry","30"], ["locality","New York"]]'
 
 #class OutputExcel(): 
@@ -43,13 +44,14 @@ class OutputCSV():
     def __init__(self, filename,  fieldnames,  dialect = CSV_DIALECT_DEFAULT): 
         self.fp = Path(filename)
         self.csvfile = None
+        self.dialect = dialect
         self.fieldnames = fieldnames
         if self.fp.suffix != ".csv": 
             log.critical(f"CSV output file name must end in '.csv'. {self.fp} fails")
             sys.exit() 
     def open(self): 
         self.csvfile = self.fp.open("a")  # Append mode
-        self.writer = csv.DictWriter(self.csvfile, self.fieldnames,  extrasaction='ignore')
+        self.writer = csv.DictWriter(self.csvfile, self.fieldnames,  dialect = self.dialect,  extrasaction='ignore')
         if isemptyfile(self.fp): self.writer.writeheader()
     def add_line(self, datarowdict):  
         self.writer.writerow(  datarowdict )
