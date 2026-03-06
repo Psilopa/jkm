@@ -90,6 +90,7 @@ def processSingleEvent(filename, data_out_table):
         log.debug(f"Processing data file {filename}" )
         # Variables to hold extracted data
         alltext = ""
+        ocrdata = []
         # Create SampleEvent instances based on (meta)data file(s)
         #Recognise type to load
         sample_format = conf.get("sampleformat", "datatype_to_load")        
@@ -171,11 +172,11 @@ def processSingleEvent(filename, data_out_table):
                 myai = jkm.ai.geminiAI(APIKEY)
                 myai.prompt = PROMPT
                 imagepaths = [x.filename for x in sample.imagelist if x.has_labels]
-                output = myai.query_images( imagepaths )        
+                ai_result = myai.query_images( imagepaths )        
                 #outpath = imagedir / "ai_output.json"
                 #with open(outpath, "w") as f:
-                    #f.write(output.to_json())            
-                log.info(f"AI call for data extraction returned {output}")
+                    #f.write(ai_result.to_json())            
+                log.info(f"AI call for data extraction returned {ai_result}")
             except (IOError,  jkm.ai.AIError) as msg:
                 log.error(f"Error: {msg}"  )
         else: log.debug(f"{sample.name}: No AI label data extraction.")
