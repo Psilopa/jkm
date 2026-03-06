@@ -130,6 +130,9 @@ class SampleEvent(SampleBase,  abc.ABC):
 #------------------------------------------------------------------------------------------------------    
 class SampleImage(SampleBase): 
     "One image plus metadata"
+    #Class properties
+    has_specimens = False # Property
+    has_labels = False # Property
     def __init__(self,  label,  fn = None): 
         super().__init__()
         self.label= label
@@ -137,6 +140,7 @@ class SampleImage(SampleBase):
         self.confsection= None
         self._img = None  # Full image data loaded to memory (set to None if not yet loaded)
         self._fn = fn
+
         # Record colorspace!
     @property
     def filename(self):  return self._fn
@@ -208,15 +212,17 @@ class SampleImage(SampleBase):
         
 #------------------------------------------------------------------------------------------------------    
 class SpecimenImage(SampleImage):
-    has_specimens = True
-    has_labels = False
+    #Class properties
+    has_specimens = True # Property
+    has_labels = False # Property
     def __init__(self,  label,  fn = None): 
         super().__init__(label,  fn)
 #    def specimenCrop(self): pass
 #------------------------------------------------------------------------------------------------------    
 class LabelImage(SampleImage):
-    has_specimens = False
-    has_labels = True
+        #Class properties
+    has_specimens = False # Property
+    has_labels = True # Property
     def __init__(self,  label,  fn = None): 
         super().__init__(label, fn)
         self._textareas = None
@@ -259,8 +265,8 @@ class LabelImage(SampleImage):
 #    def writeMetadata(self): pass    
 
 class CombinedImage(SpecimenImage, LabelImage): # Note: potential problems with inheritance, resolve!
-    has_specimens = True
-    has_labels = True
+    has_specimens = True # Property
+    has_labels = True # Property
     def __init__(self,  label,  fn = None): 
         super().__init__(label,  fn)
 

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Check: Watchdog in licences using the Apache License, Version 2.0 
 # TODO: ADD ATEXIT CALL TO CLOSE LOG FILES ON CRASH
 
@@ -15,7 +16,7 @@ import queue
 from watchdog.observers import Observer
 import watchdog.events
 # app-specific modules
-import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis
+import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis,  jkm.ai
 
 _DEBUG = True  
 _num_worker_threads = 1
@@ -163,17 +164,34 @@ def processSingleEvent(filename, data_out_table):
             sample.meta.addlog("Combined OCR result for all images",alltext,  log_add_hdr= sample.name)
         else: log.debug(f"{sample.name}: No OCR.")
 
+        # AI-based label data extraction
+        if conf.getb( "postprocessor", "ai_label_text_extraction"):
+            try:
+                _TEST_APIKEY = "AIzaSyAqHT6cYM90MFH3Vx-12AgS9Ly0doaYw0k" 
+                _TEST_PROMPT = "There images are all of the same object. Find text in the images. Reply with JSON only, fitting the data into the following variables: collector, date, locality, identifier, and notes."
+                apikey = _TEST_APIKEY
+                prompt = _TEST_PROMPT
+                myai = jkm.ai.geminiAI(apikey)
+                myai.prompt = prompt
+                imagepaths = [x.filename for x in sample.imagelist if x.has_labels]
+                output = myai.query_images( imagepaths )        
+                #outpath = imagedir / "ai_output.json"
+                #with open(outpath, "w") as f:
+                    #f.write(output.to_json())            
+                log.info(f"AI call for data extraction returned {output}")
+            except (IOError,  jkm.ai.AIError) as msg:
+                log.error(f"Error: {msg}"  )
+        else: log.debug(f"{sample.name}: No AI label data extraction.")
+
         # EXTRACT IDENTIFIERS FROM OCR DATA (NOT IMPLEMENTED)
 
         # SUBMIT alltext to COMPONENT ANALYSIS
-        # if conf.getb( "postprocessor", "ocr") and conf.getb( "postprocessor", "ocr_analysis"):
-            # ocrdata = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
-            # log.debug(f"{sample.name}: OCR data parsing output: {ocrdata}")
-        # else: log.debug(f"{sample.name}: No OCR data parsing attempted.")           
-        # SIMPLE IMPLEMENTATION FOR TESTING
-        cleantext = jkm.ocr_analysis.cleanup(alltext)
-        ocrdata = jkm.ocr_analysis.OCRAnalysisResult()
-        ocrdata.append("ocr",cleantext)
+        if conf.getb( "postprocessor", "ocr") and conf.getb( "postprocessor", "ocr_analysis"):
+             ocrdata = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
+             log.debug(f"{sample.name}: OCR data parsing output: {ocrdata}")
+        else: 
+             log.debug(f"{sample.name}: No OCR data parsing attempted.")           
+             ocrdata = []
 
          # FOR FURTHER PROCESSING, CHECK IF IDENTIFIER LIST CONTAINS A SINGLE VALID IDENTIFIER
         # In case sample does already have a known identifier, append to to the list
@@ -186,12 +204,12 @@ def processSingleEvent(filename, data_out_table):
         else: sample.identifier =  sampleids[0] # Sets also sample.shortidentifier
         
        # Store interpreted data in a table file IF data and identifier are available
-        if sample.identifier and data_out_table:
-            ocrdata.prepend("identifier", sample.identifier) 
-            log.debug(f"{sample.name}: Calling OutputCSV.addline with data: {ocrdata}")
-            log.debug(f"{sample.name}: data_out_table.fp = {data_out_table.fp}")
-            data_out_table.add_line(ocrdata)
-            log.debug(f"{sample.name}: ...done")
+#        if sample.identifier and data_out_table:
+#            ocrdata.prepend("identifier", sample.identifier) 
+#            log.debug(f"{sample.name}: Calling OutputCSV.addline with data: {ocrdata}")
+#            log.debug(f"{sample.name}: data_out_table.fp = {data_out_table.fp}")
+#            data_out_table.add_line(ocrdata)
+#            log.debug(f"{sample.name}: ...done")
             
         # RENAME DIRECTORIES (this may need to stay above file renaming)  
         # Tries a few times in case directory renaming is blocked by other processes
