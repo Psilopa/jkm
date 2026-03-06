@@ -88,6 +88,8 @@ def write_postprocessor_properties_file(sample):
 # ----------------- Process a single event ------------------------
 def processSingleEvent(filename, data_out_table):
         log.debug(f"Processing data file {filename}" )
+        # Variables to hold extracted data
+        alltext = ""
         # Create SampleEvent instances based on (meta)data file(s)
         #Recognise type to load
         sample_format = conf.get("sampleformat", "datatype_to_load")        
@@ -153,7 +155,6 @@ def processSingleEvent(filename, data_out_table):
         else: log.debug(f"{sample.name}: No text area recognition.")
 
         # PERFORM OCR
-        alltext = ""
         if conf.getb( "postprocessor", "ocr"):
             ocr_command = conf.get("ocr", "ocr_command")
             for image in sample.imagelist:
@@ -167,10 +168,8 @@ def processSingleEvent(filename, data_out_table):
         # AI-based label data extraction
         if conf.getb( "postprocessor", "ai_label_text_extraction"):
             try:
-                apikey = APIKEY
-                prompt = PROMPT
-                myai = jkm.ai.geminiAI(apikey)
-                myai.prompt = prompt
+                myai = jkm.ai.geminiAI(APIKEY)
+                myai.prompt = PROMPT
                 imagepaths = [x.filename for x in sample.imagelist if x.has_labels]
                 output = myai.query_images( imagepaths )        
                 #outpath = imagedir / "ai_output.json"
@@ -316,7 +315,8 @@ if __name__ == '__main__':
             log.debug(f"Reading API key from {APIPATH}")
             APIKEY = jkm.ai.load_apikey(APIPATH)
             log.debug(f"API key is {APIKEY}")
-            PROMPT = "There images are all of the same object. Find text in the images. Reply with JSON only, fitting the data into the following variables: collector, date, locality, identifier, and notes."
+            PROMPT = conf.get("ai","prompt")
+            log.debug(f"AI prompt set to '{APIKEY}'")
 
          #Start loops looking for data to process and processing it
         for i in range(_num_worker_threads):
@@ -351,5 +351,6 @@ if __name__ == '__main__':
         if data_out_table: data_out_table.save()
     except jkm.errors.JKError as msg:
         log.critical(f'Execution failed with error message "{msg}"')
-        raise Exception(msg)
+    except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
+        log.critical(f"Loading SETUP file item failed with message: {msg}")
     logging.shutdown()

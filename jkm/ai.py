@@ -6,7 +6,6 @@ from google import genai
 from google.genai import types
 
 # For testing, Google Free Key for small tests
-_TEST_APIKEY = NONE
 _TESTING = True
 _IMAGE_TRANSFER_UPLOAD = 1
 _IMAGE_TRANSFER_INLINE = 2
