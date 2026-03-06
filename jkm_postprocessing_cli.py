@@ -167,10 +167,8 @@ def processSingleEvent(filename, data_out_table):
         # AI-based label data extraction
         if conf.getb( "postprocessor", "ai_label_text_extraction"):
             try:
-                _TEST_APIKEY = "AIzaSyAqHT6cYM90MFH3Vx-12AgS9Ly0doaYw0k" 
-                _TEST_PROMPT = "There images are all of the same object. Find text in the images. Reply with JSON only, fitting the data into the following variables: collector, date, locality, identifier, and notes."
-                apikey = _TEST_APIKEY
-                prompt = _TEST_PROMPT
+                apikey = APIKEY
+                prompt = PROMPT
                 myai = jkm.ai.geminiAI(apikey)
                 myai.prompt = prompt
                 imagepaths = [x.filename for x in sample.imagelist if x.has_labels]
@@ -312,6 +310,14 @@ if __name__ == '__main__':
             data_out_table.open()
         else: data_out_table = None
         log.debug(f'Using QR code decoder {conf.get( "barcodes", "barcodepackage")}')
+
+        if conf.getb("postprocessor", "ai_label_text_extraction"):            
+            APIPATH = Path(conf.get("ai","APIkeyfile"))
+            log.debug(f"Reading API key from {APIPATH}")
+            APIKEY = jkm.ai.load_apikey(APIPATH)
+            log.debug(f"API key is {APIKEY}")
+            PROMPT = "There images are all of the same object. Find text in the images. Reply with JSON only, fitting the data into the following variables: collector, date, locality, identifier, and notes."
+
          #Start loops looking for data to process and processing it
         for i in range(_num_worker_threads):
             t = threading.Thread(target=processSampleEvents,  args=(conf, sleep_s_before_reading_file, data_out_table))

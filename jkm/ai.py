@@ -12,6 +12,10 @@ _IMAGE_TRANSFER_UPLOAD = 1
 _IMAGE_TRANSFER_INLINE = 2
 _TEST_PROMPT = "There images are all of the same object. Find text in the images. Reply with JSON only, fitting the data into the following variables: collector, date, locality, identifier, and notes."
 AI_FAILURE_RETURN_VALUE = 'null'
+
+def load_apikey(fp):
+    with fp.open() as f:
+            return f.read()
     
 def _parseAI_JSON(text):
     try: 
