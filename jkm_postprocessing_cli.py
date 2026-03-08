@@ -106,12 +106,13 @@ def processSingleEvent(filename, data_out_table):
                 raise jkm.errors.FileLoadingError(f"Could not find file {filename}, skipping.")
             # Try to recognise input file/directory format
             if sample_format.lower() == "mzh_insectline": 
-                print("TRYING INSECTLINE")
                 sample = jkm.sample.LuomusInsectLineSample.from_directory(dirpath, conf)
             elif sample_format.lower() ==  "mzh_plantline": 
                 sample = jkm.sample.LuomusPlantLineSample.from_directory(dirpath, conf)
             elif sample_format.lower() == "singlefile":
                 sample = jkm.sample.SingleImageSample.from_image_file(filename, conf, "generic_camera")
+            elif sample_format.lower() == "imagedir":
+                sample = jkm.sample.ImageDirectorySample.from_directory(dirpath, conf)
             else:
                 raise jkm.errors.FileLoadingError(f"Unknown sample file/directory format {sample_format}, skippping to next.")
         except jkm.errors.FileLoadingError as msg:

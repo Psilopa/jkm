@@ -202,10 +202,8 @@ class SampleImage(SampleBase):
         bkdata = jkm.barcodes.extractbarcodedata(img, qrpackage, encoding='ascii')
         return bkdata        
     def rotate(self, angle): # angle = 0,90,180,270
-        print("ROTATE CALLED")
         angle = int(angle)
         if angle:
-            print("ROTATING", self.name)
             img = self.readImage()
             rotcode = deg2rotcode[angle]
             self._img = cv2.rotate(img, rotateCode = rotcode)
@@ -372,8 +370,8 @@ class LuomusInsectLineSample(LuomusLineSample):
         s.name = f"{dirpath.name}"        
         s.prefix = dirpath
         #Load label image
-        label_label = conf.get("sampleformat", "label_title")
-        labelimage = LabelImage(label_label, fn = labelpath)
+        label_title = conf.get("sampleformat", "label_title")
+        labelimage = LabelImage(label_title, fn = labelpath)
         s.addImage(labelimage)
         #Load object (insect/plant) images
         objectfiles = conf.getlist("sampleformat", "object_files")
@@ -407,7 +405,30 @@ class SingleImageSample(SampleEvent):
         separator = r'/'
         return x.split(separator)[-1] # Last element
 #------------------------------------------------------------------------------------------------------    
-
+_DEFAULT_IMGDIR_FILE_FORMAT = "*.jpg"
+class ImageDirectorySample(LuomusLineSample): 
+    # Read from the SETUP file
+    # trigger_pattern = ".identier"
+    def __init__(self,  time=None,  imagefilepattern = _DEFAULT_IMGDIR_FILE_FORMAT):
+        super().__init__(time)
+        self. imagefilepattern = imagefilepattern
+    @staticmethod
+    def from_directory(dirpath, conf, imagefilepattern=  _DEFAULT_IMGDIR_FILE_FORMAT): 
+        log.debug("Creating sample data from directory with images and jkm config file metadata.") 
+        # Extract creating time from JPG and use it as the Sample event time        
+        itime = getFileCreationDateTime(dirpath)
+        s = ImageDirectorySample( time = itime,  imagefilepattern = imagefilepattern )
+#        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
+        s.datapath = dirpath
+        s.name = f"{dirpath}"        
+        s.prefix = dirpath
+        #Load all images found, treating them as combined label/specimen images
+        objectfilepaths = [Path(dirpath,  x) for x in dirpath.glob(s.imagefilepattern)]
+        object_titles = [f"Image file {p}" for p in objectfilepaths]        
+        for ofp, ofn in zip(objectfilepaths, object_titles):
+            s.addImage( CombinedImage(ofn, fn = ofp)  )
+        return s             
+#------------------------------------------------------------------------------------------------------    
 #if __name__ == '__main__': #SImple testing
 #    si = SampleEvent()
 #    print(si.toJSON())
