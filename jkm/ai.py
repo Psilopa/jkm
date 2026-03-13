@@ -6,11 +6,13 @@ from google import genai
 from google.genai import types
 
 # For testing, Google Free Key for small tests
-_TESTING = True
+_TESTING_BYPASS_AI_CALL = False
+_TESTING_JSON_FROM_AI = """```json {  "collector": "F. Kangas",  "date": "8. 7. 1932",  "locality": "Helsinki",  "identifier": "GV 101220",  "notes": "http://id.luom"}```"""
 _IMAGE_TRANSFER_UPLOAD = 1
 _IMAGE_TRANSFER_INLINE = 2
 _TEST_PROMPT = "There images are all of the same object. Find text in the images. Reply with JSON only, fitting the data into the following variables: collector, date, locality, identifier, and notes."
 AI_FAILURE_RETURN_VALUE = 'null'
+
 
 def load_apikey(fp):
     with fp.open() as f:
@@ -132,13 +134,14 @@ class geminiAI():
         # Add prompt and image information to query parameter 'contents'
         contentlist = [ self.prompt ] 
         for up_img in readiedfiles:  contentlist.append(up_img)
-        # Query the model
-#        response = self.client .models.generate_content( model= self._MODEL, contents = contentlist )           
-#        text = response.text
         # Values for testing
-        response = 'foo' #
-        text = """```json {  "collector": "F. Kangas",  "date": "8. 7. 1932",  "locality": "Helsinki",  "identifier": "GV 101220",  "notes": "http://id.luom"}```"""
-
+        if _TESTING_BYPASS_AI_CALL:
+            response = 'foo' #
+            text = _TESTING_JSON_FROM_AI
+        else:
+            # Query the model
+            response = self.client .models.generate_content( model= self._MODEL, contents = contentlist )           
+            text = response.text
         log.debug( f'Response was "{text }"' )
         output = AI_output()
         if response == AI_FAILURE_RETURN_VALUE: return output        # Primitive error handling
