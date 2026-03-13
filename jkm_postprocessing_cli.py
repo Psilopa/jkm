@@ -340,7 +340,7 @@ if __name__ == '__main__':
             APIKEY = jkm.ai.load_apikey(APIPATH)
             log.debug(f"API key is {APIKEY}")
             PROMPT = conf.get("ai","prompt")
-            log.debug(f"AI prompt set to '{APIKEY}'")
+            log.debug(f"AI prompt set to '{PROMPT}'")
 
          #Start loops looking for data to process and processing it
         for i in range(_num_worker_threads):
