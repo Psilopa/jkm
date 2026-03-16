@@ -1,6 +1,5 @@
-import time,  logging,  ast,  math,  re,  io
+import time,  logging,  ast,  math,  re,  io,  shutil
 from pathlib import Path
-from shutil import disk_usage
 import numpy as np
 import cv2
 from jkm.errors import FileLoadingError
@@ -32,7 +31,7 @@ def setup_logging(name, debug = False):
 
 def monitor_disk_space(dir_name,limit,levels=[1,0.1,0.01]):
     """Monitor free disk space in given directory, warning at level[0], error at level[1], critical at level[2]"""
-    freeb = disk_usage(dir_name).free
+    freeb = shutil.disk_usage(dir_name).free
     feespace = (freeb/(1024**2), freeb/(1024**3)) # Free space in MB, GB
     if freeb < levels[0]*limit:        
         log.warning("Disk space low (free space %.0f MB (%.1f GB)" % feespace)
@@ -125,20 +124,10 @@ Returns the short form only! Assumes 0-1 matches!"""
             num = num.strip()
             reslist.append("%s.%s" % (ns,num))
     return reslist
-
-if __name__ == '__main__':
-    txt1 = """
-   htto://id. luom us.fi/ ¢@
-G P .83  693
-Bombus ° |
-quadricolor (Lep.)
-det. J. Paukkunen 2012"""
-
-    txt2 = """
-coll...\nNordman  nttp:/id.luomus. 1 3\n\nGP.83684 ~~ |\n\nBombus\n\nS quadricolor (Lep.) |\ndet. J. Paukkunen 2012  """
-    txt3 = """
-        _ Finby\nR. El{ving\npS.) 1903. http://id. luomus.fi/  d\nGP .83696 _\nBombus\nquadricolor """
-    res = shortid_from_text(txt3)
-    print(res)
-        
     
+    
+def backup_file(orig_path,  copy_path):
+    log.debug(f"Trying to back up file from {orig_path} to {copy_path}")
+    if  orig_path.exists() and orig_path.is_file():  
+        shutil.copy(orig_path,  copy_path)
+    return True

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Check: Watchdog in licences using the Apache License, Version 2.0 
 # TODO: ADD ATEXIT CALL TO CLOSE LOG FILES ON CRASH
 
@@ -7,7 +8,7 @@
 import os
 os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
 
-import time,  logging,  threading, sys
+import time,  logging,  threading, sys,   configparser
 from datetime import datetime
 from pathlib import Path
 import queue
@@ -15,12 +16,14 @@ import queue
 from watchdog.observers import Observer
 import watchdog.events
 # app-specific modules
-import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis
+import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis,  jkm.ai
 
 _DEBUG = False  
+_BACKUP_DATATABLE = True 
+
 _num_worker_threads = 1
 _program_name = "jkm-post"
-_program_ver = "1.31a" 
+_program_ver = "1.4a" 
 _program = f"{_program_name} ({_program_ver})"
 
 _SUCCESS = 0
@@ -76,8 +79,8 @@ def write_postprocessor_properties_file(sample):
                 sample.digipropfile.update("URI_format_OK", str(id_OK) )
             sample.digipropfile.update("Q-sharp", "" )
             sample.digipropfile.update("Q-color", "" )
-            if conf.getb( "postprocessor", "ocr"): 
-                sample.digipropfile.update("OCR_result", alltext.replace("\n"," "))
+#            if conf.getb( "postprocessor", "ocr"): 
+#                sample.digipropfile.update("OCR_result", alltext.replace("\n"," "))
             propfilepath = sample.datapath /  Path(r"postprocessor.properties") 
             sample.digipropfile.save( sample.datapath /  Path(r"postprocessor.properties") )
     except OSError as msg:
@@ -87,21 +90,29 @@ def write_postprocessor_properties_file(sample):
 # ----------------- Process a single event ------------------------
 def processSingleEvent(filename, data_out_table):
         log.debug(f"Processing data file {filename}" )
+        # Variables to hold extracted data
+        alltext = ""
+        ocrdata = []
+        allbkdata = []
         # Create SampleEvent instances based on (meta)data file(s)
         #Recognise type to load
         sample_format = conf.get("sampleformat", "datatype_to_load")        
         try:
             dirpath= filename.parent
+            # Catch some error states
             if not dirpath.is_dir():                
                 raise jkm.errors.FileLoadingError(f"Cannot find path {dirpath},  skipping to next sample.")
             if not filename.exists():
                 raise jkm.errors.FileLoadingError(f"Could not find file {filename}, skipping.")
+            # Try to recognise input file/directory format
             if sample_format.lower() == "mzh_insectline": 
                 sample = jkm.sample.LuomusInsectLineSample.from_directory(dirpath, conf)
-            if sample_format.lower() ==  "mzh_plantline": 
+            elif sample_format.lower() ==  "mzh_plantline": 
                 sample = jkm.sample.LuomusPlantLineSample.from_directory(dirpath, conf)
             elif sample_format.lower() == "singlefile":
                 sample = jkm.sample.SingleImageSample.from_image_file(filename, conf, "generic_camera")
+            elif sample_format.lower() == "imagedir":
+                sample = jkm.sample.ImageDirectorySample.from_directory(dirpath, conf)
             else:
                 raise jkm.errors.FileLoadingError(f"Unknown sample file/directory format {sample_format}, skippping to next.")
         except jkm.errors.FileLoadingError as msg:
@@ -122,7 +133,6 @@ def processSingleEvent(filename, data_out_table):
         # SAVE ROTATED (NOT IMPLEMENTED)
         
         # FIND BARCODES
-        allbkdata = []
         if conf.getb( "postprocessor", "read_barcodes"):
             barcodepackage = conf.get( "barcodes", "barcodepackage").lower()
             for image in sample.imagelist:
@@ -140,7 +150,7 @@ def processSingleEvent(filename, data_out_table):
         if conf.getb( "postprocessor", "find_text_areas"):
             for image in sample.imagelist:
                 if not image.has_labels : continue # Skip pure specimen images
-                log.debug(f"Searching for text areas in {image.label} of sample {sample.name}")
+                log.debug(f"{sample.name}: Searching for text areas in {image.label} of sample {sample.name}")
                 neuralnet = conf.get( "ocr", "EASTfile")
                 textareas = image.findtextareas(neuralnet)
                 image.meta.addlog("Text areas found", str(textareas),  log_add_hdr= sample.name)
@@ -149,7 +159,6 @@ def processSingleEvent(filename, data_out_table):
         else: log.debug(f"{sample.name}: No text area recognition.")
 
         # PERFORM OCR
-        alltext = ""
         if conf.getb( "postprocessor", "ocr"):
             ocr_command = conf.get("ocr", "ocr_command")
             for image in sample.imagelist:
@@ -160,41 +169,60 @@ def processSingleEvent(filename, data_out_table):
             sample.meta.addlog("Combined OCR result for all images",alltext,  log_add_hdr= sample.name)
         else: log.debug(f"{sample.name}: No OCR.")
 
+        # AI-based label data extraction
+        if conf.getb( "postprocessor", "ai_label_text_extraction"):
+            try:
+                myai = jkm.ai.geminiAI(APIKEY)
+                myai.prompt = PROMPT
+                imagepaths = [x.filename for x in sample.imagelist if x.has_labels]
+                airesult = myai.query_images( imagepaths )        
+                log.info(f"{sample.name}:AI call for data extraction returned {airesult}")
+                outfn = conf.get("ai","properties_filename", fallback = False)
+                if outfn: # If a properties_filename was defined
+                    outpath = sample.datapath / outfn
+                    with outpath.open("w") as f: f.write(airesult.to_json())                                                        
+                else: log.debug(f"{sample.name}:No AI properties file generation requested in config file")
+            except (IOError,  jkm.errors.AIError) as msg:
+                log.error(f"Error: {msg}"  )
+        else: log.debug(f"{sample.name}: No AI label data extraction.")
+
         # EXTRACT IDENTIFIERS FROM OCR DATA (NOT IMPLEMENTED)
 
         # SUBMIT alltext to COMPONENT ANALYSIS
-        # if conf.getb( "postprocessor", "ocr") and conf.getb( "postprocessor", "ocr_analysis"):
-            # ocrdata = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
-            # log.debug(f"{sample.name}: OCR data parsing output: {ocrdata}")
-        # else: log.debug(f"{sample.name}: No OCR data parsing attempted.")           
-        # SIMPLE IMPLEMENTATION FOR TESTING
-        cleantext = jkm.ocr_analysis.cleanup(alltext)
-        ocrdata = jkm.ocr_analysis.OCRAnalysisResult()
-        ocrdata.append("ocr",cleantext)
+        if conf.getb( "postprocessor", "ocr") and conf.getb( "postprocessor", "ocr_analysis"):
+             ocrdata = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
+             log.debug(f"{sample.name}: OCR data parsing output: {ocrdata}")
+        else: 
+             log.debug(f"{sample.name}: No OCR data parsing attempted.")           
+             ocrdata = []
 
          # FOR FURTHER PROCESSING, CHECK IF IDENTIFIER LIST CONTAINS A SINGLE VALID IDENTIFIER
         # In case sample does already have a known identifier, append to to the list
         if sample.identifier: allbkdata.append(sample.identifier)
         sampleids = _UNIQUE(allbkdata)
         if len(sampleids) == 0:
-            log.warning("No usable identifiers found")
+            log.warning(f"{sample.name}:No usable identifiers found")
         elif len(sampleids) > 1:
-            log.warning("Several  different identifiers for the sample in barcodes/OCR/sample metadata")
+            log.warning(f"{sample.name}:Several  different identifiers for the sample in barcodes/OCR/sample metadata")
         else: sample.identifier =  sampleids[0] # Sets also sample.shortidentifier
         
-       # Store interpreted data in a table file IF data and identifier are available
-        if sample.identifier and data_out_table:
-            ocrdata.prepend("identifier", sample.identifier) 
-            log.debug(f"{sample.name}: Calling OutputCSV.addline with data: {ocrdata}")
-            log.debug(f"{sample.name}: data_out_table.fp = {data_out_table.fp}")
-            data_out_table.add_line(ocrdata)
-            log.debug(f"{sample.name}: ...done")
+       # Store interpreted data in a table file if 
+        if data_out_table: 
+#        if sample.identifier and data_out_table:
+#            ocrdata.prepend("identifier", sample.identifier) 
+            if airesult:  testdata = airesult.to_dict() 
+            else: testdata = {}
+            testdata["barcode_ID"] = sample.identifier # Should default to None ?
+            log.debug(f"{sample.name}: Calling OutputCSV.addline with data: {testdata}")
+#            log.debug(f"{sample.name}: data_out_table.fp = {data_out_table.fp}")
+            data_out_table.add_line(testdata)
+            log.debug(f"{sample.name}: ...table data adding done")
             
         # RENAME DIRECTORIES (this may need to stay above file renaming)  
         # Tries a few times in case directory renaming is blocked by other processes
         if conf.getb( "basic", "directories_rename_by_barcode_id") and sample.identifier:
             prefix = sample.datapath.name # last element of directory path
-            log.debug("Renaming directory based on barcode content")
+            log.debug(f"{sample.name}: Renaming directory based on barcode content")
             attempt_times = 2
             wait_time = 2 # seconds
             attempt_current = 1
@@ -203,13 +231,13 @@ def processSingleEvent(filename, data_out_table):
                     sample.rename_directories(conf,prefix)
                     break # Exit the while loop 
                 except (jkm.errors.JKError) as msg: 
-                    log.error(f"Renaming directory failed: {msg}.")                
+                    log.error(f"{sample.name}: Renaming directory failed: {msg}.")                
                     break # Exit the while loop 
                 except FileExistsError as msg:
-                    log.error(f"Renaming directory failed, there is already a directory with this name: {msg}")                
+                    log.error(f"{sample.name}: Renaming directory failed, there is already a directory with this name: {msg}")                
                     break # Exit the while loop 
                 except FileNotFoundError as msg:
-                    log.error(f"Renaming directory failed, original directory does not exist anymore: {msg}")                
+                    log.error(f"{sample.name}: Renaming directory failed, original directory does not exist anymore: {msg}")                
                     break # Exit the while loop 
                 except PermissionError as msg:                
                     log.error(f"No write access: {msg}. \nWill attempt again in {wait_time} seconds {attempt_times-attempt_current} times.")                    
@@ -223,7 +251,7 @@ def processSingleEvent(filename, data_out_table):
             try:
                 sample.rename_all_files(sample.shortidentifier)
             except (jkm.errors.JKError, FileNotFoundError) as msg:
-                log.warning(f"Renaming files failed: {msg}.")                
+                log.warning(f"{sample.name}: Renaming files failed: {msg}.")                
         else: log.debug(f"{sample.name}: No file(s) rename.")
 
         # Write records to JSON Metadata file (should this be before renaming?)
@@ -235,7 +263,8 @@ def processSingleEvent(filename, data_out_table):
             write_postprocessor_properties_file(sample)
         else: log.debug(f"{sample.name}: No postprocessor.properties file created.")
         return _SUCCESS
-# ----------------- main worker function ------------------------
+        
+# ----------------- main worker function, called in a new thread created when a sample arrival event is noticed ------------------------
 def processSampleEvents(conf, sleep_s, data_out_table):
     while True:
         # Input queue = name of file found by the directory watcher tool
@@ -243,11 +272,15 @@ def processSampleEvents(conf, sleep_s, data_out_table):
         if input is None: break
         filename = Path(input)
         time.sleep(sleep_s) # Wait for all data to arrive
-        successQ = processSingleEvent(filename,data_out_table)        
+        try:
+            successQ = processSingleEvent(filename,data_out_table)        
+        except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
+            log.critical(f"Loading SETUP file item failed with message: {msg}")
+            successQ = _FAIL_IGNORE
         if successQ in [_FAIL_RETRY]: q.put(input) # retry from start 
         elif successQ in [_SUCCESS, _FAIL_IGNORE]: pass # Do nothing
         #DONE
-        log.info(f"Sample events in process queue: {q.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported           
+        log.info(f"Sample events in process queue: {q.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
 
 if __name__ == '__main__':
     threads = []
@@ -279,16 +312,39 @@ if __name__ == '__main__':
             for fn in existingevents: q.put(fn)
             log.info(f"Approximate number of sample events to process at launch is {q.qsize()}")
         
-        if conf.getb("postprocessor", "ocr_analysis_to_Excel"):
-            ocr_outfile = conf.get("ocr","ocr_analysis_Excel_file")
-            # TODO: should check if file exists, create as needed
-            data_out_table = jkm.ocr_analysis.OutputCSV( ocr_outfile )
-            data_out_table.open()
-        else: data_out_table = None
+        if conf.getb("postprocessor", "labeldata_to_CSV"):
+            try: # Maybe we should open and close a file every time we access it rather than passing an open file around. What appr                
+                table_outfile = Path( conf.get("data2table","filename") ) 
+                if  _BACKUP_DATATABLE:  
+                    timestr = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
+                    backup_fp = table_outfile.with_stem( table_outfile.stem + "_" + timestr ) 
+                    jkm.tools.backup_file(table_outfile,  backup_fp) # TODO: check return 
+                format = conf.get("data2table","format") 
+                if format.lower() != "csv": 
+                    log.warning 
+                # TODO: should check if file exists, create as needed
+                fieldnames = ["barcode_ID", "locality", "date",  "collector",  "identifier", "notes"]                
+                table_out = jkm.ocr_analysis.OutputCSV( table_outfile,  fieldnames = fieldnames )
+                table_out.open()
+                log.info(f"Tabular output is appended to file {table_outfile}")
+            except IOError as msg: 
+                log.critical(f"Error in opening file {table_outfile} for output:{msg}")
+                table_out = None
+        else: table_out = None
+        
         log.debug(f'Using QR code decoder {conf.get( "barcodes", "barcodepackage")}')
+
+        if conf.getb("postprocessor", "ai_label_text_extraction"):            
+            APIPATH = Path(conf.get("ai","APIkeyfile"))
+            log.debug(f"Reading API key from {APIPATH}")
+            APIKEY = jkm.ai.load_apikey(APIPATH)
+            log.debug(f"API key is {APIKEY}")
+            PROMPT = conf.get("ai","prompt")
+            log.debug(f"AI prompt set to '{PROMPT}'")
+
          #Start loops looking for data to process and processing it
         for i in range(_num_worker_threads):
-            t = threading.Thread(target=processSampleEvents,  args=(conf, sleep_s_before_reading_file, data_out_table))
+            t = threading.Thread(target=processSampleEvents,  args=(conf, sleep_s_before_reading_file, table_out))
             t.start()
             threads.append(t)    
         if not conf.getb( "postprocessor", "monitor"):
@@ -316,8 +372,9 @@ if __name__ == '__main__':
         for i in range(_num_worker_threads): q.put(None) # Signal end-of-life to worker threads
         for t in threads: t.join()   # Wait for each worker thread to end properly
         log.info("Ending session, closing log files.")
-        if data_out_table: data_out_table.save()
+        if table_out: table_out.save()
     except jkm.errors.JKError as msg:
         log.critical(f'Execution failed with error message "{msg}"')
-        raise Exception(msg)
-    logging.shutdown()         
+    except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
+        log.critical(f"Loading SETUP file item failed with message: {msg}")
+    logging.shutdown()

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import logging
 
 log = logging.getLogger() # Overwrite if needed
@@ -20,4 +21,7 @@ class BarcodeError(LoggingError):
     def __init__(self, msg): super().__init__(msg)
 
 class FileLoadingError(LoggingError):
+    def __init__(self, msg): super().__init__(msg)
+
+class AIError(LoggingError):
     def __init__(self, msg): super().__init__(msg)
