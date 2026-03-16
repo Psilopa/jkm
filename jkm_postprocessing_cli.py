@@ -18,12 +18,12 @@ import watchdog.events
 # app-specific modules
 import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis,  jkm.ai
 
-_DEBUG = True  
+_DEBUG = False  
 _BACKUP_DATATABLE = True 
 
 _num_worker_threads = 1
 _program_name = "jkm-post"
-_program_ver = "1.31a" 
+_program_ver = "1.4a" 
 _program = f"{_program_name} ({_program_ver})"
 
 _SUCCESS = 0
