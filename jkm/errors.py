@@ -22,3 +22,6 @@ class BarcodeError(LoggingError):
 
 class FileLoadingError(LoggingError):
     def __init__(self, msg): super().__init__(msg)
+
+class AIError(LoggingError):
+    def __init__(self, msg): super().__init__(msg)

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import  logging,  json
+import  logging,  json, errors
 log = logging.getLogger() # Overwrite if needed
 #import imgtools
 from google import genai
@@ -34,7 +34,6 @@ def _parseAI_JSON(text):
         return {}
         
 # --- AI-related classes ---- 
-class AIError(Exception): pass # Generic Error for passing along AI-related issues (like lack of prompt provided)
 class AI_output:
     """A class for storing AI output. 
     
@@ -88,9 +87,9 @@ class geminiAI():
         
         TODO: Needs Error handling!"""
         log.debug (f"Trying to upload {filepath},  of type {type(filepath)}") 
-        if  self.client is None: raise AIError("Upload images requested before AI Client was created in code.")
+        if  self.client is None: raise jkm.AIError("Upload images requested before AI Client was created in code.")
         fileobj = self.client.files.upload(  file = filepath )
-        if not fileobj: AIError(f"Uploading image failed, status {fileobj}")
+        if not fileobj: jkm.AIError(f"Uploading image failed, status {fileobj}")
         log.debug (f"OK upload {filepath}",  ) 
         return fileobj
         
@@ -106,11 +105,13 @@ class geminiAI():
             pathlist: list of image files paths (Pathlib.Path instances)
             prompt: string
         Returns: 
-            an AI_output object.
+            an AI_output object
+	Exceptions: 
+	   jkm.errors.AIError 
         """
         log.debug("Query_images started")
         # State checks
-        if not self.prompt: raise AIError("No prompt for AI provided.")
+        if not self.prompt: raise jkm.AIError("No prompt for AI provided.")
         img_bytes = [self._file2bytes(x) for x in pathlist]
         sumsize = int(sum( [len(x) for x in img_bytes] )/1024)
         log.debug( f"Images to bytes done, size {sumsize} kb" )
@@ -119,7 +120,7 @@ class geminiAI():
         log.debug("Create client")
         self.client = genai.Client(api_key=self.apikey )
 #        log.debug("Client is",  self.client )
-        if not self.client: raise AIError("Creating an AI client failed.")
+        if not self.client: raise jkm.AIError("Creating an AI client failed.")
         log.debug("Create client done")
 
         # Upload files
@@ -129,7 +130,7 @@ class geminiAI():
             log.debug("Starting image(s) done")
         elif self._IMAGE_TRANSFER_TYPE == _IMAGE_TRANSFER_INLINE: 
             readiedfiles = [self._urify_image(x) for x in pathlist]
-        else: raise AIError("Unknown image transfer type specified.")            
+        else: raise jkm.AIError("Unknown image transfer type specified.")            
 
         # Add prompt and image information to query parameter 'contents'
         contentlist = [ self.prompt ] 
@@ -140,8 +141,11 @@ class geminiAI():
             text = _TESTING_JSON_FROM_AI
         else:
             # Query the model
+            try:
             response = self.client .models.generate_content( model= self._MODEL, contents = contentlist )           
             text = response.text
+            except google.genai.errors.ServerError as msg:
+               raise jkm.AIError(msg)
         log.debug( f'Response was "{text }"' )
         output = AI_output()
         if response == AI_FAILURE_RETURN_VALUE: return output        # Primitive error handling

@@ -182,7 +182,7 @@ def processSingleEvent(filename, data_out_table):
                     outpath = sample.datapath / outfn
                     with outpath.open("w") as f: f.write(airesult.to_json())                                                        
                 else: log.debug(f"{sample.name}:No AI properties file generation requested in config file")
-            except (IOError,  jkm.ai.AIError) as msg:
+            except (IOError,  jkm.errors.AIError) as msg:
                 log.error(f"Error: {msg}"  )
         else: log.debug(f"{sample.name}: No AI label data extraction.")
 
