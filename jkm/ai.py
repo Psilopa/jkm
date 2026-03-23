@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
+
+# TODO: Gemini AI has a JSON Schema too, but it is not yet used here
+# See https://ai.google.dev/gemini-api/docs/interactions?ua=chat
+
 import  logging,  json, jkm. errors
 log = logging.getLogger() # Overwrite if needed
 #import imgtools
 from google import genai
 from google.genai import types
 from google.genai import errors as gemini_errors
+from google.genai.types import HttpOptions
 
 # For testing, Google Free Key for small tests
 _TESTING_BYPASS_AI_CALL = False
@@ -13,6 +18,7 @@ _IMAGE_TRANSFER_UPLOAD = 1
 _IMAGE_TRANSFER_INLINE = 2
 _TEST_PROMPT = "There images are all of the same object. Find text in the images. Reply with JSON only, fitting the data into the following variables: collector, date, locality, identifier, and notes."
 AI_FAILURE_RETURN_VALUE = 'null'
+_AI_GEMINI_TIMEOUT = 10 * 1000 # 10 seconds
 
 
 def load_apikey(fp):
@@ -20,6 +26,7 @@ def load_apikey(fp):
             return f.read()
     
 def _parseAI_JSON(text):
+    """Cleanup and parse pseudo-JSON as returned from an AI."""
     try: 
         # pre-parser clean up: remove everything outside the outermost {}
         first = text.find("{") 
@@ -99,12 +106,13 @@ class geminiAI():
         return types.Part.from_bytes( data = bytes, mime_type = "image/jpeg")
 
    # Sending a query
-    def query_images(self, pathlist):
+    def query_images(self, pathlist, timeout = None):
         """Get data from Gemini based on multiple images. 
         
         Parameters: 
             pathlist: list of image files paths (Pathlib.Path instances)
             prompt: string
+            timeout: if given, HTTP call timeout period in milliseconds
         Returns: 
             an AI_output object
 	Exceptions: 
@@ -119,7 +127,9 @@ class geminiAI():
 
         # Create AI client
         log.debug("Create client")
-        self.client = genai.Client(api_key=self.apikey )
+        if  timeout: httpopts = HttpOptions(timeout=timeout)      
+        else: httpopts = HttpOptions()
+        self.client = genai.Client(api_key=self.apikey,  http_options = httpopts)
 #        log.debug("Client is",  self.client )
         if not self.client: raise jkm.errors.AIError("Creating an AI client failed.")
         log.debug("Create client done")
@@ -146,6 +156,10 @@ class geminiAI():
                 response = self.client .models.generate_content( model= self._MODEL, contents = contentlist )           
                 text = response.text
             except gemini_errors.ServerError as msg:
+               raise jkm.errors.AIError(msg)
+            except gemini_errors.ClientError as msg:
+               raise jkm.errors.AIError(msg)
+            except gemini_errors.APIError as msg:
                raise jkm.errors.AIError(msg)
         log.debug( f'Response was "{text }"' )
         output = AI_output()
