@@ -9,8 +9,8 @@ name = 'jkm'
 description = "A postprocessor program for image data, primarily for Natural History museum label processing."
 version = 'v1.5'
 #dynamic = ['version']
-#authors = [ {name = "Jere Kahanpää"} ]
-#readme = "README.md"
+authors = [ {name = "Jere Kahanpää"} ]
+readme = "README.md"
 #license = "LicenseRef-My-Custom-License"
 #license-files = ["LICEN[CS]E*", "vendored/licenses/*.txt", "AUTHORS.md"]
 requires-python = ">= 3.8" # Verify the minimum version
