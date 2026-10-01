@@ -1,4 +1,4 @@
-#INSTALLING
+# INSTALLING
 * Download the code from https://github.com/Psilopa/jkm/releases
 * For a basic install, run the following command in the main installation directory:
 ```pip install -r requirements.txt```
