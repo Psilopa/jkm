@@ -323,7 +323,7 @@ if __name__ == '__main__':
                 if format.lower() != "csv": 
                     log.warning 
                 # TODO: should check if file exists, create as needed
-                fieldnames = ["barcode_ID", "locality", "date",  "collector",  "identifier", "notes"]                
+                fieldnames = conf.getlist("ai", "prompt_fieldnames")        
                 table_out = jkm.ocr_analysis.OutputCSV( table_outfile,  fieldnames = fieldnames )
                 table_out.open()
                 log.info(f"Tabular output is appended to file {table_outfile}")
