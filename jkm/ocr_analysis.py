@@ -16,6 +16,9 @@ def isemptyfile(fpath):
 log = logging.getLogger() # Overwrite if needed. Setup is in the main script.
 CSV_DIALECT_DEFAULT =  csv.excel()
 CSV_DIALECT_DEFAULT.quoting = csv.QUOTE_STRINGS
+CSV_ENCODING = "utf8"
+CSV_NEWLINE = ""
+CSC_ENCODING_ERRORS = "convert"
 _test_dummy_JSON = '[["leg","Skartveit, John"], ["contry","30"], ["locality","New York"]]'
 
 #class OutputExcel(): 
@@ -50,10 +53,12 @@ class OutputCSV():
             log.critical(f"CSV output file name must end in '.csv'. {self.fp} fails")
             sys.exit() 
     def open(self): 
-        self.csvfile = self.fp.open("a")  # Append mode
+        self.csvfile = self.fp.open("a", encoding= CSV_ENCODING, newline=CSV_NEWLINE, errors = CSC_ENCODING_ERRORS )  # Append mode
         self.writer = csv.DictWriter(self.csvfile, self.fieldnames,  dialect = self.dialect,  extrasaction='ignore')
         if isemptyfile(self.fp): self.writer.writeheader()
-    def add_line(self, datarowdict):  
+#        testdata = {'all_text': 'Metsäpirtti 1913 Fonselius Coll. Suomalainen ♀ E722943', 'collector': 'Fonselius; Suomalainen', 'date': '1913', 'locality': 'Metsäpirtti', 'coordinates': None, 'collectors_number_label_content': None, 'collectors_number_label_color_and_font': None, 'notes': 'Symbol ♀ on label'}
+#        self.writer.writerow(testdata)
+    def add_line(self, datarowdict):        
         self.writer.writerow(  datarowdict )
         self.csvfile.flush() # Write data to file immediately
     def save(self):  
