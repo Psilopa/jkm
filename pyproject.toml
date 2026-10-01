@@ -1,0 +1,41 @@
+# This is mainly docmumantation: for 'installing', use 
+# pip install -r requirements.txt
+[build-system]
+requires = ['setuptools==82.0.1', 'setuptools-scm==10.0.5']
+build-backend = 'setuptools.build_meta'
+
+[project]
+name = 'jkm'
+description = "A postprocessor program for image data, primarily for Natural History museum label processing."
+version = 'v1.5'
+#dynamic = ['version']
+#authors = [ {name = "Jere Kahanpää"} ]
+#readme = "README.md"
+#license = "LicenseRef-My-Custom-License"
+#license-files = ["LICEN[CS]E*", "vendored/licenses/*.txt", "AUTHORS.md"]
+requires-python = ">= 3.8" # Verify the minimum version
+# These should also be listed in requirements.txt !
+dependencies = [   
+"jsonpickle==4.1.2",
+"numpy==2.5.3",
+"opencv_python==5.0.0.93",
+"protobuf==7.36.2",
+"pynput==1.8.2",
+"pyzbar==0.1.9",
+"watchdog==6.0.0",
+"google_genai==2.26.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/Psilopa/jkm"
+Repository = "https://github.com/Psilopa/jkm"
+
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+# Dynamic versioning, currently not used
+#[tool.setuptools_scm]
+#version_scheme = 'no-guess-dev'
+#local_scheme = 'no-local-version'
+#version_file = "VERSION.txt"
