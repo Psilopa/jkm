@@ -176,7 +176,8 @@ def processSingleEvent(filename, data_out_table):
                 myai.prompt = PROMPT
                 imagepaths = [x.filename for x in sample.imagelist if x.has_labels]
                 airesult = myai.query_images( imagepaths )        
-                log.info(f"{sample.name}:AI call for data extraction returned {airesult}")
+                # airesult can contain almost anything, possibly including non-valid UTF8. Should sanitize better.
+                log.info(f"{sample.name}:AI call for data extraction returned {str(airesult)}")
                 outfn = conf.get("ai","properties_filename", fallback = False)
                 if outfn: # If a properties_filename was defined
                     outpath = sample.datapath / outfn
