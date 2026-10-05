@@ -72,7 +72,7 @@ class geminiAI(): # Make subclasses based on authentication method
         self._promt = None
         self.client = None
         # Settings, should come from user setup is a production code
-        self._MODEL = 'gemini-3.8-flash'
+        self._MODEL = 'gemini-3.8-flash' # Default value
     def close(self): self.client.close() # Not necesary, but a good habit.
     # Getters, setters for properties
     @property

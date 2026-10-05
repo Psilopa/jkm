@@ -22,7 +22,7 @@ import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.
 import jkm.meta
 
 # CONSTANT
-_DEBUG = False  
+_DEBUG = True  
 _BACKUP_DATATABLE = True 
 _SUCCESS = 0
 _FAIL_IGNORE = 1
@@ -175,7 +175,8 @@ def processSingleEvent(filename, conf, data_out_table):
                 assert ai_auth_type in _AI_AUTH_TYPES
                 if ai_auth_type == 'APIKEY': myai = jkm.ai.apikey_geminiAI(conf.APIKEY)
                 elif ai_auth_type == 'CLOUDID': myai = jkm.ai.cloud_auth_geminiAI()
-                else: pass # Should never happen as ai_auth_type is verified to havce a valid value at this point               
+                else: pass # Should never happen as ai_auth_type is verified to havce a valid value at this point
+                myai.model = conf.get('ai','model')
                 myai.prompt = conf.get('ai','prompt')
                 imagepaths = [x.filename for x in sample.imagelist if x.has_labels]
                 airesult = myai.query_images( imagepaths )
