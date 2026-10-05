@@ -7,6 +7,9 @@
 # is imported.
 import os
 os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
+import logging
+log = logging.getLogger() # Overwrite if needed
+
 
 import time,  logging,  threading, sys,   configparser
 from datetime import datetime
@@ -17,18 +20,16 @@ from watchdog.observers import Observer
 import watchdog.events
 # app-specific modules
 import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis,  jkm.ai
+import jkm.meta
 
+# CONSTANT
 _DEBUG = False  
 _BACKUP_DATATABLE = True 
-
-_num_worker_threads = 1
-_program_name = "jkm-post"
-_program_ver = "1.4a" 
-_program = f"{_program_name} ({_program_ver})"
-
 _SUCCESS = 0
 _FAIL_IGNORE = 1
 _FAIL_RETRY = 2
+_num_worker_threads = 1
+
 
 def _UNIQUE(s) :return tuple(set(s))
 
@@ -287,7 +288,7 @@ def main(debug = _DEBUG):
     threads = []
     excel = None
     q = queue.Queue() # a FIFO queue of metafile names
-    log = jkm.tools.setup_logging(_program_name, debug = debug)
+    log = jkm.tools.setup_logging(jkm.meta.name, debug = debug)
     # Set loggers in other modules
     jkm.configfile.log = log    
     jkm.tools.log = log
@@ -296,10 +297,10 @@ def main(debug = _DEBUG):
     jkm.metadata.log = log
     jkm.barcodes.log = log
     
-    log.info(f"STARTING NEW SESSION of {_program}")
+    log.info(f"STARTING NEW SESSION of {jkm.meta.nameversion}")
     # Read config file name from sys.argv and parse the file
     try: 
-        conf = jkm.configfile.load_configuration(_program_name) 
+        conf = jkm.configfile.load_configuration(jkm.meta.name) 
         # Wait period from file detection to file processing
         # Allows for enough time for transfer of a file(s)  to be completed
         sleep_s_before_reading_file = conf.getf("postprocessor", "sleep_after_new_sample_detected")
