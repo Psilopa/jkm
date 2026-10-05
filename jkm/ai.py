@@ -72,12 +72,8 @@ class geminiAI(): # Make subclasses based on authentication method
         self._promt = None
         self.client = None
         # Settings, should come from user setup is a production code
-        self._MODEL = 'gemini-3.1-flash-lite-preview'
-#        self._MODEL = 'gemini-2.5-flash'
-        self._MIMETYPE = 'image/jpeg',
-        self._IMAGE_TRANSFER_TYPE = _IMAGE_TRANSFER_INLINE
-    def close(self):
-        self.client.close() # Not necesary, but a good habit.
+        self._MODEL = 'gemini-3.8-flash'
+    def close(self): self.client.close() # Not necesary, but a good habit.
     # Getters, setters for properties
     @property
     def prompt(self): return self._promt
@@ -103,9 +99,9 @@ class geminiAI(): # Make subclasses based on authentication method
         log.debug (f"OK upload {filepath}",  )   
         return fileobj
         
-    def _urify_image(self,  filepath): 
-        bytes  = self._file2bytes(filepath)     
-        return types.Part.from_bytes( data = bytes, mime_type = "image/jpeg")
+#    def _urify_image(self,  filepath):        
+#        bytes  = self._file2bytes(filepath)     
+#        return types.Part.from_bytes( data = bytes, mime_type = "image/jpeg")
 
    # Sending a query
     def _generate_client(self):
@@ -116,7 +112,6 @@ class geminiAI(): # Make subclasses based on authentication method
         
         Parameters: 
             pathlist: list of image files paths (Pathlib.Path instances)
-            prompt: string
             timeout: if given, HTTP call timeout period in milliseconds
         Returns: 
             an AI_output object
@@ -130,35 +125,25 @@ class geminiAI(): # Make subclasses based on authentication method
         sumsize = int(sum( [len(x) for x in img_bytes] )/1024)
         log.debug( f"Images to bytes done, size {sumsize} kb" )
 
-        # Create AI client
-        log.debug("Create client")
-        if  timeout: httpopts = HttpOptions(timeout=timeout)      
-        else: httpopts = HttpOptions()
-        self.client = self._generate_client(httpopts)
-        if not self.client: raise jkm.errors.AIError("Creating an AI client failed.")
-##        log.debug("Create client done")
-
-        # Upload files
-        if self._IMAGE_TRANSFER_TYPE == _IMAGE_TRANSFER_UPLOAD:
-            log.debug("Starting image(s) upload")
-            readiedfiles = [self._upload_image(x) for x in pathlist]
-            log.debug("Starting image(s) done")
-        elif self._IMAGE_TRANSFER_TYPE == _IMAGE_TRANSFER_INLINE: 
-            readiedfiles = [self._urify_image(x) for x in pathlist]
-        else: raise jkm.errors.AIError("Unknown image transfer type specified.")            
-
-        # Add prompt and image information to query parameter 'contents'
-        contentlist = [ self.prompt ] 
-        for up_img in readiedfiles:  contentlist.append(up_img)
-        # Values for testing
+        # FAKE CALL FOR TESTING, NO ACTUAL AI CALL
         if _TESTING_BYPASS_AI_CALL:
             response = 'foo' #
-            text = _TESTING_JSON_FROM_AI
+            text = _TESTING_JSON_FROM_AI            
         else:
-            # Query the model
-            try:
-                response = self.client .models.generate_content( model= self._MODEL, contents = contentlist )           
-                text = response.text
+            # Create AI client
+            log.debug("Create client")
+            if  timeout: httpopts = HttpOptions(timeout=timeout)      
+            else: httpopts = HttpOptions()
+            self.client = self._generate_client(httpopts)
+            if not self.client: raise jkm.errors.AIError("Creating an AI client failed.")
+            # log.debug("Create client done")
+            readiedfiles = [self._upload_image(fp) for fp in pathlist ]
+            content =  [ {"type": "text", "text": self.prompt} ]
+            for myfile in readiedfiles:
+                content.append( {"type": "image", "uri": myfile.uri, "mime_type": myfile.mime_type} )
+            try: # Query the model                
+                interaction  = self.client.interactions.create ( model = self._MODEL, input = content )
+                text = interaction.output_text
             except gemini_errors.ServerError as msg:
                raise jkm.errors.AIError(msg)
             except gemini_errors.ClientError as msg:
@@ -167,7 +152,7 @@ class geminiAI(): # Make subclasses based on authentication method
                raise jkm.errors.AIError(msg)
         log.debug( f'Response was "{text }"' )
         output = AI_output()
-        if response == AI_FAILURE_RETURN_VALUE: return output        # Primitive error handling
+        if text == AI_FAILURE_RETURN_VALUE: return output        # Primitive error handling
         output.from_text( text ) # Tries parsing the tecxt as JSON
         return output
         
@@ -188,3 +173,5 @@ class cloud_auth_geminiAI(geminiAI):
         if not cloud_id: # Error state handled by calling code
             return None 
         return genai.Client(http_options = httpopts)
+
+

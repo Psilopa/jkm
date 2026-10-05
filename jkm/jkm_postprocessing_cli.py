@@ -178,7 +178,8 @@ def processSingleEvent(filename, conf, data_out_table):
                 else: pass # Should never happen as ai_auth_type is verified to havce a valid value at this point               
                 myai.prompt = conf.get('ai','prompt')
                 imagepaths = [x.filename for x in sample.imagelist if x.has_labels]
-                airesult = myai.query_images( imagepaths )        
+                airesult = myai.query_images( imagepaths )
+                myai.close()
                 # airesult can contain almost anything, possibly including non-valid UTF8. Should sanitize better.
                 log.info(f"{sample.name}:AI call for data extraction returned {str(airesult)}")
                 outfn = conf.get("ai","properties_filename", fallback = False)
