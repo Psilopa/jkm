@@ -3,12 +3,12 @@
 # TODO: Gemini AI has a JSON Schema too, but it is not yet used here
 # See https://ai.google.dev/gemini-api/docs/interactions?ua=chat
 
-import  logging,  json, os
+import  logging,  json, os, base64
 import jkm.errors
 log = logging.getLogger() # Overwrite if needed
 #import imgtools
 from google import genai
-from google.genai import types
+#from google.genai import types
 from google.genai import errors as gemini_errors
 from google.genai.types import HttpOptions
 
@@ -84,26 +84,11 @@ class geminiAI(): # Make subclasses based on authentication method
     @model.setter
     def model(self,  model): self._MODEL  = model    
     
+   # Sending a query
     # Preprocessing images
     def _file2bytes(self,  filepath):        
         with filepath.open('rb') as f:   return f.read()
    
-    def _upload_image(self,  filepath): 
-        """"Upload an image to AI. 
-        
-        TODO: Needs Error handling!"""
-        log.debug (f"Trying to upload {filepath},  of type {type(filepath)}") 
-        if  self.client is None: raise jkm.errors.AIError("Upload images requested before AI Client was created in code.")
-        fileobj = self.client.files.upload(  file = filepath )
-        if not fileobj: jkm.errors.AIError(f"Uploading image failed, status {fileobj}")
-        log.debug (f"OK upload {filepath}",  )   
-        return fileobj
-        
-#    def _urify_image(self,  filepath):        
-#        bytes  = self._file2bytes(filepath)     
-#        return types.Part.from_bytes( data = bytes, mime_type = "image/jpeg")
-
-   # Sending a query
     def _generate_client(self):
         return None # CHildren should override
         
@@ -123,7 +108,7 @@ class geminiAI(): # Make subclasses based on authentication method
         if not self.prompt: raise jkm.errors.AIError("No prompt for AI provided.")
         img_bytes = [self._file2bytes(x) for x in pathlist]
         sumsize = int(sum( [len(x) for x in img_bytes] )/1024)
-        log.debug( f"Images to bytes done, size {sumsize} kb" )
+        log.info( f"Images to bytes done, size {sumsize} kb" )
 
         # FAKE CALL FOR TESTING, NO ACTUAL AI CALL
         if _TESTING_BYPASS_AI_CALL:
@@ -137,10 +122,8 @@ class geminiAI(): # Make subclasses based on authentication method
             self.client = self._generate_client(httpopts)
             if not self.client: raise jkm.errors.AIError("Creating an AI client failed.")
             # log.debug("Create client done")
-            readiedfiles = [self._upload_image(fp) for fp in pathlist ]
             content =  [ {"type": "text", "text": self.prompt} ]
-            for myfile in readiedfiles:
-                content.append( {"type": "image", "uri": myfile.uri, "mime_type": myfile.mime_type} )
+            content += self.add_images(pathlist)
             try: # Query the model                
                 interaction  = self.client.interactions.create ( model = self._MODEL, input = content )
                 text = interaction.output_text
@@ -162,16 +145,55 @@ class apikey_geminiAI(geminiAI):
         super().__init__()
     def _generate_client(self, httpopts):
         return genai.Client(api_key=self.apikey,  http_options = httpopts)
+    def _upload_image(self,  filepath): 
+        """"Upload an image to AI. 
+        
+        TODO: Needs Error handling!"""
+        log.debug (f"Trying to upload {filepath},  of type {type(filepath)}") 
+        if  self.client is None: raise jkm.errors.AIError("Upload images requested before AI Client was created in code.")
+        fileobj = self.client.files.upload(  file = filepath )
+        if not fileobj: jkm.errors.AIError(f"Uploading image failed, status {fileobj}")
+        log.debug (f"OK upload {filepath}",  )   
+        return fileobj
+    def add_images(self, filepaths):
+        results = []
+        readiedfiles = [self._upload_image(fp) for fp in pathlist ]
+        for myfile in readiedfiles:
+            results.append( {"type": "image", "uri": myfile.uri, "mime_type": myfile.mime_type} )
+        return results
+        
 
 class cloud_auth_geminiAI(geminiAI):
     def __init__(self):
+        log.debug("Using cloud_auth_geminiAI()")
         super().__init__()
     def _generate_client(self, httpopts):
         # Check if required OAuth env variables exist
         ev_cloudfproject = "GOOGLE_CLOUD_PROJECT"
         cloud_id = os.getenv(ev_cloudfproject)
         if not cloud_id: # Error state handled by calling code
-            return None 
+            raise jkm.errors.AIError(f"Could not read environmental variable {ev_cloudfproject}")
         return genai.Client(http_options = httpopts)
-
-
+ #   def _upload_image(self,  filepath):  # Pass image as base64-encoded string --the Gcloud solution does not support self.client.files.upload?
+ #       """"Upload an image to AI. 
+ #       
+ #       TODO: Needs Error handling!"""
+ #       log.debug (f"Trying to upload {filepath},  of type {type(filepath)}") 
+ #       if  self.client is None: raise jkm.errors.AIError("Upload images requested before AI Client was created in code.")
+ #       filebytes = self._file2bytes(filepath)
+#        return  base64.b64encode(filebytes).decode('utf-8')
+        
+    def _urify_image(self,  filepath):        
+        fbytes  = self._file2bytes(filepath)     
+        return {
+            "type": "image",
+            "data": base64.b64encode(fbytes).decode('utf-8'),
+            "mime_type": "image/jpeg",
+        }
+    
+    def add_images(self,filepaths):
+        imgs = []
+        for fpath in filepaths:
+            filebytes = self._file2bytes(fpath)
+            imgs.append( self._urify_image(fpath) )
+        return imgs
