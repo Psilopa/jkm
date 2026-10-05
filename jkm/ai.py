@@ -8,7 +8,7 @@ import jkm.errors
 log = logging.getLogger() # Overwrite if needed
 #import imgtools
 from google import genai
-#from google.genai import types
+from google.genai import types
 from google.genai import errors as gemini_errors
 from google.genai.types import HttpOptions
 
@@ -174,23 +174,13 @@ class cloud_auth_geminiAI(geminiAI):
         if not cloud_id: # Error state handled by calling code
             raise jkm.errors.AIError(f"Could not read environmental variable {ev_cloudfproject}")
         return genai.Client(http_options = httpopts)
- #   def _upload_image(self,  filepath):  # Pass image as base64-encoded string --the Gcloud solution does not support self.client.files.upload?
- #       """"Upload an image to AI. 
- #       
- #       TODO: Needs Error handling!"""
- #       log.debug (f"Trying to upload {filepath},  of type {type(filepath)}") 
- #       if  self.client is None: raise jkm.errors.AIError("Upload images requested before AI Client was created in code.")
- #       filebytes = self._file2bytes(filepath)
-#        return  base64.b64encode(filebytes).decode('utf-8')
-        
     def _urify_image(self,  filepath):        
-        fbytes  = self._file2bytes(filepath)     
+        fbytes  = self._file2bytes(filepath)       
         return {
             "type": "image",
             "data": base64.b64encode(fbytes).decode('utf-8'),
             "mime_type": "image/jpeg",
-        }
-    
+            }
     def add_images(self,filepaths):
         imgs = []
         for fpath in filepaths:
