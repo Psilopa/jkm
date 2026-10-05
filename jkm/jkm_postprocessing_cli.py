@@ -283,11 +283,11 @@ def processSampleEvents(conf, sleep_s, data_out_table):
         #DONE
         log.info(f"Sample events in process queue: {q.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
 
-if __name__ == '__main__':
+def main(debug = _DEBUG):
     threads = []
     excel = None
     q = queue.Queue() # a FIFO queue of metafile names
-    log = jkm.tools.setup_logging(_program_name, debug = _DEBUG)
+    log = jkm.tools.setup_logging(_program_name, debug = debug)
     # Set loggers in other modules
     jkm.configfile.log = log    
     jkm.tools.log = log
@@ -379,3 +379,7 @@ if __name__ == '__main__':
     except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
         log.critical(f"Loading SETUP file item failed with message: {msg}")
     logging.shutdown()
+
+
+if __name__ == '__main__':
+    main()
