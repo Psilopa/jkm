@@ -3,7 +3,8 @@
 # TODO: Gemini AI has a JSON Schema too, but it is not yet used here
 # See https://ai.google.dev/gemini-api/docs/interactions?ua=chat
 
-import  logging,  json, jkm. errors
+import  logging,  json, os
+import jkm.errors
 log = logging.getLogger() # Overwrite if needed
 #import imgtools
 from google import genai
@@ -12,7 +13,7 @@ from google.genai import errors as gemini_errors
 from google.genai.types import HttpOptions
 
 # For testing, Google Free Key for small tests
-_TESTING_BYPASS_AI_CALL = True
+_TESTING_BYPASS_AI_CALL = False
 _TESTING_JSON_FROM_AI = """```json {  "collector": "F. Kangas",  "date": "8. 7. 1932",  "locality": "Helsinki",  "identifier": "GV 101220",  "notes": "http://id.luom"}```"""
 _IMAGE_TRANSFER_UPLOAD = 1
 _IMAGE_TRANSFER_INLINE = 2
@@ -135,7 +136,7 @@ class geminiAI(): # Make subclasses based on authentication method
         else: httpopts = HttpOptions()
         self.client = self._generate_client(httpopts)
         if not self.client: raise jkm.errors.AIError("Creating an AI client failed.")
-        log.debug("Create client done")
+##        log.debug("Create client done")
 
         # Upload files
         if self._IMAGE_TRANSFER_TYPE == _IMAGE_TRANSFER_UPLOAD:
@@ -180,3 +181,10 @@ class apikey_geminiAI(geminiAI):
 class cloud_auth_geminiAI(geminiAI):
     def __init__(self):
         super().__init__()
+    def _generate_client(self, httpopts):
+        # Check if required OAuth env variables exist
+        ev_cloudfproject = "GOOGLE_CLOUD_PROJECT"
+        cloud_id = os.getenv(ev_cloudfproject)
+        if not cloud_id: # Error state handled by calling code
+            return None 
+        return genai.Client(http_options = httpopts)

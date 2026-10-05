@@ -28,7 +28,7 @@ _SUCCESS = 0
 _FAIL_IGNORE = 1
 _FAIL_RETRY = 2
 _num_worker_threads = 1
-
+_AI_AUTH_TYPES = ("APIKEY", "CLOUDID")
 
 def _UNIQUE(s) :return tuple(set(s))
 
@@ -169,8 +169,13 @@ def processSingleEvent(filename, conf, data_out_table):
 
         # AI-based label data extraction
         if conf.getb( "postprocessor", "ai_label_text_extraction"):
+            airesult = None # Start with no result
             try:
-                myai = jkm.ai.apikey_geminiAI(conf.APIKEY)
+                ai_auth_type = conf.get("ai", "auth_type") 
+                assert ai_auth_type in _AI_AUTH_TYPES
+                if ai_auth_type == 'APIKEY': myai = jkm.ai.apikey_geminiAI(conf.APIKEY)
+                elif ai_auth_type == 'CLOUDID': myai = jkm.ai.cloud_auth_geminiAI()
+                else: pass # Should never happen as ai_auth_type is verified to havce a valid value at this point               
                 myai.prompt = conf.get('ai','prompt')
                 imagepaths = [x.filename for x in sample.imagelist if x.has_labels]
                 airesult = myai.query_images( imagepaths )        
@@ -182,8 +187,10 @@ def processSingleEvent(filename, conf, data_out_table):
                     with outpath.open("w") as f: f.write(airesult.to_json())                                                        
                 else: log.debug(f"{sample.name}:No AI properties file generation requested in config file")
             except (IOError,  jkm.errors.AIError) as msg:
-                log.error(f"Error: {msg}"  )
-        else: log.debug(f"{sample.name}: No AI label data extraction.")
+                log.error(f"{sample.name}: AI Error '{msg}'.")
+        else:
+            airesult = None
+            log.debug(f"{sample.name}: No AI label data extraction.")
 
         # EXTRACT IDENTIFIERS FROM OCR DATA (NOT IMPLEMENTED)
 
@@ -213,7 +220,6 @@ def processSingleEvent(filename, conf, data_out_table):
             else: testdata = {}
             testdata["barcode_ID"] = sample.identifier # Should default to None ?
             log.debug(f"{sample.name}: Calling OutputCSV.addline with data: {testdata}")
-#            log.debug(f"{sample.name}: data_out_table.fp = {data_out_table.fp}")
             data_out_table.add_line(testdata)
             log.debug(f"{sample.name}: ...table data adding done")
             
@@ -292,6 +298,7 @@ def main(debug = _DEBUG):
     jkm.tools.log = log
     jkm.ocr.log = log  # IF OCR
     jkm.sample.log = log
+    jkm.ai.log = log
     jkm.metadata.log = log
     jkm.barcodes.log = log
     
@@ -334,12 +341,19 @@ def main(debug = _DEBUG):
         
         log.debug(f'Using QR code decoder {conf.get( "barcodes", "barcodepackage")}')
 
-        if conf.getb("postprocessor", "ai_label_text_extraction"):            
-            APIPATH = Path(conf.get("ai","APIkeyfile"))
-            log.debug(f"Reading API key from {APIPATH}")
-            conf.APIKEY = jkm.ai.load_apikey(APIPATH)
-            log.debug(f"API key is {conf.APIKEY}")
-            log.debug(f"AI prompt set to \'{conf.get('ai','prompt')}\'")
+        if conf.getb("postprocessor", "ai_label_text_extraction"):
+            auth_type = conf.get("ai", "auth_type")
+            log.debug(f"AI authentication method: {auth_type}")
+            if auth_type == 'APIKEY':
+                APIPATH = Path(conf.get("ai","APIkeyfile"))
+                conf.APIKEY = jkm.ai.load_apikey(APIPATH) # HACK, FIND A BETTER WAY TO PASS THIS
+                log.debug(f"Reading API key from {APIPATH}")
+                log.debug(f"API key is {conf.APIKEY}")
+                log.debug(f"AI prompt set to \'{conf.get('ai','prompt')}\'")
+            elif auth_type == "CLOUDID":
+                pass
+            else:
+                raise jkm.errors.JKError(f"Unknown AI authentication method {auth_type}")                
 
          #Start loops looking for data to process and processing it
         for i in range(_num_worker_threads):
