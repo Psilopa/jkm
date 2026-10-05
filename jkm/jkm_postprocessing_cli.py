@@ -267,10 +267,10 @@ def processSingleEvent(filename, data_out_table):
         return _SUCCESS
         
 # ----------------- main worker function, called in a new thread created when a sample arrival event is noticed ------------------------
-def processSampleEvents(conf, sleep_s, data_out_table):
+def processSampleEvents(queue, conf, sleep_s, data_out_table):
     while True:
         # Input queue = name of file found by the directory watcher tool
-        input = q.get()
+        input = queue.get()
         if input is None: break
         filename = Path(input)
         time.sleep(sleep_s) # Wait for all data to arrive
@@ -346,7 +346,7 @@ def main(debug = _DEBUG):
 
          #Start loops looking for data to process and processing it
         for i in range(_num_worker_threads):
-            t = threading.Thread(target=processSampleEvents,  args=(conf, sleep_s_before_reading_file, table_out))
+            t = threading.Thread(target=processSampleEvents,  args=(q,conf, sleep_s_before_reading_file, table_out))
             t.start()
             threads.append(t)    
         if not conf.getb( "postprocessor", "monitor"):
