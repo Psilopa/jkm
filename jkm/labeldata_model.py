@@ -6,7 +6,7 @@ class SingleLabelData(BaseModel):
 
 class LabelData(BaseModel):
     verbatim_all_text: List[SingleLabelData]
-    verbatim_location: str = Field(description="Location as written on the label(s)")
+    verbatim_locality: str = Field(description="Locality as written on the label(s)")
     verbatim_collector: str = Field(description="Collector as written on the label(s)")
     verbatim_date: str = Field(description="Date as written on the label(s)")
     verbatim_field_identifier: str = Field(description="Original identifier  as written on the label(s)")

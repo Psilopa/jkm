@@ -219,11 +219,11 @@ def processSingleEvent(filename, conf, data_out_table):
         if data_out_table: 
 #        if sample.identifier and data_out_table:
 #            ocrdata.prepend("identifier", sample.identifier) 
-            if airesult:  testdata = airesult.to_dict() 
-            else: testdata = {}
-            testdata["barcode_ID"] = sample.identifier # Should default to None ?
-            log.debug(f"{sample.name}: Calling OutputCSV.addline with data: {testdata}")
-            data_out_table.add_line(testdata)
+            if airesult:  labeldata = airesult.to_dict() 
+            else: labeldata = {}
+            labeldata["barcode_ID"] = sample.identifier # Should default to None ?
+            log.debug(f"{sample.name}: Calling OutputCSV.addline with data: {labeldata}")
+            data_out_table.add_line(labeldata)
             log.debug(f"{sample.name}: ...table data adding done")
             
         # RENAME DIRECTORIES (this may need to stay above file renaming)  

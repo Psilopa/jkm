@@ -16,25 +16,23 @@ import jkm.labeldata_model
 # For testing, Google Free Key for small tests
 _TESTING_BYPASS_AI_CALL = True
 _TESTING_JSON_FROM_AI = """
+{
   "verbatim_all_text": [
     {
       "verbatim_text": "Korpilahti"
     },
     {
-      "verbatim_text": "17.7.1939"
+      "verbatim_text": "17.7. 1939"
     },
     {
       "verbatim_text": "Rönnholm"
-    },
-    {
-      "verbatim_text": "http://id.luomus.fi/F.252693\nUniv. of Helsinki\nLUOMUS, 2019"
-    }
-  ],
+    }  ],
+  "verbatim_locality": "Korpilahti",
   "verbatim_collector": "Rönnholm",
-  "verbatim_date": "17.7.1939",
+  "verbatim_date": "17.7. 1939",
   "verbatim_field_identifier": "",
   "verbatim_coordinates": "",
-  "notes": "Collector label has an ink mark/smudge in the middle."
+  "notes": "There is a black streak/smudge partially obscuring the collector's name (Rönnholm)."
 }
 """
 _IMAGE_TRANSFER_UPLOAD = 1
