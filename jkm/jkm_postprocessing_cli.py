@@ -10,7 +10,6 @@ os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
 import logging
 log = logging.getLogger() # Overwrite if needed
 
-
 import time,  logging,  threading, sys,   configparser
 from datetime import datetime
 from pathlib import Path
@@ -89,7 +88,7 @@ def write_postprocessor_properties_file(sample):
         log.warning( f"Saving a properties file failed with error message: {msg}" )
 
 # ----------------- Process a single event ------------------------
-def processSingleEvent(filename, data_out_table):
+def processSingleEvent(filename, conf, data_out_table):
         log.debug(f"Processing data file {filename}" )
         # Variables to hold extracted data
         alltext = ""
@@ -118,7 +117,6 @@ def processSingleEvent(filename, data_out_table):
                 raise jkm.errors.FileLoadingError(f"Unknown sample file/directory format {sample_format}, skippping to next.")
         except jkm.errors.FileLoadingError as msg:
                 log.error(msg)
-                q.task_done(); 
                 return _FAIL_IGNORE
                 
         # MAIN POSTPROCESSOR STARTS HERE
@@ -166,15 +164,14 @@ def processSingleEvent(filename, data_out_table):
                 if not image.has_labels : continue # Skip pure specimen images
                 labeltxt = image.ocr(ocr_command) # Default ocr uses fragments created above
                 alltext  += " " + labeltxt
-#                image.meta.addlog("OCR result for image", labeltxt,lvl=logging.DEBUG)
             sample.meta.addlog("Combined OCR result for all images",alltext,  log_add_hdr= sample.name)
         else: log.debug(f"{sample.name}: No OCR.")
 
         # AI-based label data extraction
         if conf.getb( "postprocessor", "ai_label_text_extraction"):
             try:
-                myai = jkm.ai.geminiAI(APIKEY)
-                myai.prompt = PROMPT
+                myai = jkm.ai.apikey_geminiAI(conf.APIKEY)
+                myai.prompt = conf.get('ai','prompt')
                 imagepaths = [x.filename for x in sample.imagelist if x.has_labels]
                 airesult = myai.query_images( imagepaths )        
                 # airesult can contain almost anything, possibly including non-valid UTF8. Should sanitize better.
@@ -246,7 +243,7 @@ def processSingleEvent(filename, data_out_table):
                     attempt_current += 1
                     time.sleep(wait_time)
         else: log.debug(f"{sample.name}: No directory rename.")
-
+##
         # RENAME FILES
         # Current implementation renames only the original image files as per the configuration file
         if conf.getb( "basic", "files_rename_by_barcode_id") and sample.shortidentifier:
@@ -275,14 +272,15 @@ def processSampleEvents(queue, conf, sleep_s, data_out_table):
         filename = Path(input)
         time.sleep(sleep_s) # Wait for all data to arrive
         try:
-            successQ = processSingleEvent(filename,data_out_table)        
+            successQ = processSingleEvent(filename, conf, data_out_table)        
         except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
             log.critical(f"Loading SETUP file item failed with message: {msg}")
             successQ = _FAIL_IGNORE
-        if successQ in [_FAIL_RETRY]: q.put(input) # retry from start 
-        elif successQ in [_SUCCESS, _FAIL_IGNORE]: pass # Do nothing
+        if successQ is _FAIL_RETRY: queue.put(input) # retry from start 
+        elif successQ is _FAIL_IGNORE: queue.done() 
+        elif successQ is _SUCCESS: pass # Do nothing
         #DONE
-        log.info(f"Sample events in process queue: {q.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
+        log.info(f"Sample events in process queue: {queue.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
 
 def main(debug = _DEBUG):
     threads = []
@@ -300,7 +298,7 @@ def main(debug = _DEBUG):
     log.info(f"STARTING NEW SESSION of {jkm.meta.nameversion}")
     # Read config file name from sys.argv and parse the file
     try: 
-        conf = jkm.configfile.load_configuration(jkm.meta.name) 
+        conf = jkm.configfile.load_configuration(jkm.meta.name)
         # Wait period from file detection to file processing
         # Allows for enough time for transfer of a file(s)  to be completed
         sleep_s_before_reading_file = conf.getf("postprocessor", "sleep_after_new_sample_detected")
@@ -339,10 +337,9 @@ def main(debug = _DEBUG):
         if conf.getb("postprocessor", "ai_label_text_extraction"):            
             APIPATH = Path(conf.get("ai","APIkeyfile"))
             log.debug(f"Reading API key from {APIPATH}")
-            APIKEY = jkm.ai.load_apikey(APIPATH)
-            log.debug(f"API key is {APIKEY}")
-            PROMPT = conf.get("ai","prompt")
-            log.debug(f"AI prompt set to '{PROMPT}'")
+            conf.APIKEY = jkm.ai.load_apikey(APIPATH)
+            log.debug(f"API key is {conf.APIKEY}")
+            log.debug(f"AI prompt set to \'{conf.get('ai','prompt')}\'")
 
          #Start loops looking for data to process and processing it
         for i in range(_num_worker_threads):

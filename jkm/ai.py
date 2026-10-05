@@ -12,14 +12,13 @@ from google.genai import errors as gemini_errors
 from google.genai.types import HttpOptions
 
 # For testing, Google Free Key for small tests
-_TESTING_BYPASS_AI_CALL = False
+_TESTING_BYPASS_AI_CALL = True
 _TESTING_JSON_FROM_AI = """```json {  "collector": "F. Kangas",  "date": "8. 7. 1932",  "locality": "Helsinki",  "identifier": "GV 101220",  "notes": "http://id.luom"}```"""
 _IMAGE_TRANSFER_UPLOAD = 1
 _IMAGE_TRANSFER_INLINE = 2
 _TEST_PROMPT = "There images are all of the same object. Find text in the images. Reply with JSON only, fitting the data into the following variables: collector, date, locality, identifier, and notes."
 AI_FAILURE_RETURN_VALUE = 'null'
 _AI_GEMINI_TIMEOUT = 10 * 1000 # 10 seconds
-
 
 def load_apikey(fp):
     with fp.open() as f:
@@ -65,17 +64,19 @@ class AI_output:
     def to_json(self):
         return json.dumps(self._dict)    
         
+
         
-class geminiAI():
-    def __init__(self,  apikey = None):
+class geminiAI(): # Make subclasses based on authentication method
+    def __init__(self):
         self._promt = None
         self.client = None
-        self.apikey = apikey
         # Settings, should come from user setup is a production code
         self._MODEL = 'gemini-3.1-flash-lite-preview'
 #        self._MODEL = 'gemini-2.5-flash'
         self._MIMETYPE = 'image/jpeg',
         self._IMAGE_TRANSFER_TYPE = _IMAGE_TRANSFER_INLINE
+    def close(self):
+        self.client.close() # Not necesary, but a good habit.
     # Getters, setters for properties
     @property
     def prompt(self): return self._promt
@@ -98,7 +99,7 @@ class geminiAI():
         if  self.client is None: raise jkm.errors.AIError("Upload images requested before AI Client was created in code.")
         fileobj = self.client.files.upload(  file = filepath )
         if not fileobj: jkm.errors.AIError(f"Uploading image failed, status {fileobj}")
-        log.debug (f"OK upload {filepath}",  ) 
+        log.debug (f"OK upload {filepath}",  )   
         return fileobj
         
     def _urify_image(self,  filepath): 
@@ -106,6 +107,9 @@ class geminiAI():
         return types.Part.from_bytes( data = bytes, mime_type = "image/jpeg")
 
    # Sending a query
+    def _generate_client(self):
+        return None # CHildren should override
+        
     def query_images(self, pathlist, timeout = None):
         """Get data from Gemini based on multiple images. 
         
@@ -129,8 +133,7 @@ class geminiAI():
         log.debug("Create client")
         if  timeout: httpopts = HttpOptions(timeout=timeout)      
         else: httpopts = HttpOptions()
-        self.client = genai.Client(api_key=self.apikey,  http_options = httpopts)
-#        log.debug("Client is",  self.client )
+        self.client = self._generate_client(httpopts)
         if not self.client: raise jkm.errors.AIError("Creating an AI client failed.")
         log.debug("Create client done")
 
@@ -167,3 +170,13 @@ class geminiAI():
         output.from_text( text ) # Tries parsing the tecxt as JSON
         return output
         
+class apikey_geminiAI(geminiAI):
+    def __init__(self,  apikey = None):
+        self.apikey = apikey
+        super().__init__()
+    def _generate_client(self, httpopts):
+        return genai.Client(api_key=self.apikey,  http_options = httpopts)
+
+class cloud_auth_geminiAI(geminiAI):
+    def __init__(self):
+        super().__init__()
