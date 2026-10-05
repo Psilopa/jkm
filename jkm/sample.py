@@ -178,7 +178,6 @@ class SampleImage(SampleBase):
             # HACK:
             self._fn = Path(fn)
             self._img = jkm.tools.load_img(fn)
-#            self._img = cv2.imread(str(fn), colourspace)            
             return self._img
         except SystemError as msg:
             log.warning(f"Reading file {str(filename)} failed" )

@@ -11,10 +11,32 @@ from google import genai
 from google.genai import types
 from google.genai import errors as gemini_errors
 from google.genai.types import HttpOptions
+import jkm.labeldata_model
 
 # For testing, Google Free Key for small tests
-_TESTING_BYPASS_AI_CALL = False
-_TESTING_JSON_FROM_AI = """```json {  "collector": "F. Kangas",  "date": "8. 7. 1932",  "locality": "Helsinki",  "identifier": "GV 101220",  "notes": "http://id.luom"}```"""
+_TESTING_BYPASS_AI_CALL = True
+_TESTING_JSON_FROM_AI = """
+  "verbatim_all_text": [
+    {
+      "verbatim_text": "Korpilahti"
+    },
+    {
+      "verbatim_text": "17.7.1939"
+    },
+    {
+      "verbatim_text": "Rönnholm"
+    },
+    {
+      "verbatim_text": "http://id.luomus.fi/F.252693\nUniv. of Helsinki\nLUOMUS, 2019"
+    }
+  ],
+  "verbatim_collector": "Rönnholm",
+  "verbatim_date": "17.7.1939",
+  "verbatim_field_identifier": "",
+  "verbatim_coordinates": "",
+  "notes": "Collector label has an ink mark/smudge in the middle."
+}
+"""
 _IMAGE_TRANSFER_UPLOAD = 1
 _IMAGE_TRANSFER_INLINE = 2
 _TEST_PROMPT = "There images are all of the same object. Find text in the images. Reply with JSON only, fitting the data into the following variables: collector, date, locality, identifier, and notes."
@@ -22,8 +44,7 @@ AI_FAILURE_RETURN_VALUE = 'null'
 _AI_GEMINI_TIMEOUT = 10 * 1000 # 10 seconds
 
 def load_apikey(fp):
-    with fp.open() as f:
-            return f.read()
+    with fp.open() as f: return f.read()
     
 def _parseAI_JSON(text):
     """Cleanup and parse pseudo-JSON as returned from an AI."""
@@ -73,7 +94,8 @@ class geminiAI(): # Make subclasses based on authentication method
         self.client = None
         # Settings, should come from user setup is a production code
         self._MODEL = 'gemini-3.8-flash' # Default value
-    def close(self): self.client.close() # Not necesary, but a good habit.
+    def close(self):
+        if self.client: self.client.close() # Not necesary, but a good habit.
     # Getters, setters for properties
     @property
     def prompt(self): return self._promt
@@ -124,8 +146,17 @@ class geminiAI(): # Make subclasses based on authentication method
             # log.debug("Create client done")
             content =  [ {"type": "text", "text": self.prompt} ]
             content += self.add_images(pathlist)
-            try: # Query the model                
-                interaction  = self.client.interactions.create ( model = self._MODEL, input = content )
+            try: # Query the model
+                response_format={
+                    "type": "text",
+                    "mime_type": "application/json",
+                    "schema": jkm.labeldata_model.LabelData.model_json_schema()
+                    }
+                interaction  = self.client.interactions.create (
+                    model = self._MODEL,
+                    input = content,
+                    response_format= response_format
+                    )
                 text = interaction.output_text
             except gemini_errors.ServerError as msg:
                raise jkm.errors.AIError(msg)

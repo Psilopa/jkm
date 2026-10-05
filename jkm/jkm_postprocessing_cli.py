@@ -20,6 +20,7 @@ import watchdog.events
 # app-specific modules
 import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis,  jkm.ai
 import jkm.meta
+import jkm.labeldata_model
 
 # CONSTANT
 _DEBUG = True  
@@ -180,7 +181,7 @@ def processSingleEvent(filename, conf, data_out_table):
                 myai.prompt = conf.get('ai','prompt')
                 imagepaths = [x.filename for x in sample.imagelist if x.has_labels]
                 airesult = myai.query_images( imagepaths )
-                myai.close()
+                if myai: myai.close()
                 # airesult can contain almost anything, possibly including non-valid UTF8. Should sanitize better.
                 log.info(f"{sample.name}:AI call for data extraction returned {str(airesult)}")
                 outfn = conf.get("ai","properties_filename", fallback = False)
@@ -332,7 +333,8 @@ def main(debug = _DEBUG):
                 if format.lower() != "csv": 
                     log.warning 
                 # TODO: should check if file exists, create as needed
-                fieldnames = conf.getlist("ai", "prompt_fieldnames")        
+                #fieldnames = conf.getlist("ai", "prompt_fieldnames")
+                fieldnames = list(jkm.labeldata_model.LabelData.__fields__.keys()) 
                 table_out = jkm.ocr_analysis.OutputCSV( table_outfile,  fieldnames = fieldnames )
                 table_out.open()
                 log.info(f"Tabular output is appended to file {table_outfile}")
