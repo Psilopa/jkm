@@ -292,6 +292,7 @@ def processSampleEvents(queue, conf, sleep_s, data_out_table):
         log.info(f"Sample events in process queue: {queue.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
 
 def main(debug = _DEBUG):
+    global log
     threads = []
     excel = None
     q = queue.Queue() # a FIFO queue of metafile names
