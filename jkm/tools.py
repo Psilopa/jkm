@@ -26,7 +26,7 @@ def setup_logging(name, debug = False):
     log.info("\n") # Print some empty lines using a simplified format
     for l in log.handlers[:]: l.setFormatter(logformat)
     if debug: log.info("Logging set up for debug.")
-    else: log.info("Logging set up for not debuggind data.")
+    else: log.info("Logging set up for not debugging data.")
     return log
 
 def monitor_disk_space(dir_name,limit,levels=[1,0.1,0.01]):
