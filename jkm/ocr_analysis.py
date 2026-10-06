@@ -70,9 +70,11 @@ class OutputCSV():
         self.csvfile = self.fp.open("a", encoding= CSV_ENCODING, newline=CSV_NEWLINE, errors = CSC_ENCODING_ERRORS )  # Append mode
         self.writer = csv.DictWriter(self.csvfile, self.fieldnames,  dialect = self.dialect,  extrasaction='ignore')
         if isemptyfile(self.fp): self.writer.writeheader()
-    def add_line(self, datarowdict):
-        self.writer.writerow(  json2printdict(datarowdict) )
+    def add_line_from_dict(self, datarowdict):
+        self.writer.writerow(  datarowdict )
         self.csvfile.flush() # Write data to file immediately
+    def add_line_from_json(self, datarowdict):
+        self.wadd_line_from_dict ( json2printdict(datarowdict) ) 
     def save(self):  
         if self.csvfile: self.csvfile.close()
 
