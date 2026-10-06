@@ -74,7 +74,7 @@ class OutputCSV():
         self.writer.writerow(  datarowdict )
         self.csvfile.flush() # Write data to file immediately
     def add_line_from_json(self, datarowdict):
-        self.wadd_line_from_dict ( json2printdict(datarowdict) ) 
+        self.add_line_from_dict ( json2printdict(datarowdict) ) 
     def save(self):  
         if self.csvfile: self.csvfile.close()
 
