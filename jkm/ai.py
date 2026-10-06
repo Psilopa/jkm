@@ -14,7 +14,7 @@ from google.genai.types import HttpOptions
 import jkm.labeldata_model
 
 # For testing, Google Free Key for small tests
-_TESTING_BYPASS_AI_CALL = True
+_TESTING_BYPASS_AI_CALL = False
 _TESTING_JSON_FROM_AI = """
 {
   "verbatim_all_text": [
