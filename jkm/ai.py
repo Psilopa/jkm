@@ -263,7 +263,7 @@ class local_oauth_geminiAI(oauth_geminiAI):
         return creds
     def _create_client(self, httpopts):
         return genai.Client(
-            http_options = httpopts,
+#            http_options = httpopts,
             vertexai = True,
             project = self.projectID,
             location = self.location,
@@ -274,9 +274,9 @@ class local_oauth_geminiAI(oauth_geminiAI):
         creds = self.load_oauth2_creds()    
         client = genai.Client(
             vertexai = True,
-            project = "gen-lang-client-0404401598", # Could grab this from client_secrets.json
-            location = "global",
-            credentials=creds)
+            project = self.projectID , # Could grab this from client_secrets.json
+            location = self.location,
+            credentials=self.creds)
         print("Client created.")
         response_format={
                 "type": "text",
