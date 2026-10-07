@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# TODO: Gemini AI has a JSON Schema too, but it is not yet used here
-# See https://ai.google.dev/gemini-api/docs/interactions?ua=chat
-
 import  logging,  json, os, base64
 import jkm.errors
 log = logging.getLogger() # Overwrite if needed
@@ -12,6 +9,11 @@ from google.genai import types
 from google.genai import errors as gemini_errors
 from google.genai.types import HttpOptions
 import jkm.labeldata_model
+
+# For local OAUTH token management, used by local_oauth_geminiAI
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
 
 # For testing, Google Free Key for small tests
 _TESTING_BYPASS_AI_CALL = False
@@ -42,6 +44,7 @@ AI_FAILURE_RETURN_VALUE = 'null'
 _AI_GEMINI_TIMEOUT = 10 * 1000 # 10 seconds
 
 def load_apikey(fp):
+#    if not fp.exists(): return None # TODO: SHOULD REPORT ERROR TYPE
     with fp.open() as f: return f.read()
     
 def _parseAI_JSON(text):
@@ -84,8 +87,6 @@ class AI_output:
     def to_json(self):
         return json.dumps(self._dict)    
         
-
-        
 class geminiAI(): # Make subclasses based on authentication method
     def __init__(self):
         self._promt = None
@@ -103,15 +104,28 @@ class geminiAI(): # Make subclasses based on authentication method
     def model(self): return self._MODEL 
     @model.setter
     def model(self,  model): self._MODEL  = model    
-    
    # Sending a query
-    # Preprocessing images
+    def add_images(self, filepaths):
+        assert False, "Child classes should replace this function."
+    def _create_client(self):
+        assert False, "Child classes should replace this function."
     def _file2bytes(self,  filepath):        
         with filepath.open('rb') as f:   return f.read()
-   
-    def _generate_client(self):
-        return None # CHildren should override
-        
+    def _execute_query(self,content):
+        # Default query function. Uses the experimental Interactions API
+        # May not work with older models
+        response_format={
+            "type": "text",
+            "mime_type": "application/json",
+            "schema": jkm.labeldata_model.LabelData.model_json_schema()
+            }
+        interaction  = self.client.interactions.create (
+            model = self._MODEL,
+            input = content,
+            response_format= response_format,
+            )
+        return interaction.output_text
+    
     def query_images(self, pathlist, timeout = None):
         """Get data from Gemini based on multiple images. 
         
@@ -139,40 +153,31 @@ class geminiAI(): # Make subclasses based on authentication method
             log.debug("Create client")
             if  timeout: httpopts = HttpOptions(timeout=timeout)      
             else: httpopts = HttpOptions()
-            self.client = self._generate_client(httpopts)
+            self.client = self._create_client(httpopts)
             if not self.client: raise jkm.errors.AIError("Creating an AI client failed.")
             # log.debug("Create client done")
             content =  [ {"type": "text", "text": self.prompt} ]
             content += self.add_images(pathlist)
             try: # Query the model
-                response_format={
-                    "type": "text",
-                    "mime_type": "application/json",
-                    "schema": jkm.labeldata_model.LabelData.model_json_schema()
-                    }
-                interaction  = self.client.interactions.create (
-                    model = self._MODEL,
-                    input = content,
-                    response_format= response_format
-                    )
-                text = interaction.output_text
+                text = self._execute_query(content)
             except gemini_errors.ServerError as msg:
-               raise jkm.errors.AIError(msg)
+                raise jkm.errors.AIError(msg)
             except gemini_errors.ClientError as msg:
-               raise jkm.errors.AIError(msg)
+                raise jkm.errors.AIError(msg)
             except gemini_errors.APIError as msg:
-               raise jkm.errors.AIError(msg)
+                raise jkm.errors.AIError(msg)
         log.debug( f'Response was "{text }"' )
         output = AI_output()
         if text == AI_FAILURE_RETURN_VALUE: return output        # Primitive error handling
-        output.from_text( text ) # Tries parsing the tecxt as JSON
+        output.from_text( text ) # Tries parsing the text as JSON
+        # TODO: Better handling of cases that already output JSON
         return output
         
 class apikey_geminiAI(geminiAI):
     def __init__(self,  apikey = None):
         self.apikey = apikey
         super().__init__()
-    def _generate_client(self, httpopts):
+    def _create_client(self, httpopts):
         return genai.Client(api_key=self.apikey,  http_options = httpopts)
     def _upload_image(self,  filepath): 
         """"Upload an image to AI. 
@@ -186,23 +191,14 @@ class apikey_geminiAI(geminiAI):
         return fileobj
     def add_images(self, filepaths):
         results = []
-        readiedfiles = [self._upload_image(fp) for fp in pathlist ]
+        readiedfiles = [self._upload_image(fp) for fp in filepaths]
         for myfile in readiedfiles:
             results.append( {"type": "image", "uri": myfile.uri, "mime_type": myfile.mime_type} )
         return results
         
-
-class cloud_auth_geminiAI(geminiAI):
+class oauth_geminiAI(geminiAI):
     def __init__(self):
-        log.debug("Using cloud_auth_geminiAI()")
         super().__init__()
-    def _generate_client(self, httpopts):
-        # Check if required OAuth env variables exist
-        ev_cloudfproject = "GOOGLE_CLOUD_PROJECT"
-        cloud_id = os.getenv(ev_cloudfproject)
-        if not cloud_id: # Error state handled by calling code
-            raise jkm.errors.AIError(f"Could not read environmental variable {ev_cloudfproject}")
-        return genai.Client(http_options = httpopts)
     def _urify_image(self,  filepath):        
         fbytes  = self._file2bytes(filepath)       
         return {
@@ -210,9 +206,80 @@ class cloud_auth_geminiAI(geminiAI):
             "data": base64.b64encode(fbytes).decode('utf-8'),
             "mime_type": "image/jpeg",
             }
-    def add_images(self,filepaths):
+    def add_images(self,filepaths): # Overides 
         imgs = []
         for fpath in filepaths:
             filebytes = self._file2bytes(fpath)
             imgs.append( self._urify_image(fpath) )
         return imgs
+
+class cloud_oauth_geminiAI(oauth_geminiAI):
+    def __init__(self):
+        log.debug("Using cloud_oauth_geminiAI()")
+        super().__init__()
+    def _create_client(self, httpopts):
+        # Check if required OAuth env variables exist
+        ev_cloudfproject = "GOOGLE_CLOUD_PROJECT"
+        cloud_id = os.getenv(ev_cloudfproject)
+        if not cloud_id: # Error state handled by calling code
+            raise jkm.errors.AIError(f"Could not read environmental variable {ev_cloudfproject}")
+        return genai.Client(http_options = httpopts)
+
+
+class local_oauth_geminiAI(oauth_geminiAI):
+    def __init__(self, projectID, location, secretpath, tokenpath = None) :
+        super().__init__()
+        log.debug("Using cloud_oauth_geminiAI()")
+        self.secretpath = secretpath
+        self.tokenpath = tokenpath
+        self.creds = self.load_oauth2_creds()
+        self.projectID = projectID 
+        self.location = location # "global"
+    def load_oauth2_creds(self):
+        """Converts `client_secret.json` to a credential object.
+
+        This function caches the generated tokens to minimize the use of the
+        consent screen.
+        
+        Based on the Google-provided example at https://ai.google.dev/gemini-api/docs/oauth.
+        """
+        SCOPES = ['https://www.googleapis.com/auth/generative-language.retriever']
+        creds = None
+        # Use existing credentials from self.tokenpath JSON file
+        if self.tokenpath and os.path.exists(self.tokenpath):
+            creds = Credentials.from_authorized_user_file(self.tokenpath, SCOPES)
+        # If there are no (valid) credentials available, let the user log in.
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file(self.secretpath, SCOPES)
+                creds = flow.run_local_server(port=0)
+            # Save the credentials for the next run
+            if self.tokenpath:
+                with self.tokenpath.open('w') as token:
+                    token.write(creds.to_json())
+        return creds
+    def _create_client(self, httpopts):
+        return genai.Client(
+            http_options = httpopts,
+            vertexai = True,
+            project = self.projectID,
+            location = self.location,
+            credentials=self.creds)
+    def _execute_query(self,content):
+        # old-style query function. Uses the experimental Interactions API
+        # May not work with older models
+        print(jkm.labeldata_model.LabelData.model_json_schema())
+        response_format={
+            "type": "text",
+            "mime_type": "application/json",
+#            "schema": jkm.labeldata_model.LabelData.model_json_schema()
+            }
+        interaction = self.client.interactions.create(
+            model=self.model,
+            input=content,
+#            response_format=response_format
+        )
+        return interaction.output_text
+
