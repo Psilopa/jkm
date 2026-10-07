@@ -42,6 +42,7 @@ _IMAGE_TRANSFER_INLINE = 2
 _TEST_PROMPT = "There images are all of the same object. Find text in the images. Reply with JSON only, fitting the data into the following variables: collector, date, locality, identifier, and notes."
 AI_FAILURE_RETURN_VALUE = 'null'
 _AI_GEMINI_TIMEOUT = 10 * 1000 # 10 seconds
+_AI_GEMINI_TIMEOUT = 1000 * 1000 # 10 seconds
 
 def load_apikey(fp):
 #    if not fp.exists(): return None # TODO: SHOULD REPORT ERROR TYPE
@@ -92,7 +93,7 @@ class geminiAI(): # Make subclasses based on authentication method
         self._promt = None
         self.client = None
         # Settings, should come from user setup is a production code
-        self._MODEL = 'gemini-3.8-flash' # Default value
+        self._MODEL = 'gemini-3.1-flash-lite' # Default model
     def close(self):
         if self.client: self.client.close() # Not necesary, but a good habit.
     # Getters, setters for properties
@@ -105,8 +106,6 @@ class geminiAI(): # Make subclasses based on authentication method
     @model.setter
     def model(self,  model): self._MODEL  = model    
    # Sending a query
-    def add_images(self, filepaths):
-        assert False, "Child classes should replace this function."
     def _create_client(self):
         assert False, "Child classes should replace this function."
     def _file2bytes(self,  filepath):        
@@ -126,6 +125,23 @@ class geminiAI(): # Make subclasses based on authentication method
             )
         return interaction.output_text
     
+    def _upload_image(self,  filepath): 
+        """"Upload an image to AI. 
+        
+        TODO: Needs Error handling!"""
+        log.debug (f"Trying to upload {filepath},  of type {type(filepath)}") 
+        if  self.client is None: raise jkm.errors.AIError("Upload images requested before AI Client was created in code.")
+        fileobj = self.client.files.upload(  file = filepath )
+        if not fileobj: jkm.errors.AIError(f"Uploading image failed, status {fileobj}")
+        log.debug (f"OK upload {filepath}",  )   
+        return fileobj
+    def _add_images(self, filepaths):
+        results = []
+        readiedfiles = [self._upload_image(fp) for fp in filepaths]
+        for myfile in readiedfiles:
+            results.append( {"type": "image", "uri": myfile.uri, "mime_type": myfile.mime_type} )
+        return results
+
     def query_images(self, pathlist, timeout = None):
         """Get data from Gemini based on multiple images. 
         
@@ -157,7 +173,7 @@ class geminiAI(): # Make subclasses based on authentication method
             if not self.client: raise jkm.errors.AIError("Creating an AI client failed.")
             # log.debug("Create client done")
             content =  [ {"type": "text", "text": self.prompt} ]
-            content += self.add_images(pathlist)
+            content += self._add_images(pathlist)
             try: # Query the model
                 text = self._execute_query(content)
             except gemini_errors.ServerError as msg:
@@ -172,33 +188,6 @@ class geminiAI(): # Make subclasses based on authentication method
         output.from_text( text ) # Tries parsing the text as JSON
         # TODO: Better handling of cases that already output JSON
         return output
-        
-class apikey_geminiAI(geminiAI):
-    def __init__(self,  apikey = None):
-        self.apikey = apikey
-        super().__init__()
-    def _create_client(self, httpopts):
-        return genai.Client(api_key=self.apikey,  http_options = httpopts)
-    def _upload_image(self,  filepath): 
-        """"Upload an image to AI. 
-        
-        TODO: Needs Error handling!"""
-        log.debug (f"Trying to upload {filepath},  of type {type(filepath)}") 
-        if  self.client is None: raise jkm.errors.AIError("Upload images requested before AI Client was created in code.")
-        fileobj = self.client.files.upload(  file = filepath )
-        if not fileobj: jkm.errors.AIError(f"Uploading image failed, status {fileobj}")
-        log.debug (f"OK upload {filepath}",  )   
-        return fileobj
-    def add_images(self, filepaths):
-        results = []
-        readiedfiles = [self._upload_image(fp) for fp in filepaths]
-        for myfile in readiedfiles:
-            results.append( {"type": "image", "uri": myfile.uri, "mime_type": myfile.mime_type} )
-        return results
-        
-class oauth_geminiAI(geminiAI):
-    def __init__(self):
-        super().__init__()
     def _urify_image(self,  filepath):        
         fbytes  = self._file2bytes(filepath)       
         return {
@@ -206,12 +195,24 @@ class oauth_geminiAI(geminiAI):
             "data": base64.b64encode(fbytes).decode('utf-8'),
             "mime_type": "image/jpeg",
             }
-    def add_images(self,filepaths): # Overides 
+    def _add_images(self,filepaths): # Overides 
         imgs = []
         for fpath in filepaths:
             filebytes = self._file2bytes(fpath)
             imgs.append( self._urify_image(fpath) )
         return imgs
+
+# APIKEY security solution.    
+class apikey_geminiAI(geminiAI):
+    def __init__(self,  apikey = None):
+        self.apikey = apikey
+        super().__init__()
+    def _create_client(self, httpopts):
+        return genai.Client(api_key=self.apikey,  http_options = httpopts)
+
+class oauth_geminiAI(geminiAI):
+    def __init__(self):
+        super().__init__()
 
 class cloud_oauth_geminiAI(oauth_geminiAI):
     def __init__(self):
@@ -243,7 +244,7 @@ class local_oauth_geminiAI(oauth_geminiAI):
         
         Based on the Google-provided example at https://ai.google.dev/gemini-api/docs/oauth.
         """
-        SCOPES = ['https://www.googleapis.com/auth/generative-language.retriever']
+        SCOPES = ["https://www.googleapis.com/auth/cloud-platform", 'https://www.googleapis.com/auth/generative-language.retriever']
         creds = None
         # Use existing credentials from self.tokenpath JSON file
         if self.tokenpath and os.path.exists(self.tokenpath):
@@ -267,19 +268,26 @@ class local_oauth_geminiAI(oauth_geminiAI):
             project = self.projectID,
             location = self.location,
             credentials=self.creds)
-    def _execute_query(self,content):
-        # old-style query function. Uses the experimental Interactions API
-        # May not work with older models
-        print(jkm.labeldata_model.LabelData.model_json_schema())
-        response_format={
-            "type": "text",
-            "mime_type": "application/json",
-#            "schema": jkm.labeldata_model.LabelData.model_json_schema()
-            }
-        interaction = self.client.interactions.create(
-            model=self.model,
-            input=content,
-#            response_format=response_format
-        )
-        return interaction.output_text
 
+    def _execute_query(self,content):
+        model='gemini-3.1-flash-lite'
+        creds = self.load_oauth2_creds()    
+        client = genai.Client(
+            vertexai = True,
+            project = "gen-lang-client-0404401598", # Could grab this from client_secrets.json
+            location = "global",
+            credentials=creds)
+        print("Client created.")
+        response_format={
+                "type": "text",
+                "mime_type": "application/json",
+    #            "schema": jkm.labeldata_model.LabelData.model_json_schema()
+                }
+        interaction = client.interactions.create(
+            model=model,
+            response_format= response_format,
+            input="Return a simple one-line example of JSON."
+        )
+        print(interaction)
+        dir(interaction)
+        print(interaction.status)
