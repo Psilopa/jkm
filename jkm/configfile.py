@@ -24,6 +24,7 @@ class Multicamconfig():
     def getb(self,*args,**kwargs): return self._c.getboolean(*args, **kwargs)
     def geti(self,*args,**kwargs): return self._c.getint(*args, **kwargs)
     def getf(self,*args,**kwargs): return self._c.getfloat(*args, **kwargs)
+    def getpath(self,*args,**kwargs): return Path(self._c.get(*args, **kwargs))
     def getlist(self,*args,**kwargs):
         return tools.string2list(self._c.get(*args, **kwargs))
     def has_section(self, section): return self._c.has_section(section)
