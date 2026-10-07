@@ -21,6 +21,7 @@ class Multicamconfig():
     def get(self,*args,**kwargs): 
         try: return self._c.get(*args, **kwargs)
         except configparser.Error as msg: raise errors.LoggingError(msg, level = logging.CRITICAL) 
+    def getstr(self,*args,**kwargs): return str(self._c.get(*args, **kwargs)) 
     def getb(self,*args,**kwargs): return self._c.getboolean(*args, **kwargs)
     def geti(self,*args,**kwargs): return self._c.getint(*args, **kwargs)
     def getf(self,*args,**kwargs): return self._c.getfloat(*args, **kwargs)

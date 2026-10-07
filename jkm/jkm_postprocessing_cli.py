@@ -175,16 +175,19 @@ def processSingleEvent(filename, conf, data_out_table):
                 ai_auth_type = conf.get("ai", "auth_type") 
                 assert ai_auth_type in _AI_AUTH_TYPES
                 if ai_auth_type == 'APIKEY': myai = jkm.ai.apikey_geminiAI(conf.APIKEY)
-                elif ai_auth_type == 'CLOUD_OAUTH': myai = jkm.ai.cloud_oauth_geminiAI()
+                elif ai_auth_type == 'CLOUD_OAUTH':
+                    project_id = conf.getpath("ai", "google_project_id")
+                    location = conf.getpath("ai", "google_location")
+                    myai = jkm.ai.cloud_oauth_geminiAI(project_id, location)
                 elif ai_auth_type == 'LOCAL_OAUTH': 
                     app_token_path = conf.getpath("ai", "app_token_path") # Should be readable
                     tmp_token_path = conf.getpath("ai", "tmp_token_path") # Should be writeable
-                    location = conf.getpath("ai", "location")
-                    project_id = conf.getpath("ai", "project_id")
+                    project_id = conf.getstr("ai", "google_project_id")
+                    location = conf.getstr("ai", "google_location")
                     myai = jkm.ai.local_oauth_geminiAI(project_id, location, app_token_path, tmp_token_path)
                 else: pass # Should never happen as ai_auth_type is verified to havce a valid value at this point
-                myai.model = conf.get('ai','model')
-                myai.prompt = conf.get('ai','prompt')
+                myai.model = conf.getstr('ai','model')
+                myai.prompt = conf.getstr('ai','prompt')
                 imagepaths = [x.filename for x in sample.imagelist if x.has_labels]
                 airesult = myai.query_images( imagepaths )
                 if myai: myai.close()

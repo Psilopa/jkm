@@ -106,7 +106,7 @@ class geminiAI(): # Make subclasses based on authentication method
     @model.setter
     def model(self,  model): self._MODEL  = model    
    # Sending a query
-    def _create_client(self):
+    def _create_client(self, httpopts):
         assert False, "Child classes should replace this function."
     def _file2bytes(self,  filepath):        
         with filepath.open('rb') as f:   return f.read()
@@ -210,32 +210,34 @@ class apikey_geminiAI(geminiAI):
     def _create_client(self, httpopts):
         return genai.Client(api_key=self.apikey,  http_options = httpopts)
 
+# OAUTH2 VARANT BASE CLASS
 class oauth_geminiAI(geminiAI):
-    def __init__(self):
+    def __init__(self, projectID, location):
         super().__init__()
-
-class cloud_oauth_geminiAI(oauth_geminiAI):
-    def __init__(self):
-        log.debug("Using cloud_oauth_geminiAI()")
-        super().__init__()
+        self.projectID = projectID 
+        self.location = location # "global"
     def _create_client(self, httpopts):
-        # Check if required OAuth env variables exist
-        ev_cloudfproject = "GOOGLE_CLOUD_PROJECT"
-        cloud_id = os.getenv(ev_cloudfproject)
-        if not cloud_id: # Error state handled by calling code
-            raise jkm.errors.AIError(f"Could not read environmental variable {ev_cloudfproject}")
-        return genai.Client(http_options = httpopts)
+        return genai.Client(
+                    http_options = httpopts, 
+                    project=self.projectID,
+                    # Location can be 'global', which is a Python keywork and seems to confuse some Google tools, so we do an explicit string conversion here
+                    location=str(self.location), 
+                    enterprise=True,
+                    )
 
+# Gcloud-based 
+class cloud_oauth_geminiAI(oauth_geminiAI):
+    def __init__(self,projectID, location):
+        log.debug("Using cloud_oauth_geminiAI()")
+        super().__init__(projectID, location)
 
 class local_oauth_geminiAI(oauth_geminiAI):
     def __init__(self, projectID, location, secretpath, tokenpath = None) :
-        super().__init__()
-        log.debug("Using cloud_oauth_geminiAI()")
+        log.debug("Using local_oauth_geminiAI()")
+        super().__init__(projectID, location)
         self.secretpath = secretpath
         self.tokenpath = tokenpath
         self.creds = self.load_oauth2_creds()
-        self.projectID = projectID 
-        self.location = location # "global"
     def load_oauth2_creds(self):
         """Converts `client_secret.json` to a credential object.
 
@@ -263,31 +265,9 @@ class local_oauth_geminiAI(oauth_geminiAI):
         return creds
     def _create_client(self, httpopts):
         return genai.Client(
-#            http_options = httpopts,
+            http_options = httpopts,
             vertexai = True,
             project = self.projectID,
             location = self.location,
             credentials=self.creds)
 
-    def _execute_query(self,content):
-        model='gemini-3.1-flash-lite'
-        creds = self.load_oauth2_creds()    
-        client = genai.Client(
-            vertexai = True,
-            project = self.projectID , # Could grab this from client_secrets.json
-            location = self.location,
-            credentials=self.creds)
-        print("Client created.")
-        response_format={
-                "type": "text",
-                "mime_type": "application/json",
-    #            "schema": jkm.labeldata_model.LabelData.model_json_schema()
-                }
-        interaction = client.interactions.create(
-            model=model,
-            response_format= response_format,
-            input="Return a simple one-line example of JSON."
-        )
-        print(interaction)
-        dir(interaction)
-        print(interaction.status)
