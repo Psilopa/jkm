@@ -51,7 +51,6 @@ def json2printdict(json):
                 out +=  valuedict.values()
             rv[key] = "\n".join(out)
         else: rv[key] = json[key]
-    print("Returning", rv)
     return rv
     
         
