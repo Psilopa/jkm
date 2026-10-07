@@ -41,10 +41,10 @@ def quit_if_not_exists(pathname):
 # Move to Luomus-specific Sample type
 def find_samples(dirname,datafile_patterns):
     #This just returns a list of matching file names
-    log.debug(f"Finding '{datafile_patterns}' files to process if {dirname}" )
+    log.debug(f"Finding '{datafile_patterns}' files to process in {dirname}" )
     d = Path(dirname) 
     result = []
-    for pat in datafile_patterns: 
+    for pat in datafile_patterns:
         tempr = d.rglob(pat)
         log.debug(f"Looking for pattern {pat} in {dirname}")
         tempr = [x for x in tempr if ( str(x).find("textarea") == -1 )] # Skip files with "textarea" in their name
@@ -80,7 +80,7 @@ def write_postprocessor_properties_file(sample):
                 sample.digipropfile.update("URI_format_OK", str(id_OK) )
             sample.digipropfile.update("Q-sharp", "" )
             sample.digipropfile.update("Q-color", "" )
-#            if conf.getb( "postprocessor", "ocr"): 
+#            if conf.getb( "tasks", "ocr"): 
 #                sample.digipropfile.update("OCR_result", alltext.replace("\n"," "))
             propfilepath = sample.datapath /  Path(r"postprocessor.properties") 
             sample.digipropfile.save( sample.datapath /  Path(r"postprocessor.properties") )
@@ -97,7 +97,7 @@ def processSingleEvent(filename, conf, data_out_table):
         allbkdata = []
         # Create SampleEvent instances based on (meta)data file(s)
         #Recognise type to load
-        sample_format = conf.get("sampleformat", "datatype_to_load")        
+        sample_format = conf.get("data", "datatype_to_load")        
         try:
             dirpath= filename.parent
             # Catch some error states
@@ -124,7 +124,7 @@ def processSingleEvent(filename, conf, data_out_table):
         # TODO: CHECK IF THIS WORKS WITH THE REIMPLEMENTED sample
         log.info(f"Postprocessing sample {sample.name}")
         # ROTATE
-        rot = conf.geti( "postprocessor", "rotate_before_processing")
+        rot = conf.geti( "tasks", "rotate_before_processing")
         if rot: # non-zero value
             for image in sample.imagelist:
                 log.debug(f"{sample.name}: Rotating image {image.name}")
@@ -133,7 +133,7 @@ def processSingleEvent(filename, conf, data_out_table):
         # SAVE ROTATED (NOT IMPLEMENTED)
         
         # FIND BARCODES
-        if conf.getb( "postprocessor", "read_barcodes"):
+        if conf.getb( "tasks", "read_barcodes"):
             barcodepackage = conf.get( "barcodes", "barcodepackage").lower()
             for image in sample.imagelist:
                 try:
@@ -147,7 +147,7 @@ def processSingleEvent(filename, conf, data_out_table):
         else: log.debug(f"{sample.name}: No barcode extraction.")
                     
         # FIND TEXT ARES
-        if conf.getb( "postprocessor", "find_text_areas"):
+        if conf.getb( "tasks", "find_text_areas"):
             for image in sample.imagelist:
                 if not image.has_labels : continue # Skip pure specimen images
                 log.debug(f"{sample.name}: Searching for text areas in {image.label} of sample {sample.name}")
@@ -159,7 +159,7 @@ def processSingleEvent(filename, conf, data_out_table):
         else: log.debug(f"{sample.name}: No text area recognition.")
 
         # PERFORM OCR
-        if conf.getb( "postprocessor", "ocr"):
+        if conf.getb( "tasks", "ocr"):
             ocr_command = conf.get("ocr", "ocr_command")
             for image in sample.imagelist:
                 if not image.has_labels : continue # Skip pure specimen images
@@ -169,7 +169,7 @@ def processSingleEvent(filename, conf, data_out_table):
         else: log.debug(f"{sample.name}: No OCR.")
 
         # AI-based label data extraction
-        if conf.getb( "postprocessor", "ai_label_text_extraction"):
+        if conf.getb( "tasks", "ai_label_text_extraction"):
             airesult = None # Start with no result
             try:
                 ai_auth_type = conf.get("ai", "auth_type") 
@@ -193,7 +193,7 @@ def processSingleEvent(filename, conf, data_out_table):
                 if myai: myai.close()
                 # airesult can contain almost anything, possibly including non-valid UTF8. Should sanitize better.
                 log.info(f"{sample.name}:AI call for data extraction returned {str(airesult)}")
-                outfn = conf.get("ai","properties_filename", fallback = False)
+                outfn = conf.get("ai","properties_filename")
                 if outfn: # If a properties_filename was defined
                     outpath = sample.datapath / outfn
                     with outpath.open("w") as f: f.write(airesult.to_json())                                                        
@@ -208,7 +208,7 @@ def processSingleEvent(filename, conf, data_out_table):
         # EXTRACT IDENTIFIERS FROM OCR DATA (NOT IMPLEMENTED)
 
         # SUBMIT alltext to COMPONENT ANALYSIS
-        if conf.getb( "postprocessor", "ocr") and conf.getb( "postprocessor", "ocr_analysis"):
+        if conf.getb( "tasks", "ocr") and conf.getb( "tasks", "ocr_analysis"):
              ocrdata = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
              log.debug(f"{sample.name}: OCR data parsing output: {ocrdata}")
         else: 
@@ -238,7 +238,7 @@ def processSingleEvent(filename, conf, data_out_table):
             
         # RENAME DIRECTORIES (this may need to stay above file renaming)  
         # Tries a few times in case directory renaming is blocked by other processes
-        if conf.getb( "basic", "directories_rename_by_barcode_id") and sample.identifier:
+        if conf.getb( "tasks", "directories_rename_by_barcode_id") and sample.identifier:
             prefix = sample.datapath.name # last element of directory path
             log.debug(f"{sample.name}: Renaming directory based on barcode content")
             attempt_times = 2
@@ -265,7 +265,7 @@ def processSingleEvent(filename, conf, data_out_table):
 ##
         # RENAME FILES
         # Current implementation renames only the original image files as per the configuration file
-        if conf.getb( "basic", "files_rename_by_barcode_id") and sample.shortidentifier:
+        if conf.getb( "tasks", "files_rename_by_barcode_id") and sample.shortidentifier:
             try:
                 sample.rename_all_files(sample.shortidentifier)
             except (jkm.errors.JKError, FileNotFoundError) as msg:
@@ -273,11 +273,11 @@ def processSingleEvent(filename, conf, data_out_table):
         else: log.debug(f"{sample.name}: No file(s) rename.")
 
         # Write records to JSON Metadata file (should this be before renaming?)
-        if conf.getb( "basic", "save_JSON"): sample.writeMetaJSON()
+        if conf.getb( "tasks", "save_JSON"): sample.writeMetaJSON()
         else: log.debug(f"{sample.name}: No JSON metadata file created.")
 
         # FOR MZH IMAGING LINE SAMPLES
-        if conf.get("sampleformat", "datatype_to_load").lower()  in ["mzh_insectline", "mzh_plantline"]:
+        if conf.get("data", "datatype_to_load").lower()  in ["mzh_insectline", "mzh_plantline"]:
             write_postprocessor_properties_file(sample)
         else: log.debug(f"{sample.name}: No postprocessor.properties file created.")
         return _SUCCESS
@@ -304,7 +304,7 @@ def processSampleEvents(queue, conf, sleep_s, data_out_table):
 def main(debug = _DEBUG):
     global log
     threads = []
-    excel = None
+##    excel = None
     q = queue.Queue() # a FIFO queue of metafile names
     # Set loggers in other modules
     log = jkm.tools.setup_logging(jkm.meta.name, debug = debug)
@@ -322,18 +322,18 @@ def main(debug = _DEBUG):
         conf = jkm.configfile.load_configuration(jkm.meta.name)
         # Wait period from file detection to file processing
         # Allows for enough time for transfer of a file(s)  to be completed
+        print("SLEEP IS", conf.get("postprocessor", "sleep_affsdfsdter_new_sample_detected"))
         sleep_s_before_reading_file = conf.getf("postprocessor", "sleep_after_new_sample_detected")
         # TODO: get data types to process from config file: event packages (identified by metadata files) or simple image files
         #datatype = conf.get("sampleformat", "datatype_to_load")
-        filename_pattern = conf.get("sampleformat", "recognize_by_filename_pattern")        
-        datafile_patterns = [filename_pattern]
+        datafile_patterns = conf.getlist("data", "recognize_by_filename_pattern")        
         if conf.getb("postprocessor", "process_existing"):
             # Find list of file names matching a pattern and put them into the queue
             existingevents = find_samples( conf.basepath,datafile_patterns )
             for fn in existingevents: q.put(fn)
             log.info(f"Approximate number of sample events to process at launch is {q.qsize()}")
         
-        if conf.getb("postprocessor", "labeldata_to_CSV"):
+        if conf.getb("tasks", "labeldata_to_CSV"):
             try: # Maybe we should open and close a file every time we access it rather than passing an open file around. What appr                
                 table_outfile = Path( conf.get("data2table","filename") ) 
                 if  _BACKUP_DATATABLE:  
@@ -356,7 +356,7 @@ def main(debug = _DEBUG):
         
         log.debug(f'Using QR code decoder {conf.get( "barcodes", "barcodepackage")}')
 
-        if conf.getb("postprocessor", "ai_label_text_extraction"):
+        if conf.getb("tasks", "ai_label_text_extraction"):
             auth_type = conf.get("ai", "auth_type")
             log.debug(f"AI authentication method: {auth_type}")
             if auth_type == 'APIKEY':
