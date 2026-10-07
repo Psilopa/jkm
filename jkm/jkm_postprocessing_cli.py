@@ -29,7 +29,7 @@ _SUCCESS = 0
 _FAIL_IGNORE = 1
 _FAIL_RETRY = 2
 _num_worker_threads = 1
-_AI_AUTH_TYPES = ("APIKEY", "CLOUDID")
+_AI_AUTH_TYPES = ("APIKEY", "CLOUD_OAUTH", "LOCAL_OAUTH")
 
 def _UNIQUE(s) :return tuple(set(s))
 
@@ -175,7 +175,13 @@ def processSingleEvent(filename, conf, data_out_table):
                 ai_auth_type = conf.get("ai", "auth_type") 
                 assert ai_auth_type in _AI_AUTH_TYPES
                 if ai_auth_type == 'APIKEY': myai = jkm.ai.apikey_geminiAI(conf.APIKEY)
-                elif ai_auth_type == 'CLOUDID': myai = jkm.ai.cloud_auth_geminiAI()
+                elif ai_auth_type == 'CLOUD_OAUTH': myai = jkm.ai.cloud_oauth_geminiAI()
+                elif ai_auth_type == 'LOCAL_OAUTH': 
+                    app_token_path = conf.getpath("ai", "app_token_path") # Should be readable
+                    tmp_token_path = conf.getpath("ai", "tmp_token_path") # Should be writeable
+                    location = conf.getpath("ai", "location")
+                    project_id = conf.getpath("ai", "project_id")
+                    myai = jkm.ai.local_oauth_geminiAI(project_id, location, app_token_path, tmp_token_path)
                 else: pass # Should never happen as ai_auth_type is verified to havce a valid value at this point
                 myai.model = conf.get('ai','model')
                 myai.prompt = conf.get('ai','prompt')
@@ -191,6 +197,7 @@ def processSingleEvent(filename, conf, data_out_table):
                 else: log.debug(f"{sample.name}:No AI properties file generation requested in config file")
             except (IOError,  jkm.errors.AIError) as msg:
                 log.error(f"{sample.name}: AI Error '{msg}'.")
+                sys.exit()
         else:
             airesult = None
             log.debug(f"{sample.name}: No AI label data extraction.")
@@ -223,7 +230,7 @@ def processSingleEvent(filename, conf, data_out_table):
             else: labeldata = {}
             labeldata["barcode_ID"] = sample.identifier # Should default to None ?
             log.debug(f"{sample.name}: Calling OutputCSV.addline with data: {labeldata}")
-            data_out_table.add_line(labeldata)
+            data_out_table.add_line_from_json(labeldata)
             log.debug(f"{sample.name}: ...table data adding done")
             
         # RENAME DIRECTORIES (this may need to stay above file renaming)  
@@ -296,8 +303,8 @@ def main(debug = _DEBUG):
     threads = []
     excel = None
     q = queue.Queue() # a FIFO queue of metafile names
-    log = jkm.tools.setup_logging(jkm.meta.name, debug = debug)
     # Set loggers in other modules
+    log = jkm.tools.setup_logging(jkm.meta.name, debug = debug)
     jkm.configfile.log = log    
     jkm.tools.log = log
     jkm.ocr.log = log  # IF OCR
@@ -353,10 +360,12 @@ def main(debug = _DEBUG):
                 APIPATH = Path(conf.get("ai","APIkeyfile"))
                 conf.APIKEY = jkm.ai.load_apikey(APIPATH) # HACK, FIND A BETTER WAY TO PASS THIS
                 log.debug(f"Reading API key from {APIPATH}")
-                log.debug(f"API key is {conf.APIKEY}")
+#                log.debug(f"API key is {conf.APIKEY}")
                 log.debug(f"AI prompt set to \'{conf.get('ai','prompt')}\'")
-            elif auth_type == "CLOUDID":
-                pass
+            elif auth_type == "CLOUD_OAUTH":
+                pass # Should verify that necessary conditions to run exist                
+            elif auth_type == "LOCAL_OAUTH":
+                pass # Should verify that necessary conditions to run exist                
             else:
                 raise jkm.errors.JKError(f"Unknown AI authentication method {auth_type}")                
 
