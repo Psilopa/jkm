@@ -33,4 +33,4 @@ Tarkasta seuraavat arvot:
 - google_location = "global"
 - google_project_id = [GCloud-project-id]
 - app_token_path = [polku jkm-token -tiedostoon]
-  tmp_token_path = [polku tilapäiseen tiedostoon, johon voi kirjoittaa]
+- tmp_token_path = [polku tilapäiseen tiedostoon, johon voi kirjoittaa]
