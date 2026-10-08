@@ -42,7 +42,6 @@ _IMAGE_TRANSFER_INLINE = 2
 _TEST_PROMPT = "There images are all of the same object. Find text in the images. Reply with JSON only, fitting the data into the following variables: collector, date, locality, identifier, and notes."
 AI_FAILURE_RETURN_VALUE = 'null'
 _AI_GEMINI_TIMEOUT = 10 * 1000 # 10 seconds
-_AI_GEMINI_TIMEOUT = 1000 * 1000 # 10 seconds
 
 def load_apikey(fp):
 #    if not fp.exists(): return None # TODO: SHOULD REPORT ERROR TYPE
