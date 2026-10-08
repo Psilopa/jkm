@@ -185,7 +185,7 @@ class SampleImage(SampleBase):
 #    def writeImage(filename): pass
     def copyMetadatafFomConf(self, configobject):
         cf = configobject
-        self.addMeta("Free text", cf.get(self.confsection,"freetextline", fallback=""))
+#        self.addMeta("Free text", cf.get(self.confsection,"freetextline", fallback=""))
         self.addMeta("Image timing", self.time)
     def addMeta(self,title,content=""):
         self.meta.add(title,  content)
@@ -315,7 +315,7 @@ class LuomusLineSample(SampleEvent):
         else: id0 = self.identifier
         if not id0: raise jkm.errors.JKError("No identifier known, cannot rename directory")
         newprefix = "_".join([id0 , prefix])            
-        if config.getb("basic","create_directories"): # if a subdirectory was created for data
+        if config.getb("tasks","create_directories"): # if a subdirectory was created for data
              newbase = basepath / id0 # example [basebath]/GX.38276
              newpath = newbase / newprefix # example [basebath]/GX.38276/GX.38276_timestamp
              if not newbase.exists(): newbase.mkdir() 
@@ -360,7 +360,7 @@ class LuomusInsectLineSample(LuomusLineSample):
     def from_directory(dirpath, conf): 
         log.debug("Creating sample data from JPEG image and jkm config file metadata") 
         # Does not currently read digitization.propersies or the XML file
-        labelpath = dirpath / Path(conf.get("sampleformat", "label_file"))
+        labelpath = dirpath / Path(conf.get("data", "label_file"))
         # Extract creating time from JPG and use it as the Sample event time        
         itime = getFileCreationDateTime(labelpath)
         s = LuomusLineSample( time = itime )
