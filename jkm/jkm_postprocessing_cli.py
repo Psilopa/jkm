@@ -23,7 +23,6 @@ import jkm.meta
 import jkm.labeldata_model
 
 # CONSTANT
-_DEBUG = True  
 _BACKUP_DATATABLE = True 
 _SUCCESS = 0
 _FAIL_IGNORE = 1
@@ -55,9 +54,11 @@ def find_samples(dirname,datafile_patterns):
 
 class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
     _lastinsert = None
-    def __init__(self,  *args,  **kwargs): super().__init__(*args,**kwargs)
+    def __init__(self, queue, **kwargs): 
+        self.queue = queue
+        super().__init__(**kwargs)
     def on_created(self, event): 
-        if event.src_path != self._lastinsert: q.put(event.src_path)
+        if event.src_path != self._lastinsert: self.queue.put(event.src_path)
         else: log.debug(f"Prevented double insertion of {event.src_path} into the queue")
         self._lastinsert = event.src_path        
 
@@ -199,8 +200,7 @@ def processSingleEvent(filename, conf, data_out_table):
                     with outpath.open("w") as f: f.write(airesult.to_json())                                                        
                 else: log.debug(f"{sample.name}:No AI properties file generation requested in config file")
             except (IOError,  jkm.errors.AIError) as msg:
-                log.error(f"{sample.name}: AI Error '{msg}'.")
-                sys.exit()
+                log.warning(f"{sample.name}: AI Error '{msg}'.")
         else:
             airesult = None
             log.debug(f"{sample.name}: No AI label data extraction.")
@@ -249,16 +249,16 @@ def processSingleEvent(filename, conf, data_out_table):
                     sample.rename_directories(conf,prefix)
                     break # Exit the while loop 
                 except (jkm.errors.JKError) as msg: 
-                    log.error(f"{sample.name}: Renaming directory failed: {msg}.")                
+                    log.warning(f"{sample.name}: Renaming directory failed: {msg}.")                
                     break # Exit the while loop 
                 except FileExistsError as msg:
-                    log.error(f"{sample.name}: Renaming directory failed, there is already a directory with this name: {msg}")                
+                    log.warning(f"{sample.name}: Renaming directory failed, there is already a directory with this name: {msg}")                
                     break # Exit the while loop 
                 except FileNotFoundError as msg:
-                    log.error(f"{sample.name}: Renaming directory failed, original directory does not exist anymore: {msg}")                
+                    log.warning(f"{sample.name}: Renaming directory failed, original directory does not exist anymore: {msg}")                
                     break # Exit the while loop 
                 except PermissionError as msg:                
-                    log.error(f"No write access: {msg}. \nWill attempt again in {wait_time} seconds {attempt_times-attempt_current} times.")                    
+                    log.warning(f"No write access: {msg}. \nWill attempt again in {wait_time} seconds {attempt_times-attempt_current} times.")                    
                     attempt_current += 1
                     time.sleep(wait_time)
         else: log.debug(f"{sample.name}: No directory rename.")
@@ -301,7 +301,7 @@ def processSampleEvents(queue, conf, sleep_s, data_out_table):
         #DONE
         log.info(f"Sample events in process queue: {queue.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
 
-def main(debug = _DEBUG):
+def main(debug = False):
     global log
     threads = []
 ##    excel = None
@@ -382,7 +382,7 @@ def main(debug = _DEBUG):
         else:        
             log.debug("MONITORING DIRECTORY")
             # Start a filesystem watchdog thread watching for NEW .metadata files
-            event_handler = myFileEventHandler(patterns=datafile_patterns) 
+            event_handler = myFileEventHandler(q, patterns=datafile_patterns) # HERE
             observer = Observer()
             quit_if_not_exists(conf.basepath)
             observer.schedule(event_handler, str(conf.basepath), recursive=True)
