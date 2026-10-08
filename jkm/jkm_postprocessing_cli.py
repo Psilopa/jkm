@@ -315,14 +315,13 @@ def main(debug = _DEBUG):
     jkm.ai.log = log
     jkm.metadata.log = log
     jkm.barcodes.log = log
-    
     log.info(f"STARTING NEW SESSION of {jkm.meta.nameversion}")
     # Read config file name from sys.argv and parse the file
     try: 
         conf = jkm.configfile.load_configuration(jkm.meta.name)
+        quit_if_not_exists(conf.basepath)
         # Wait period from file detection to file processing
         # Allows for enough time for transfer of a file(s)  to be completed
-        print("SLEEP IS", conf.get("postprocessor", "sleep_affsdfsdter_new_sample_detected"))
         sleep_s_before_reading_file = conf.getf("postprocessor", "sleep_after_new_sample_detected")
         # TODO: get data types to process from config file: event packages (identified by metadata files) or simple image files
         #datatype = conf.get("sampleformat", "datatype_to_load")
@@ -403,12 +402,15 @@ def main(debug = _DEBUG):
         for t in threads: t.join()   # Wait for each worker thread to end properly
         log.info("Ending session, closing log files.")
         if table_out: table_out.save()
+    except UnicodeEncodeError as msg:
+        log.critical(f"Unicode encoding error: '{msg}'")
     except jkm.errors.JKError as msg:
-        log.critical(f'Execution failed with error message "{msg}"')
+        log.critical(f"Execution failed with error message '{msg}'")
     except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
         log.critical(f"Loading SETUP file item failed with message: {msg}")
+    except Exception as msg:
+        log.error(f"Other error: {msg}")
     logging.shutdown()
-
 
 if __name__ == '__main__':
     main()
