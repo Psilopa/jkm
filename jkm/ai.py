@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import  logging,  json, os, base64
-import jkm.errors
+import  logging,  json, os, base64,tempfile
+from pathlib import Path
+import jkm.errors, jkm.tools
 log = logging.getLogger() # Overwrite if needed
 #import imgtools
 from google import genai
@@ -107,8 +108,6 @@ class geminiAI(): # Make subclasses based on authentication method
    # Sending a query
     def _create_client(self, httpopts):
         assert False, "Child classes should replace this function."
-    def _file2bytes(self,  filepath):        
-        with filepath.open('rb') as f:   return f.read()
     def _execute_query(self,content):
         # Default query function. Uses the experimental Interactions API
         # May not work with older models
@@ -129,19 +128,12 @@ class geminiAI(): # Make subclasses based on authentication method
         
         TODO: Needs Error handling!"""
         log.debug (f"Trying to upload {filepath},  of type {type(filepath)}") 
-        if  self.client is None: raise jkm.errors.AIError("Upload images requested before AI Client was created in code.")
+        if  self.client is None: raise jkm.errors.AIError("Upload images requested before AI Client was created in code.")        
         fileobj = self.client.files.upload(  file = filepath )
         if not fileobj: jkm.errors.AIError(f"Uploading image failed, status {fileobj}")
         log.debug (f"OK upload {filepath}",  )   
         return fileobj
-    def _add_images(self, filepaths):
-        results = []
-        readiedfiles = [self._upload_image(fp) for fp in filepaths]
-        for myfile in readiedfiles:
-            results.append( {"type": "image", "uri": myfile.uri, "mime_type": myfile.mime_type} )
-        return results
-
-    def query_images(self, pathlist, timeout = None):
+    def query_images(self, pathlist, timeout = None, image_max_dim = 0):
         """Get data from Gemini based on multiple images. 
         
         Parameters: 
@@ -155,9 +147,9 @@ class geminiAI(): # Make subclasses based on authentication method
         log.debug("Query_images started")
         # State checks
         if not self.prompt: raise jkm.errors.AIError("No prompt for AI provided.")
-        img_bytes = [self._file2bytes(x) for x in pathlist]
-        sumsize = int(sum( [len(x) for x in img_bytes] )/1024)
-        log.info( f"Images to bytes done, size {sumsize} kb" )
+#        img_bytes = [self._file2bytes(x) for x in pathlist]
+#        sumsize = int(sum( [len(x) for x in img_bytes] )/1024)
+#        log.info( f"Images to bytes done, size {sumsize} kb" )
 
         # FAKE CALL FOR TESTING, NO ACTUAL AI CALL
         if _TESTING_BYPASS_AI_CALL:
@@ -172,7 +164,7 @@ class geminiAI(): # Make subclasses based on authentication method
             if not self.client: raise jkm.errors.AIError("Creating an AI client failed.")
             # log.debug("Create client done")
             content =  [ {"type": "text", "text": self.prompt} ]
-            content += self._add_images(pathlist)
+            content += self._add_images(pathlist, image_max_dim)
             try: # Query the model
                 text = self._execute_query(content)
             except gemini_errors.ServerError as msg:
@@ -187,6 +179,8 @@ class geminiAI(): # Make subclasses based on authentication method
         output.from_text( text ) # Tries parsing the text as JSON
         # TODO: Better handling of cases that already output JSON
         return output
+    def _file2bytes(self,  filepath):        
+        with filepath.open('rb') as f:   return f.read()
     def _urify_image(self,  filepath):        
         fbytes  = self._file2bytes(filepath)       
         return {
@@ -194,12 +188,32 @@ class geminiAI(): # Make subclasses based on authentication method
             "data": base64.b64encode(fbytes).decode('utf-8'),
             "mime_type": "image/jpeg",
             }
-    def _add_images(self,filepaths): # Overides 
+    def _smallertempfile(self, fpath, image_max_dim, dir = None):
+                img = jkm.tools.load_img(fpath)
+                small = jkm.tools.shrink_to_maxdim(img, image_max_dim)
+                # Save to temp directory
+                suffix = fpath.suffix
+                tmpf = tempfile.NamedTemporaryFile(delete_on_close=False, suffix = suffix)
+                tmpf.close() # Now it should be writeable by other processes
+                jkm.tools.save_img(tmpf.name, img)
+                log.debug(f"Resizing done, saved to {tmpf.name}.")
+                return tmpf
+    def _add_images(self,filepaths, max_dim = 0): 
+        """Default _add_images() passes files as query parameters."""
+        assert max_dim >= 0
         imgs = []
         for fpath in filepaths:
-            filebytes = self._file2bytes(fpath)
-            imgs.append( self._urify_image(fpath) )
+            if max_dim == 0:# No scaling
+                log.debug("No image resizing requested before AI.")
+                imgs.append( self._urify_image(fpath) )
+            else:
+                log.debug(f"Resizing requested to a maximum dimension of {max_dim}.")
+                smallerdir = None
+                tmpf = self._smallertempfile(fpath, max_dim, dir = smallerdir)
+                imgs.append( self._urify_image(Path(tmpf.name) ))
+                del(tmpf) # Delete temp file onced we are done
         return imgs
+    
 
 # APIKEY security solution.    
 class apikey_geminiAI(geminiAI):
@@ -208,6 +222,14 @@ class apikey_geminiAI(geminiAI):
         super().__init__()
     def _create_client(self, httpopts):
         return genai.Client(api_key=self.apikey,  http_options = httpopts)
+#    def _add_images(self, filepaths, image_max_dim=0):
+#        results = []
+#        assert image_max_dim >= 0
+#        if 
+#        readiedfiles = [self._upload_image(fp) for fp in filepaths]
+#        for myfile in readiedfiles:
+#            results.append( {"type": "image", "uri": myfile.uri, "mime_type": myfile.mime_type} )
+#        return results
 
 # OAUTH2 VARANT BASE CLASS
 class oauth_geminiAI(geminiAI):
