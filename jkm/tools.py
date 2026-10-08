@@ -32,23 +32,21 @@ class ColorFormatter(logging.Formatter):
             
 def setup_logging(name, debug = False):
     """Set up logging services"""
+    LOGFORMAT = '%(levelname)s: %(message)s [%(asctime)s]'
     os.system('color')  # Ask system console to display color if available
     log = logging.getLogger(name)
     if debug: log.setLevel(logging.DEBUG)
     else: log.setLevel(logging.INFO)
     # To console
     chc = logging.StreamHandler( )
+    chc.setFormatter(ColorFormatter(LOGFORMAT))
     log.addHandler(chc)
     # To log file
     chf = logging.FileHandler(f"{name}.log",  encoding=LOG_FILE_ENCODING)
+    chc.setFormatter(ColorFormatter(LOGFORMAT))
     if debug: chf.setLevel(logging.DEBUG)
     else: chf.setLevel(logging.INFO)
     log.addHandler(chf)
-#    simpleformat = '%(message)s'
-#    for handler in log.handlers[:]: handler.setFormatter(ColorFormatter(simpleformat))
-#    log.info("\n") # Print some empty lines using a simplified format
-    logformat = '%(levelname)s: %(message)s [%(asctime)s]'
-    for handler in log.handlers[:]: handler.setFormatter(ColorFormatter(logformat))
     if debug: log.info("Logging set up for debug.")
     else: log.info("Logging set up for not debugging data.")
     return log
