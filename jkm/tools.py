@@ -1,4 +1,4 @@
-import time,  logging,  ast,  math,  re,  io,  shutil
+import time,  logging,  ast,  math,  re,  io,  shutil, os 
 from pathlib import Path
 import numpy as np
 import cv2
@@ -6,11 +6,30 @@ from jkm.errors import FileLoadingError
 
 log = logging.getLogger() # Overwrite if needed
 
+class ColorFormatter(logging.Formatter):
+    grey = "\x1b[38;20m"
+    yellow = "\x1b[33;20m"
+    red = "\x1b[31;20m"
+    bold_red = "\x1b[31;1m"
+    reset = "\x1b[0m"
+    def __init__(self, formatstr):
+#        formatstr = "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)" 
+        self.FORMATS = {
+            logging.DEBUG: self.grey + formatstr + self.reset,
+            logging.INFO: self.grey + formatstr + self.reset,
+            logging.WARNING: self.yellow + formatstr + self.reset,
+            logging.ERROR: self.red + formatstr + self.reset,
+            logging.CRITICAL: self.bold_red + formatstr + self.reset,
+        }
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
+            
 def setup_logging(name, debug = False):
     """Set up logging services"""
+    os.system('color')  # Ask system console to display color if available
     log = logging.getLogger(name)
-    logformat = logging.Formatter('%(levelname)s: %(message)s [%(asctime)s]')
-    emptyformat = logging.Formatter('%(message)s')
     if debug: log.setLevel(logging.DEBUG)
     else: log.setLevel(logging.INFO)
     # To console
@@ -20,13 +39,14 @@ def setup_logging(name, debug = False):
     chf = logging.FileHandler(f"{name}.log")
     if debug: chf.setLevel(logging.DEBUG)
     else: chf.setLevel(logging.INFO)
-#    chf.setLevel(logging.INFO)
     log.addHandler(chf)
-    for l in log.handlers[:]: l.setFormatter(emptyformat)
-    log.info("\n") # Print some empty lines using a simplified format
-    for l in log.handlers[:]: l.setFormatter(logformat)
+#    simpleformat = '%(message)s'
+#    for handler in log.handlers[:]: handler.setFormatter(ColorFormatter(simpleformat))
+#    log.info("\n") # Print some empty lines using a simplified format
+    logformat = '%(levelname)s: %(message)s [%(asctime)s]'
+    for handler in log.handlers[:]: handler.setFormatter(ColorFormatter(logformat))
     if debug: log.info("Logging set up for debug.")
-    else: log.info("Logging set up for not debuggind data.")
+    else: log.info("Logging set up for not debugging data.")
     return log
 
 def monitor_disk_space(dir_name,limit,levels=[1,0.1,0.01]):
