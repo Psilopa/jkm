@@ -16,17 +16,26 @@ class tomlConfig(): # TOML-based replacement
             raise FileNotFoundError("File not found")
         with fp.open("rb") as f: 
             self._c = tomllib.load(f) # CAN FAIL
-    def get(self,x, y = None):
+
+    def get(self,l1, l2 = None, l3 = None, func=str, default=None):
+        if l2 is l3 is None: 
+            return func(self._c.get(l1, default))
+        elif l3 is None: 
+            return func(self._c[l1].get(l2, default))
+        else: 
+            return func(self._c[l1][l2].get(l3, default))
+        
+#    def get(self,x, y = None):
         # Primitive, should handle more nested levels and errors
-        if not y: return self._c.get(x)
-        else: return self._c[x].get(y)
+    #    if not y: return self._c.get(x)
+    #    else: return self._c[x].get(y)
 #        except configparser.Error as msg: raise errors.LoggingError(msg, level = logging.CRITICAL) 
-    def getstr(self,*args): return str(self.get(*args)) 
-    def getb(self,*args): return bool(self.get(*args)) 
-    def geti(self,*args): return int(self.get(*args)) 
-    def getf(self,*args): return float(self.get(*args)) 
-    def getpath(self,*args): return Path(self.get(*args))
-    def getlist(self,*args): return self.get(*args)        
+    def getstr(self,*args): return self.get(*args, func=str)
+    def getb(self,*args): return self.get(*args, func=bool) 
+    def geti(self,*args): return self.get(*args, func=int) 
+    def getf(self,*args): return self.get(*args, func=float) 
+    def getpath(self,*args): return Path(self.get(*args, func=str) )
+    def getlist(self,*args): return self.get(*args, func=list) 
     def has_section(self, section): return self._c.has_section(section)
     def sections(self): return self._c.sections()
     @property
