@@ -42,6 +42,7 @@ textline = "" # Written into JSON metadata files only
 [ai]
 model = "gemini-3.1-flash-lite"
 prompt = "These images are all of the same object. Find text in the images. Reply with JSON, fitting the data into the variables specified in the JSON Schema given."
+max_image_dim = 1200 # integer - maximum image size. Pass 0 or comment out for no scaling
 properties_filename = "" # String - leave empty for no output
 # Authentication to Google Cloud services
 auth_type = "LOCAL_OAUTH" # APIKEY, LOCAL_OAUTH or CLOUD_OAUTH
