@@ -11,6 +11,7 @@ LOG_FILE_ENCODING = "utf8"
 
 class ColorFormatter(logging.Formatter):
     grey = "\x1b[38;20m"
+    white = "\x1b[0m"
     yellow = "\x1b[33;20m"
     red = "\x1b[31;20m"
     bold_red = "\x1b[31;1m"
@@ -19,7 +20,7 @@ class ColorFormatter(logging.Formatter):
 #        formatstr = "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)" 
         self.FORMATS = {
             logging.DEBUG: self.grey + formatstr + self.reset,
-            logging.INFO: self.grey + formatstr + self.reset,
+            logging.INFO: self.white + formatstr + self.reset,
             logging.WARNING: self.yellow + formatstr + self.reset,
             logging.ERROR: self.red + formatstr + self.reset,
             logging.CRITICAL: self.bold_red + formatstr + self.reset,
