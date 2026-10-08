@@ -24,18 +24,12 @@ class tomlConfig(): # TOML-based replacement
             return func(self._c[l1].get(l2, default))
         else: 
             return func(self._c[l1][l2].get(l3, default))
-        
-#    def get(self,x, y = None):
-        # Primitive, should handle more nested levels and errors
-    #    if not y: return self._c.get(x)
-    #    else: return self._c[x].get(y)
-#        except configparser.Error as msg: raise errors.LoggingError(msg, level = logging.CRITICAL) 
-    def getstr(self,*args): return self.get(*args, func=str)
-    def getb(self,*args): return self.get(*args, func=bool) 
-    def geti(self,*args): return self.get(*args, func=int) 
-    def getf(self,*args): return self.get(*args, func=float) 
-    def getpath(self,*args): return Path(self.get(*args, func=str) )
-    def getlist(self,*args): return self.get(*args, func=list) 
+    def getstr(self,*args, **kwargs): return self.get(*args, **kwargs, func=str)
+    def getb(self,*args, **kwargs): return self.get(*args, **kwargs, func=bool) 
+    def geti(self,*args, **kwargs): return self.get(*args, **kwargs, func=int) 
+    def getf(self,*args, **kwargs): return self.get(*args, **kwargs, func=float) 
+    def getpath(self,*args, **kwargs): return Path(self.get(*args, **kwargs, func=str) )
+    def getlist(self,*args, **kwargs): return self.get(*args, **kwargs, func=list) 
     def has_section(self, section): return self._c.has_section(section)
     def sections(self): return self._c.sections()
     @property
