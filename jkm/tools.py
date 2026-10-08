@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+import time,  logging,  ast,  math,  re,  io,  shutil, os 
 import time,  logging,  ast,  math,  re,  io,  shutil, os 
 from pathlib import Path
 import numpy as np
@@ -5,9 +7,11 @@ import cv2
 from jkm.errors import FileLoadingError
 
 log = logging.getLogger() # Overwrite if needed
+LOG_FILE_ENCODING = "utf8"
 
 class ColorFormatter(logging.Formatter):
     grey = "\x1b[38;20m"
+    white = "\x1b[0m"
     yellow = "\x1b[33;20m"
     red = "\x1b[31;20m"
     bold_red = "\x1b[31;1m"
@@ -16,7 +20,7 @@ class ColorFormatter(logging.Formatter):
 #        formatstr = "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)" 
         self.FORMATS = {
             logging.DEBUG: self.grey + formatstr + self.reset,
-            logging.INFO: self.grey + formatstr + self.reset,
+            logging.INFO: self.white + formatstr + self.reset,
             logging.WARNING: self.yellow + formatstr + self.reset,
             logging.ERROR: self.red + formatstr + self.reset,
             logging.CRITICAL: self.bold_red + formatstr + self.reset,
@@ -33,10 +37,10 @@ def setup_logging(name, debug = False):
     if debug: log.setLevel(logging.DEBUG)
     else: log.setLevel(logging.INFO)
     # To console
-    chc = logging.StreamHandler()
+    chc = logging.StreamHandler( )
     log.addHandler(chc)
     # To log file
-    chf = logging.FileHandler(f"{name}.log")
+    chf = logging.FileHandler(f"{name}.log",  encoding=LOG_FILE_ENCODING)
     if debug: chf.setLevel(logging.DEBUG)
     else: chf.setLevel(logging.INFO)
     log.addHandler(chf)
