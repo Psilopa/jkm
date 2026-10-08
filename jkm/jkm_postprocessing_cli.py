@@ -190,7 +190,8 @@ def processSingleEvent(filename, conf, data_out_table):
                 myai.model = conf.getstr('ai','model')
                 myai.prompt = conf.getstr('ai','prompt')
                 imagepaths = [x.filename for x in sample.imagelist if x.has_labels]
-                airesult = myai.query_images( imagepaths )
+                image_max_dim = conf.geti("ai", "max_image_dim", default=0)
+                airesult = myai.query_images( imagepaths,  image_max_dim = image_max_dim)
                 if myai: myai.close()
                 # airesult can contain almost anything, possibly including non-valid UTF8. Should sanitize better.
                 log.info(f"{sample.name}:AI call for data extraction returned {str(airesult)}")
