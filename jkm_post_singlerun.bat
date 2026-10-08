@@ -1,5 +1,5 @@
 chcp 65001 
-C:\Python3115\python.exe Z:/jkm/jkm_post.py -c Z:/jkm/setup/jkm_insectline_singlerun.ini 
+C:\Python3144\python.exe Z:/jkm/jkm-post.py -c Z:/jkm/setup/jkm_ai_singledir.toml 
 @echo off
 set /p id="Enter to quit"
 
