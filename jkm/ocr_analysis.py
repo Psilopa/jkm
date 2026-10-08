@@ -40,6 +40,19 @@ _test_dummy_JSON = '[["leg","Skartveit, John"], ["contry","30"], ["locality","Ne
 #            print(k, v)
 #    def save(self): 
 #        self.wb.save(self.fp)
+
+def json2printdict(json):
+    # Reformat a JSON reply to for Table output
+    rv = {}
+    for key in json.keys():
+        if type(json[key]) == list:
+            out = []
+            for valuedict in json[key]:
+                out +=  valuedict.values()
+            rv[key] = "\n".join(out)
+        else: rv[key] = json[key]
+    return rv
+    
         
 class OutputCSV(): 
     # TODO: Convert to use the DictWriter class (needs data-pre-work to handle duplicate 'keys')
@@ -56,11 +69,11 @@ class OutputCSV():
         self.csvfile = self.fp.open("a", encoding= CSV_ENCODING, newline=CSV_NEWLINE, errors = CSC_ENCODING_ERRORS )  # Append mode
         self.writer = csv.DictWriter(self.csvfile, self.fieldnames,  dialect = self.dialect,  extrasaction='ignore')
         if isemptyfile(self.fp): self.writer.writeheader()
-#        testdata = {'all_text': 'Metsäpirtti 1913 Fonselius Coll. Suomalainen ♀ E722943', 'collector': 'Fonselius; Suomalainen', 'date': '1913', 'locality': 'Metsäpirtti', 'coordinates': None, 'collectors_number_label_content': None, 'collectors_number_label_color_and_font': None, 'notes': 'Symbol ♀ on label'}
-#        self.writer.writerow(testdata)
-    def add_line(self, datarowdict):        
+    def add_line_from_dict(self, datarowdict):
         self.writer.writerow(  datarowdict )
         self.csvfile.flush() # Write data to file immediately
+    def add_line_from_json(self, datarowdict):
+        self.add_line_from_dict ( json2printdict(datarowdict) ) 
     def save(self):  
         if self.csvfile: self.csvfile.close()
 

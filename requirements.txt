@@ -1,8 +1,10 @@
+google_auth_oauthlib==1.5.0
 jsonpickle==4.1.2
 numpy==2.5.3
-opencv_python==5.0.0.93
+opencv_python==4.13.0.92
 protobuf==7.36.2
+pydantic==2.13.5
 pynput==1.8.2
 pyzbar==0.1.9
+toml==0.10.2
 watchdog==6.0.0
-google_genai==2.26.0

@@ -7,7 +7,7 @@ build-backend = 'setuptools.build_meta'
 [project]
 name = 'jkm'
 description = "A postprocessor program for image data, primarily for Natural History museum label processing."
-version = 'v1.5'
+version = 'v1.7'
 #dynamic = ['version']
 authors = [ {name = "Jere Kahanpää"} ]
 readme = "README.md"
@@ -23,7 +23,8 @@ dependencies = [
 "pynput==1.8.2",
 "pyzbar==0.1.9",
 "watchdog==6.0.0",
-"google_genai==2.26.0"
+"google_genai==2.26.0",
+"google_auth_oauthlib==1.5.0"
 ]
 
 [project.urls]

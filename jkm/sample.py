@@ -92,14 +92,14 @@ class SampleEvent(SampleBase,  abc.ABC):
             metaf.write(self.encodeJSON())
     def copyMetadatafFomConf(self, configobject,  no_new_directiories=False):
         cf = configobject
-        self.meta.add("Data owner", cf.get("basic","copyright_owner") )
-        self.meta.add("Operator", cf.get("basic","operator", fallback="") )
-        self.meta.add("Free text", cf.get("basic","freetextline", fallback="") )
+        self.meta.add("Data owner", cf.get("meta","copyright_owner") )
+        self.meta.add("Operator", cf.get("meta","operator") )
+        self.meta.add("Free text", cf.get("meta","textline") )
         self.meta.add("Timestamp", self.time)
-        self.prefix = Path(self.time.strftime(cf.get("basic","filename_timestamp_format") ))
+        self.prefix = Path(self.time.strftime(cf.get("postprocessor","filename_timestamp_format") ))
 #        self.basepath = Path(cf.basepath)
         self.datapath = Path(cf.basepath) 
-        if cf.getb("basic","create_directories") and not no_new_directiories:
+        if cf.getb("tasks","create_directories") and not no_new_directiories:
             self.datapath = Path(cf.basepath) / self.prefix
             log.info(f"Creating new directory for data: {self.datapath}" )
             self.datapath.mkdir() # Create subdirectory (unlikely to exist, but TODO: verify)
@@ -178,7 +178,6 @@ class SampleImage(SampleBase):
             # HACK:
             self._fn = Path(fn)
             self._img = jkm.tools.load_img(fn)
-#            self._img = cv2.imread(str(fn), colourspace)            
             return self._img
         except SystemError as msg:
             log.warning(f"Reading file {str(filename)} failed" )
@@ -349,7 +348,7 @@ arguments:
         s.name = f"{dirpath.name}"        
         s.prefix = dirpath
         # Load image (just one on plant line)
-        title = conf.get("sampleformat", "label_title")
+        title = conf.get("data", "label_title")
         image = CombinedImage(title, fn = filepath)
         s.addImage(image)
         return s           
@@ -370,12 +369,12 @@ class LuomusInsectLineSample(LuomusLineSample):
         s.name = f"{dirpath.name}"        
         s.prefix = dirpath
         #Load label image
-        label_title = conf.get("sampleformat", "label_title")
+        label_title = conf.get("data", "label_title")
         labelimage = LabelImage(label_title, fn = labelpath)
         s.addImage(labelimage)
         #Load object (insect/plant) images
-        objectfiles = conf.getlist("sampleformat", "object_files")
-        object_titles = conf.getlist("sampleformat", "object_titles")
+        objectfiles = conf.getlist("data", "object_files")
+        object_titles = conf.getlist("data", "object_titles")
         objectfilepaths= [dirpath / Path(x) for x in objectfiles]
         for ofp, ofn in zip(objectfilepaths, object_titles):
             s.addImage( SpecimenImage(ofn, fn = ofp)  )
