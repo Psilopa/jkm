@@ -89,200 +89,237 @@ def write_postprocessor_properties_file(sample):
         assert(propfilepath) # Should exist if this exception was triggered
         log.warning( f"Saving a properties file failed with error message: {msg}" )
 
+#------------------ SINGLE TASKS -------------------
+def task_rename_files(sample):
+    try:
+        sample.rename_all_files(sample.shortidentifier)
+    except (jkm.errors.JKError, FileNotFoundError) as msg:
+        log.error(f"{sample.name}: Renaming files failed: {msg}.")                
+
+def task_OCR(conf, sample):
+    alltext = ""
+    ocr_command = conf.get("ocr", "ocr_command")
+    for image in sample.imagelist:
+        if not image.has_labels : continue # Skip pure specimen images
+        labeltxt = image.ocr(ocr_command) # Default ocr uses fragments created above
+        alltext += " " + labeltxt
+    sample.meta.addlog("Combined OCR result for all images",alltext,  log_add_hdr= sample.name)
+    return alltext
+
+def task_read_barcodes(conf,sample):
+    allbarcodes = []
+    barcodepackage = conf.get( "barcodes", "barcodepackage").lower()
+    for image in sample.imagelist:
+        try:
+            # NOTE: the choice of barcose detector tool is hardcoded in jkm/barcodes.py
+            bkdata = image.readbarcodes(barcodepackage)
+            image.meta.addlog("Barcode contents", bkdata, log_add_hdr= sample.name)
+            allbarcodes += bkdata
+        except jkm.errors.FileLoadingError as msg:
+            log.warning(f"{sample.name}: Barcode detection attempt failed: %s" % msg)
+            continue
+    return allbarcodes
+
+def task_get_text_areas(conf, sample):
+    textareas = []
+    for image in sample.imagelist:
+        if not image.has_labels : continue # Skip pure specimen images
+        log.debug(f"{sample.name}: Searching for text areas in {image.label} of sample {sample.name}")
+        neuralnet = conf.get( "ocr", "EASTfile")
+        textareas = image.findtextareas(neuralnet)
+        image.meta.addlog("Text areas found", str(textareas),  log_add_hdr= sample.name)
+        if conf.getb( "postprocessor", "save_text_area_images"): 
+            image.savetextareas("_textarea_")
+    return textareas
+
+def task_AI_label_data_extraction(conf, sample):
+    airesult = None # Start with no result
+    try:
+        ai_auth_type = conf.get("ai", "auth_type") 
+        assert ai_auth_type in _AI_AUTH_TYPES
+        if ai_auth_type == 'APIKEY': myai = jkm.ai.apikey_geminiAI(conf.APIKEY)
+        elif ai_auth_type == 'CLOUD_OAUTH':
+            project_id = conf.getpath("ai", "google_project_id")
+            location = conf.getpath("ai", "google_location")
+            myai = jkm.ai.cloud_oauth_geminiAI(project_id, location)
+        elif ai_auth_type == 'LOCAL_OAUTH': 
+            app_token_path = conf.getpath("ai", "app_token_path") # Should be readable
+            tmp_token_path = conf.getpath("ai", "tmp_token_path") # Should be writeable
+            project_id = conf.getstr("ai", "google_project_id")
+            location = conf.getstr("ai", "google_location")
+            myai = jkm.ai.local_oauth_geminiAI(project_id, location, app_token_path, tmp_token_path)
+        else: pass # Should never happen as ai_auth_type is verified to havce a valid value at this point
+        myai.model = conf.getstr('ai','model')
+        myai.prompt = conf.getstr('ai','prompt')
+        imagepaths = [x.filename for x in sample.imagelist if x.has_labels]
+        image_max_dim = conf.geti("ai", "max_image_dim", default=0)
+        airesult = myai.query_images( imagepaths,  image_max_dim = image_max_dim)
+        if myai: myai.close()
+        # airesult can contain almost anything, possibly including non-valid UTF8. Should sanitize better.
+        log.info(f"{sample.name}:AI call for data extraction returned {str(airesult)}")
+        outfn = conf.get("ai","properties_filename")
+        if outfn: # If a properties_filename was defined
+            outpath = sample.datapath / outfn
+            with outpath.open("w") as f: f.write(airesult.to_json())                                                        
+        else: log.debug(f"{sample.name}:No AI properties file generation requested in config file")
+    except (IOError,  jkm.errors.AIError) as msg:
+        log.warning(f"{sample.name}: AI Error '{msg}'.")
+        airesult = None
+    return airesult
+    
+def task_rename_directories(conf, sample):
+    # Tries a few times in case directory renaming is blocked by other processes
+    prefix = sample.datapath.name # last element of directory path
+    log.debug(f"{sample.name}: Renaming directory based on barcode content")
+    attempt_times = 2
+    wait_time = 2 # seconds
+    attempt_current = 1
+    while (attempt_current <= attempt_times) :
+        try:            
+            sample.rename_directories(conf,prefix)
+            break # Exit the while loop 
+        except (jkm.errors.JKError) as msg: 
+            log.warning(f"{sample.name}: Renaming directory failed: {msg}.")                
+            break # Exit the while loop 
+        except FileExistsError as msg:
+            log.warning(f"{sample.name}: Renaming directory failed, there is already a directory with this name: {msg}")                
+            break # Exit the while loop 
+        except FileNotFoundError as msg:
+            log.warning(f"{sample.name}: Renaming directory failed, original directory does not exist anymore: {msg}")                
+            break # Exit the while loop 
+        except PermissionError as msg:                
+            log.warning(f"No write access: {msg}. \nWill attempt again in {wait_time} seconds {attempt_times-attempt_current} times.")                    
+            attempt_current += 1
+            time.sleep(wait_time)
+
+def task_write_spreadsheet(airesult, barcode_identifier, data_out_table):
+    if airesult:  labeldata = airesult.to_dict()            
+    else: labeldata = {}
+    labeldata["barcode_ID"] = barcode_identifier # Should default to None ?
+    del labeldata["raw"]
+    for k in labeldata.keys():
+        print(f"{k} = ", labeldata[k])
+    data_out_table.add_line_from_dict(labeldata)
+
+def task_rotate(sample, degrees):
+    assert(degrees in [0,90,180,270])
+    for image in sample.imagelist:
+        log.debug(f"{sample.name}: Rotating image {image.name}")
+        image.rotate(rot)
+
 # ----------------- Process a single event ------------------------
 def processSingleEvent(filename, conf, data_out_table):
-        log.debug(f"Processing data file {filename}" )
-        # Variables to hold extracted data
-        alltext = ""
-        ocrdata = []
-        allbkdata = []
-        # Create SampleEvent instances based on (meta)data file(s)
-        #Recognise type to load
-        sample_format = conf.get("data", "datatype_to_load")        
-        try:
-            dirpath= filename.parent
-            # Catch some error states
-            if not dirpath.is_dir():                
-                raise jkm.errors.FileLoadingError(f"Cannot find path {dirpath},  skipping to next sample.")
-            if not filename.exists():
-                raise jkm.errors.FileLoadingError(f"Could not find file {filename}, skipping.")
-            # Try to recognise input file/directory format
-            if sample_format.lower() == "mzh_insectline": 
-                sample = jkm.sample.LuomusInsectLineSample.from_directory(dirpath, conf)
-            elif sample_format.lower() ==  "mzh_plantline": 
-                sample = jkm.sample.LuomusPlantLineSample.from_directory(dirpath, conf)
-            elif sample_format.lower() == "singlefile":
-                sample = jkm.sample.SingleImageSample.from_image_file(filename, conf, "generic_camera")
-            elif sample_format.lower() == "imagedir":
-                sample = jkm.sample.ImageDirectorySample.from_directory(dirpath, conf)
-            else:
-                raise jkm.errors.FileLoadingError(f"Unknown sample file/directory format {sample_format}, skippping to next.")
-        except jkm.errors.FileLoadingError as msg:
-                log.error(msg)
-                return _FAIL_IGNORE
-                
-        # MAIN POSTPROCESSOR STARTS HERE
-        # TODO: CHECK IF THIS WORKS WITH THE REIMPLEMENTED sample
-        log.info(f"Postprocessing sample {sample.name}")
-        # ROTATE
-        rot = conf.geti( "tasks", "rotate_before_processing")
-        if rot: # non-zero value
-            for image in sample.imagelist:
-                log.debug(f"{sample.name}: Rotating image {image.name}")
-                image.rotate(rot)
-        else: log.debug(f"{sample.name}: No rotation performed.")
-        # SAVE ROTATED (NOT IMPLEMENTED)
-        
-        # FIND BARCODES
-        if conf.getb( "tasks", "read_barcodes"):
-            barcodepackage = conf.get( "barcodes", "barcodepackage").lower()
-            for image in sample.imagelist:
-                try:
-                    # NOTE: the choice of barcose detector tool is hardcoded in jkm/barcodes.py
-                    bkdata = image.readbarcodes(barcodepackage)
-                    image.meta.addlog("Barcode contents", bkdata, log_add_hdr= sample.name)
-                    allbkdata += bkdata
-                except jkm.errors.FileLoadingError as msg:
-                    log.warning(f"{sample.name}: Barcode detection attempt failed: %s" % msg)
-                    continue
-        else: log.debug(f"{sample.name}: No barcode extraction.")
-                    
-        # FIND TEXT ARES
-        if conf.getb( "tasks", "find_text_areas"):
-            for image in sample.imagelist:
-                if not image.has_labels : continue # Skip pure specimen images
-                log.debug(f"{sample.name}: Searching for text areas in {image.label} of sample {sample.name}")
-                neuralnet = conf.get( "ocr", "EASTfile")
-                textareas = image.findtextareas(neuralnet)
-                image.meta.addlog("Text areas found", str(textareas),  log_add_hdr= sample.name)
-                if conf.getb( "postprocessor", "save_text_area_images"): 
-                    image.savetextareas("_textarea_")
-        else: log.debug(f"{sample.name}: No text area recognition.")
-
-        # PERFORM OCR
-        if conf.getb( "tasks", "ocr"):
-            ocr_command = conf.get("ocr", "ocr_command")
-            for image in sample.imagelist:
-                if not image.has_labels : continue # Skip pure specimen images
-                labeltxt = image.ocr(ocr_command) # Default ocr uses fragments created above
-                alltext  += " " + labeltxt
-            sample.meta.addlog("Combined OCR result for all images",alltext,  log_add_hdr= sample.name)
-        else: log.debug(f"{sample.name}: No OCR.")
-
-        # AI-based label data extraction
-        if conf.getb( "tasks", "ai_label_text_extraction"):
-            airesult = None # Start with no result
-            try:
-                ai_auth_type = conf.get("ai", "auth_type") 
-                assert ai_auth_type in _AI_AUTH_TYPES
-                if ai_auth_type == 'APIKEY': myai = jkm.ai.apikey_geminiAI(conf.APIKEY)
-                elif ai_auth_type == 'CLOUD_OAUTH':
-                    project_id = conf.getpath("ai", "google_project_id")
-                    location = conf.getpath("ai", "google_location")
-                    myai = jkm.ai.cloud_oauth_geminiAI(project_id, location)
-                elif ai_auth_type == 'LOCAL_OAUTH': 
-                    app_token_path = conf.getpath("ai", "app_token_path") # Should be readable
-                    tmp_token_path = conf.getpath("ai", "tmp_token_path") # Should be writeable
-                    project_id = conf.getstr("ai", "google_project_id")
-                    location = conf.getstr("ai", "google_location")
-                    myai = jkm.ai.local_oauth_geminiAI(project_id, location, app_token_path, tmp_token_path)
-                else: pass # Should never happen as ai_auth_type is verified to havce a valid value at this point
-                myai.model = conf.getstr('ai','model')
-                myai.prompt = conf.getstr('ai','prompt')
-                imagepaths = [x.filename for x in sample.imagelist if x.has_labels]
-                image_max_dim = conf.geti("ai", "max_image_dim", default=0)
-                airesult = myai.query_images( imagepaths,  image_max_dim = image_max_dim)
-                if myai: myai.close()
-                # airesult can contain almost anything, possibly including non-valid UTF8. Should sanitize better.
-                log.info(f"{sample.name}:AI call for data extraction returned {str(airesult)}")
-                outfn = conf.get("ai","properties_filename")
-                if outfn: # If a properties_filename was defined
-                    outpath = sample.datapath / outfn
-                    with outpath.open("w") as f: f.write(airesult.to_json())                                                        
-                else: log.debug(f"{sample.name}:No AI properties file generation requested in config file")
-            except (IOError,  jkm.errors.AIError) as msg:
-                log.warning(f"{sample.name}: AI Error '{msg}'.")
+    log.debug(f"Processing data file {filename}" )
+    # Variables to hold extracted data
+    alltext = ""
+    allbarcodes = []
+    # Create SampleEvent instances based on (meta)data file(s)
+    sample_format = conf.get("data", "datatype_to_load")        
+    try:
+        dirpath= filename.parent
+        # Catch some error states
+        if not dirpath.is_dir():                
+            raise jkm.errors.FileLoadingError(f"Cannot find path {dirpath},  skipping to next sample.")
+        if not filename.exists():
+            raise jkm.errors.FileLoadingError(f"Could not find file {filename}, skipping.")
+        # Try to recognise input file/directory format
+        if sample_format.lower() == "mzh_insectline": 
+            sample = jkm.sample.LuomusInsectLineSample.from_directory(dirpath, conf)
+        elif sample_format.lower() ==  "mzh_plantline": 
+            sample = jkm.sample.LuomusPlantLineSample.from_directory(dirpath, conf)
+        elif sample_format.lower() == "singlefile":
+            sample = jkm.sample.SingleImageSample.from_image_file(filename, conf, "generic_camera")
+        elif sample_format.lower() == "imagedir":
+            sample = jkm.sample.ImageDirectorySample.from_directory(dirpath, conf)
         else:
-            airesult = None
-            log.debug(f"{sample.name}: No AI label data extraction.")
-
-        # EXTRACT IDENTIFIERS FROM OCR DATA (NOT IMPLEMENTED)
-
-        # SUBMIT alltext to COMPONENT ANALYSIS
-        if conf.getb( "tasks", "ocr") and conf.getb( "tasks", "ocr_analysis"):
-             ocrdata = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
-             log.debug(f"{sample.name}: OCR data parsing output: {ocrdata}")
-        else: 
-             log.debug(f"{sample.name}: No OCR data parsing attempted.")           
-             ocrdata = []
-
-         # FOR FURTHER PROCESSING, CHECK IF IDENTIFIER LIST CONTAINS A SINGLE VALID IDENTIFIER
-        # In case sample does already have a known identifier, append to to the list
-        if sample.identifier: allbkdata.append(sample.identifier)
-        sampleids = _UNIQUE(allbkdata)
-        if len(sampleids) == 0:
-            log.warning(f"{sample.name}:No usable identifiers found")
-        elif len(sampleids) > 1:
-            log.warning(f"{sample.name}:Several  different identifiers for the sample in barcodes/OCR/sample metadata")
-        else: sample.identifier =  sampleids[0] # Sets also sample.shortidentifier
-        
-       # Store interpreted data in a table file if 
-        if data_out_table: 
-#        if sample.identifier and data_out_table:
-#            ocrdata.prepend("identifier", sample.identifier) 
-            if airesult:  labeldata = airesult.to_dict() 
-            else: labeldata = {}
-            labeldata["barcode_ID"] = sample.identifier # Should default to None ?
-            log.debug(f"{sample.name}: Calling OutputCSV.addline with data: {labeldata}")
-            data_out_table.add_line_from_json(labeldata)
-            log.debug(f"{sample.name}: ...table data adding done")
+            raise jkm.errors.FileLoadingError(f"Unknown sample file/directory format {sample_format}, skippping to next.")
+    except jkm.errors.FileLoadingError as msg:
+            log.error(msg)
+            return _FAIL_IGNORE
             
-        # RENAME DIRECTORIES (this may need to stay above file renaming)  
-        # Tries a few times in case directory renaming is blocked by other processes
-        if conf.getb( "tasks", "directories_rename_by_barcode_id") and sample.identifier:
-            prefix = sample.datapath.name # last element of directory path
-            log.debug(f"{sample.name}: Renaming directory based on barcode content")
-            attempt_times = 2
-            wait_time = 2 # seconds
-            attempt_current = 1
-            while (attempt_current <= attempt_times) :
-                try:            
-                    sample.rename_directories(conf,prefix)
-                    break # Exit the while loop 
-                except (jkm.errors.JKError) as msg: 
-                    log.warning(f"{sample.name}: Renaming directory failed: {msg}.")                
-                    break # Exit the while loop 
-                except FileExistsError as msg:
-                    log.warning(f"{sample.name}: Renaming directory failed, there is already a directory with this name: {msg}")                
-                    break # Exit the while loop 
-                except FileNotFoundError as msg:
-                    log.warning(f"{sample.name}: Renaming directory failed, original directory does not exist anymore: {msg}")                
-                    break # Exit the while loop 
-                except PermissionError as msg:                
-                    log.warning(f"No write access: {msg}. \nWill attempt again in {wait_time} seconds {attempt_times-attempt_current} times.")                    
-                    attempt_current += 1
-                    time.sleep(wait_time)
-        else: log.debug(f"{sample.name}: No directory rename.")
-##
-        # RENAME FILES
-        # Current implementation renames only the original image files as per the configuration file
-        if conf.getb( "tasks", "files_rename_by_barcode_id") and sample.shortidentifier:
-            try:
-                sample.rename_all_files(sample.shortidentifier)
-            except (jkm.errors.JKError, FileNotFoundError) as msg:
-                log.warning(f"{sample.name}: Renaming files failed: {msg}.")                
-        else: log.debug(f"{sample.name}: No file(s) rename.")
+    # MAIN POSTPROCESSOR STARTS HERE
+    # TODO: CHECK IF THIS WORKS WITH THE REIMPLEMENTED sample
+    log.info(f"Postprocessing sample {sample.name}")
 
-        # Write records to JSON Metadata file (should this be before renaming?)
-        if conf.getb( "tasks", "save_JSON"): sample.writeMetaJSON()
-        else: log.debug(f"{sample.name}: No JSON metadata file created.")
+    # ROTATE?
+    degrees = conf.geti( "tasks", "rotate_before_processing")
+    if degrees: task_rotate(degrees)# non-zero value    
+    else: log.debug(f"{sample.name}: No rotation performed.")
+    # SAVE ROTATED (NOT IMPLEMENTED)
+    
+    # FIND BARCODES?
+    if conf.getb( "tasks", "read_barcodes"):
+        allbarcodes += task_read_barcodes(conf,sample)
+    else: log.debug(f"{sample.name}: No barcode extraction.")
+                
+    # FIND TEXT ARES?
+    if conf.getb( "tasks", "find_text_areas"):
+        textareas = task_get_text_areas(conf, sample)
+    else:
+        textareas = []
+        log.debug(f"{sample.name}: No text area recognition.")
 
-        # FOR MZH IMAGING LINE SAMPLES
-        if conf.get("data", "datatype_to_load").lower()  in ["mzh_insectline", "mzh_plantline"]:
-            write_postprocessor_properties_file(sample)
-        else: log.debug(f"{sample.name}: No postprocessor.properties file created.")
-        return _SUCCESS
-        
+    # PERFORM OCR?
+    if conf.getb( "tasks", "ocr"):
+       alltext = task_OCR(conf, sample)
+    else: log.debug(f"{sample.name}: No OCR.")
+
+    # AI-BASED TEXT EXTRACTION ?
+    if conf.getb( "tasks", "ai_label_text_extraction"):
+        airesult = task_AI_label_data_extraction(conf, sample)
+    else:
+        airesult = None
+        log.debug(f"{sample.name}: No AI label data extraction.")
+
+    # SUBMIT alltext to COMPONENT ANALYSIS ?
+#¤    if conf.getb( "tasks", "ocr") and conf.getb( "tasks", "ocr_analysis"):
+ #        ocrdata = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
+ #        log.debug(f"{sample.name}: OCR data parsing output: {ocrdata}")
+ #   else: 
+ #        ocrdata = []
+ #        log.debug(f"{sample.name}: No OCR data parsing attempted.")           
+
+     # FOR FURTHER PROCESSING, CHECK IF IDENTIFIER LIST CONTAINS A SINGLE VALID IDENTIFIER
+    # In case sample does already have a known identifier, append to to the list
+
+    # DO SOME CLEANUP
+    if sample.identifier: allbarcodes.append(sample.identifier)
+    sampleids = _UNIQUE(allbarcodes)
+    if len(sampleids) == 0:
+        log.warning(f"{sample.name}:No usable identifiers found")
+    elif len(sampleids) > 1:
+        log.warning(f"{sample.name}:Several  different identifiers for the sample in barcodes/OCR/sample metadata")
+    else: sample.identifier =  sampleids[0] # Sets also sample.shortidentifier
+    
+   # Store interpreted data in a table file 
+    if conf.getb( "tasks", "ai_label_text_extraction") and data_out_table:
+        task_write_spreadsheet(airesult,sample.identifier , data_out_table)
+        log.debug(f"{sample.name}: ...table data adding done")
+    else: log.debug(f"{sample.name}: No data export to a spreadsheet.")
+
+    # RENAME DIRECTORIES (this may need to stay above file renaming)  
+    if conf.getb( "tasks", "directories_rename_by_barcode_id") and sample.identifier:
+        task_rename_directories(conf, sample)
+    else: log.debug(f"{sample.name}: No directory rename.")
+
+    # RENAME FILES
+    # Current implementation renames only the original image files as per the configuration file
+    if conf.getb( "tasks", "files_rename_by_barcode_id") and sample.shortidentifier:
+        task_rename_files(sample)
+    else: log.debug(f"{sample.name}: No file(s) rename.")
+
+    # Write records to JSON Metadata file (should this be before renaming?)
+    if conf.getb( "tasks", "save_JSON"):
+        sample.writeMetaJSON()
+    else: log.debug(f"{sample.name}: No JSON metadata file created.")
+
+    # FOR MZH IMAGING LINE SAMPLES: write postprocessor.properties
+    if conf.get("data", "datatype_to_load").lower()  in ["mzh_insectline", "mzh_plantline"]:
+        write_postprocessor_properties_file(sample)
+    else: log.debug(f"{sample.name}: No postprocessor.properties file created.")
+
+    return _SUCCESS
+
 # ----------------- main worker function, called in a new thread created when a sample arrival event is noticed ------------------------
 def processSampleEvents(queue, conf, sleep_s, data_out_table):
     while True:
@@ -303,10 +340,8 @@ def processSampleEvents(queue, conf, sleep_s, data_out_table):
         log.info(f"Sample events in process queue: {queue.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
 
 def main(debug = False):
-    debug = True
     global log
     threads = []
-##    excel = None
     q = queue.Queue() # a FIFO queue of metafile names
     # Set loggers in other modules
     log = jkm.tools.setup_logging(jkm.meta.name, debug = debug)
