@@ -7,7 +7,7 @@ build-backend = 'setuptools.build_meta'
 [project]
 name = 'jkm'
 description = "A postprocessor program for image data, primarily for Natural History museum label processing."
-version = 'v1.8'
+version = 'v1.9'
 #dynamic = ['version']
 authors = [ {name = "Jere Kahanpää"} ]
 readme = "README.md"
