@@ -17,8 +17,8 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 # For testing, Google Free Key for small tests
-_TESTING_BYPASS_AI_CALL = True
-_TESTING_JSON_FROM_AI = """
+_TESTING_BYPASS_AI_CALL = False
+_TESTING_JSON_FROM_AI = r"""
 {
   "verbatim_all_text": [
     {
@@ -40,6 +40,7 @@ _TESTING_JSON_FROM_AI = """
   "notes": "There is a black streak/smudge partially obscuring the collector's name (Rönnholm)."
 }
 """
+_TESTING_RAW_JSON = r'{"status": "completed", "model": "gemini-3.5-flash-lite", "id": "v1_ChdaM3pLYXZqa05zdnk3TThQeHZ6VzRRTRIXWjN6S2F2amtOc3Z5N004UHh2elc0UU0", "created": "2026-10-10T17:56:56Z", "updated": "2026-10-10T17:56:56Z", "usage": {"total_input_tokens": 1133, "input_tokens_by_modality": [{"modality": "image", "tokens": 1100}, {"modality": "text", "tokens": 33}], "total_cached_tokens": 0, "total_output_tokens": 229, "total_tool_use_tokens": 0, "total_thought_tokens": 0, "total_tokens": 1362}, "service_tier": "standard", "steps": [{"type": "thought", "signature": "EmAKXgFpFH0TCBtbvirA2u6a+1v3JSS4CcgWyreyJdZ0OolgZ7FlhgZrxPNuT+UWDr9GIj2vDZs7nqlOlthrCskbaQep9nF2VUoq7B5zOFo/2bINWEN1eO8E1lHHj+p4jR0="}, {"type": "model_output", "content": [{"text": "{\n  \"verbatim_all_text\": [\n    {\n      \"verbatim_text\": \"ID: http://id.luomus.fi/GV.92671\"\n    },\n    {\n      \"verbatim_text\": \"Helsinki\"\n    },\n    {\n      \"verbatim_text\": \"8.VI. 1932\"\n    },\n    {\n      \"verbatim_text\": \"E. Kangas\"\n    },\n    {\n      \"verbatim_text\": \"GV92671\"\n    }\n  ],\n  \"verbatim_locality\": \"Helsinki\",\n  \"verbatim_collector\": \"E. Kangas\",\n  \"verbatim_date\": \"8.VI. 1932\",\n  \"verbatim_coordinates\": \"\",\n  \"verbatim_field_identifier\": \"\",\n  \"verbatim_taxon\": \"\",\n  \"verbatim_identified_by\": \"\",\n  \"notes\": \"\"\n}", "type": "text"}]}], "output_text": "{\n  \"verbatim_all_text\": [\n    {\n      \"verbatim_text\": \"ID: http://id.luomus.fi/GV.92671\"\n    },\n    {\n      \"verbatim_text\": \"Helsinki\"\n    },\n    {\n      \"verbatim_text\": \"8.VI. 1932\"\n    },\n    {\n      \"verbatim_text\": \"E. Kangas\"\n    },\n    {\n      \"verbatim_text\": \"GV92671\"\n    }\n  ],\n  \"verbatim_locality\": \"Helsinki\",\n  \"verbatim_collector\": \"E. Kangas\",\n  \"verbatim_date\": \"8.VI. 1932\",\n  \"verbatim_coordinates\": \"\",\n  \"verbatim_field_identifier\": \"\",\n  \"verbatim_taxon\": \"\",\n  \"verbatim_identified_by\": \"\",\n  \"notes\": \"\"\n}'
 _IMAGE_TRANSFER_UPLOAD = 1
 _IMAGE_TRANSFER_INLINE = 2
 _TEST_PROMPT = "There images are all of the same object. Find text in the images. Reply with JSON only, fitting the data into the following variables: collector, date, locality, identifier, and notes."
@@ -75,6 +76,7 @@ def _parseAI_JSON(text, schema):
         
 # --- AI-related classes ---- 
 class AI_output:
+    # TODO: THIS IS LOGICAL MESS. We really should store the data in just 1 format
     """A class for storing AI output. 
     
     Can hold both unstructured and structured content. If either is missing, returns None. """
@@ -83,14 +85,14 @@ class AI_output:
         self._dict = None
         self.raw = ""
     def to_dict(self):
-        return self._dict 
-#    def from_dict(self, datadict):
-#        self._text = str(datadict)
-#        self._dict =  datadict
-#        return True # Success
+        self._dict.update( {"raw":self.raw} )
+        return self._dict
     def from_text(self,  text, schema = None):
         self._text = text
         self._dict = _parseAI_JSON(self._text, schema)
+        # Prettyprint the verbatim_all_text field
+        vatext = "verbatim_all_text"
+        self._dict[vatext] = jkm.tools.list2printvalues(self._dict[vatext])       
         return True # Success
     def __str__(self): 
         if self._dict: return str(self._dict) 
@@ -134,9 +136,9 @@ class geminiAI(): # Make subclasses based on authentication method
         # TODO: What happens if interaction.output_text  does not exist?
         # Return raw_output, output_text
         if not "output_text" in dir(interaction): 
-            return (interaction, None)
+            return (interaction.json(), None)
         else: 
-            return (interaction, interaction.output_text )
+            return (interaction.json(), interaction.output_text )
     
     def _upload_image(self,  filepath): 
         """"Upload an image to AI. 
@@ -168,8 +170,8 @@ class geminiAI(): # Make subclasses based on authentication method
 
         # FAKE CALL FOR TESTING, NO ACTUAL AI CALL
         if _TESTING_BYPASS_AI_CALL:
-            raw = 'foo' 
             text_output = _TESTING_JSON_FROM_AI            
+            raw = _TESTING_RAW_JSON 
         else:
             # Create AI client
             log.debug("Create client")
@@ -190,6 +192,7 @@ class geminiAI(): # Make subclasses based on authentication method
             except gemini_errors.APIError as msg:
                 raise jkm.errors.AIError(msg)
         log.debug( f'Response was "{text_output}"' )
+        log.debug( f'Raw was "{raw}"' )
         outputcontainer = AI_output()
         if text_output == AI_FAILURE_RETURN_VALUE: return outputcontainer        # Primitive error handling
         # TODO: Handle errors here

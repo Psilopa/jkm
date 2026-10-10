@@ -9,6 +9,22 @@ from jkm.errors import FileLoadingError
 log = logging.getLogger() # Overwrite if needed
 LOG_FILE_ENCODING = "utf8"
 
+def list2printvalues(mylist):
+    out = []
+    for valuedict in mylist:
+        out +=  valuedict.values()
+    return "\n".join(out)
+    
+def json2printdict(json):
+    if type(json) == str: json = jsonmodule.loads(json)
+    # Reformat a JSON reply to for Table output
+    rv = {}
+    for key in json.keys():
+        if type(json[key]) == list:
+            rv[key] = list2printvalues(json[key])
+        else: rv[key] = json[key]
+    return rv    
+        
 class ColorFormatter(logging.Formatter):
     grey = "\x1b[38;20m"
     white = "\x1b[0m"

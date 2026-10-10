@@ -2,6 +2,7 @@
 format = "csv" # Only format currently supported
 #filename = "Z:/juhis_previews_set2_TEST/juhis_isot2_ai_data_raw.csv"
 filename = "/home/kahanpaa/projects/_videostill/test_ai_data_raw.csv"
+write_raw_output  = true
 
 [data] # Which file type identifies a record?
 main_data_directory = "/home/kahanpaa/projects/_videostill/"
@@ -61,7 +62,7 @@ tmp_token_path = "Z:/ADC/temptoken.json" # Should be writeable
 # Having BOTH monitor and process_existing as true is asking for trouble...
 monitor = false # false or true
 process_existing = true # false or true
-sleep_after_new_sample_detected = 3 # integer - Allows for enough time for transfer of a file(s)  to be completed
+sleep_after_new_sample_detected = 1 # integer - Allows for enough time for transfer of a file(s)  to be completed
 ## rotation, clockwise, in degrees, allowed values  = 0, 90, 180 or 270
 filename_timestamp_format = "%Y%m%d_%Hh%Mm%Ss"
 

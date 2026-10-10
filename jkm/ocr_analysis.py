@@ -3,79 +3,10 @@ Stub OCR result lexeme parsing & context. To be run off an currently non-existin
 
 Add further mapping from API output field titles -> relevant data input column names (for Kotka to start with)
 """
-import sys,  logging,  urllib.request, urllib.parse, urllib.error, json, re 
-from pathlib import Path
-#import openpyxl
-import csv
-
-def isemptyfile(fpath):  
-    "Note: may fail is something happens to the file while we check"
-    return fpath.is_file() and ( fpath.stat().st_size == 0 ) 
+import logging,  urllib.request, urllib.parse, urllib.error, json, re 
 
 # TODO: PASS EXCEPTION INSTEAD OF LOGGING HERE
 log = logging.getLogger() # Overwrite if needed. Setup is in the main script.
-CSV_DIALECT_DEFAULT =  csv.excel()
-CSV_DIALECT_DEFAULT.quoting = csv.QUOTE_STRINGS
-CSV_ENCODING = "utf8"
-CSV_NEWLINE = ""
-CSC_ENCODING_ERRORS = "convert"
-_test_dummy_JSON = '[["leg","Skartveit, John"], ["contry","30"], ["locality","New York"]]'
-
-#class OutputExcel(): 
-#    """ """
-#    def __init__(self, filename): 
-#        self.fp = Path(filename)
-#        self.wb = None
-#        if self.fp.suffix != ".xlsx": 
-#            log.critical(f"Excel output file name must end in '.xlsx'. {self.fp} fails")
-#            sys.exit()            
-#    def open(self): 
-#        if self.fp.is_file(): # Read existing
-#            self.wb = openpyxl.load_workbook(self.fp, data_only=True)
-#        else: # Try to create
-#            self.wb = openpyxl.Workbook()
-#    def add_line(self, ocra): 
-#        # TODO
-#        for k, v in ocra:
-#            print(k, v)
-#    def save(self): 
-#        self.wb.save(self.fp)
-
-def json2printdict(json):
-    # Reformat a JSON reply to for Table output
-    rv = {}
-    for key in json.keys():
-        if type(json[key]) == list:
-            out = []
-            for valuedict in json[key]:
-                out +=  valuedict.values()
-            rv[key] = "\n".join(out)
-        else: rv[key] = json[key]
-    return rv
-    
-        
-class OutputCSV(): 
-    # TODO: Convert to use the DictWriter class (needs data-pre-work to handle duplicate 'keys')
-    """ """
-    def __init__(self, filename,  fieldnames,  dialect = CSV_DIALECT_DEFAULT): 
-        self.fp = Path(filename)
-        self.csvfile = None
-        self.dialect = dialect
-        self.fieldnames = fieldnames
-        if self.fp.suffix != ".csv": 
-            log.critical(f"CSV output file name must end in '.csv'. {self.fp} fails")
-            sys.exit() 
-    def open(self): 
-        self.csvfile = self.fp.open("a", encoding= CSV_ENCODING, newline=CSV_NEWLINE, errors = CSC_ENCODING_ERRORS )  # Append mode
-        self.writer = csv.DictWriter(self.csvfile, self.fieldnames,  dialect = self.dialect,  extrasaction='ignore')
-        if isemptyfile(self.fp): self.writer.writeheader()
-    def add_line_from_dict(self, datarowdict):
-        self.writer.writerow(  datarowdict )
-        self.csvfile.flush() # Write data to file immediately
-    def add_line_from_json(self, datarowdict):
-        self.add_line_from_dict ( json2printdict(datarowdict) ) 
-    def save(self):  
-        if self.csvfile: self.csvfile.close()
 
 class OCRAnalysisResult():
     """ """

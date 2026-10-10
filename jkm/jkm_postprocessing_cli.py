@@ -1,12 +1,6 @@
 # -*- coding: utf-8 -*-
 # Check: Watchdog in licences using the Apache License, Version 2.0 
-# TODO: ADD ATEXIT CALL TO CLOSE LOG FILES ON CRASH
-
-# Set a environment variable to disable problematic CTRL-C handling in 
-# some apparently scipy-related Fortran code. Needs to be before scipy
-# is imported.
-import os
-os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
+# ADD ATEXIT CALL TO CLOSE LOG FILES ON CRASH OR OTHER CLEAN ERROR HANDLING
 import logging
 log = logging.getLogger() # Overwrite if needed
 
@@ -18,8 +12,9 @@ import queue
 from watchdog.observers import Observer
 import watchdog.events
 # app-specific modules
-import jkm.configfile,  jkm.sample,  jkm.tools,  jkm.errors,  jkm.barcodes, jkm.ocr_analysis,  jkm.ai
-import jkm.meta
+import jkm.configfile,  jkm.sample,  jkm.tools
+import jkm.spreadsheet, jkm.ocr_analysis,  jkm.ai
+import jkm.meta, jkm.errors,  jkm.barcodes
 import jkm.labeldata_model
 
 # CONSTANT
@@ -192,23 +187,29 @@ def task_rename_directories(conf, sample):
             attempt_current += 1
             time.sleep(wait_time)
 
-def task_write_spreadsheet(airesult, barcode_identifier, data_out_table):
-    if airesult:  labeldata = airesult.to_dict()            
-    else: labeldata = {}
-    labeldata["barcode_ID"] = barcode_identifier # Should default to None ?
-    del labeldata["raw"]
-    for k in labeldata.keys():
-        print(f"{k} = ", labeldata[k])
-    data_out_table.add_line_from_dict(labeldata)
-
 def task_rotate(sample, degrees):
     assert(degrees in [0,90,180,270])
     for image in sample.imagelist:
         log.debug(f"{sample.name}: Rotating image {image.name}")
         image.rotate(rot)
 
+def task_write_spreadsheet(spreadsheet, airesult, barcode_identifier=None, write_raw_output=True):
+    # We handle spreadsheet opening here because we do not know possible header fields at script start time!
+    raw = "raw"
+    if barcode_identifier: outdata = {"barcode_ID": barcode_identifier or ""}
+    else: outdata = {}
+    if airesult:
+        outdata.update(airesult.to_dict() )
+        outdata.update( {raw: airesult.raw} )
+    if (not write_raw_output) and (raw in outdata):
+        del outdata[raw]
+    if not spreadsheet.isOpen(): 
+        spreadsheet.open(fieldnames = outdata )
+        if spreadsheet.isEmpty(): spreadsheet.writeheader()                
+    spreadsheet.add_line_from_dict(outdata)
+
 # ----------------- Process a single event ------------------------
-def processSingleEvent(filename, conf, data_out_table):
+def processSingleEvent(filename, conf, spreadsheet):
     log.debug(f"Processing data file {filename}" )
     # Variables to hold extracted data
     alltext = ""
@@ -292,8 +293,9 @@ def processSingleEvent(filename, conf, data_out_table):
     else: sample.identifier =  sampleids[0] # Sets also sample.shortidentifier
     
    # Store interpreted data in a table file 
-    if conf.getb( "tasks", "ai_label_text_extraction") and data_out_table:
-        task_write_spreadsheet(airesult,sample.identifier , data_out_table)
+    if conf.getb( "tasks", "ai_label_text_extraction") and spreadsheet:
+        write_raw_output= conf.getb( "data2table", "write_raw_output", default = True)
+        task_write_spreadsheet(spreadsheet, airesult,sample.identifier, write_raw_output)
         log.debug(f"{sample.name}: ...table data adding done")
     else: log.debug(f"{sample.name}: No data export to a spreadsheet.")
 
@@ -321,7 +323,7 @@ def processSingleEvent(filename, conf, data_out_table):
     return _SUCCESS
 
 # ----------------- main worker function, called in a new thread created when a sample arrival event is noticed ------------------------
-def processSampleEvents(queue, conf, sleep_s, data_out_table):
+def processSampleEvents(queue, conf, sleep_s, spreadsheet):
     while True:
         # Input queue = name of file found by the directory watcher tool
         input = queue.get()
@@ -329,7 +331,7 @@ def processSampleEvents(queue, conf, sleep_s, data_out_table):
         filename = Path(input)
         time.sleep(sleep_s) # Wait for all data to arrive
         try:
-            successQ = processSingleEvent(filename, conf, data_out_table)        
+            successQ = processSingleEvent(filename, conf, spreadsheet)        
         except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
             log.critical(f"Loading SETUP file item failed with message: {msg}")
             successQ = _FAIL_IGNORE
@@ -371,24 +373,25 @@ def main(debug = False):
         
         if conf.getb("tasks", "labeldata_to_CSV"):
             try: # Maybe we should open and close a file every time we access it rather than passing an open file around. What appr                
-                table_outfile = Path( conf.get("data2table","filename") ) 
+                spreadsheetpath = Path( conf.get("data2table","filename") ) 
                 if  _BACKUP_DATATABLE:  
                     timestr = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
-                    backup_fp = table_outfile.with_stem( table_outfile.stem + "_" + timestr ) 
-                    jkm.tools.backup_file(table_outfile,  backup_fp) # TODO: check return 
+                    backup_path = spreadsheetpath.with_stem( spreadsheetpath.stem + "_" + timestr ) 
+                    jkm.tools.backup_file(spreadsheetpath,  backup_path) # TODO: check return 
                 format = conf.get("data2table","format") 
                 if format.lower() != "csv": 
                     log.warning 
                 # TODO: should check if file exists, create as needed
-                #fieldnames = conf.getlist("ai", "prompt_fieldnames")
-                fieldnames = list(jkm.labeldata_model.LabelData.__fields__.keys()) 
-                table_out = jkm.ocr_analysis.OutputCSV( table_outfile,  fieldnames = fieldnames )
-                table_out.open()
-                log.info(f"Tabular output is appended to file {table_outfile}")
+                fieldnames = list(jkm.labeldata_model.LabelData.__fields__.keys())
+                fieldnames += ["raw", "barcode_ID"]
+                # Hardcoded, not elegant! But we need to know the rows as creation time :/
+                # Alternatively, pass only 
+                spreadsheet = jkm.spreadsheet.SpreadsheetCSV(spreadsheetpath)
+                log.info(f"Tabular output is appended to file {spreadsheetpath}")
             except IOError as msg: 
-                log.critical(f"Error in opening file {table_outfile} for output:{msg}")
-                table_out = None
-        else: table_out = None
+                log.critical(f"Error in opening file {spreadsheetpath} for output:{msg}")
+                spreadsheet = None
+        else: spreadsheet = None
         
         log.debug(f'Using QR code decoder {conf.get( "barcodes", "barcodepackage")}')
 
@@ -410,7 +413,7 @@ def main(debug = False):
 
          #Start loops looking for data to process and processing it
         for i in range(_num_worker_threads):
-            t = threading.Thread(target=processSampleEvents,  args=(q,conf, sleep_s_before_reading_file, table_out))
+            t = threading.Thread(target=processSampleEvents,  args=(q,conf, sleep_s_before_reading_file, spreadsheet))
             t.start()
             threads.append(t)    
         if not conf.getb( "postprocessor", "monitor"):
@@ -438,7 +441,7 @@ def main(debug = False):
         for i in range(_num_worker_threads): q.put(None) # Signal end-of-life to worker threads
         for t in threads: t.join()   # Wait for each worker thread to end properly
         log.info("Ending session, closing log files.")
-        if table_out: table_out.save()
+        if spreadsheet: spreadsheet.save()
     except UnicodeEncodeError as msg:
         log.critical(f"Unicode encoding error: '{msg}'")
     except jkm.errors.JKError as msg:

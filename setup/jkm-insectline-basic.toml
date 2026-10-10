@@ -1,6 +1,7 @@
 [data2table]
 format = "csv" # Only format currently supported
 filename = "C:/Insect_APPs/labeldata/ai_labeldata.csv"
+#write_raw_output  = false
 
 [data] # Which file type identifies a record?
 #main_data_directory = "/home/kahanpaa/projects/_videostill/"
