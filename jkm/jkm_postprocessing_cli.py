@@ -303,6 +303,7 @@ def processSampleEvents(queue, conf, sleep_s, data_out_table):
         log.info(f"Sample events in process queue: {queue.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
 
 def main(debug = False):
+    debug = True
     global log
     threads = []
 ##    excel = None
@@ -313,8 +314,8 @@ def main(debug = False):
     jkm.tools.log = log
     jkm.ocr.log = log  # IF OCR
     jkm.sample.log = log
+    jkm.samplemetadata.log = log
     jkm.ai.log = log
-    jkm.metadata.log = log
     jkm.barcodes.log = log
     log.info(f"STARTING NEW SESSION of {jkm.meta.nameversion}")
     # Read config file name from sys.argv and parse the file

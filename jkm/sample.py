@@ -4,7 +4,7 @@ import datetime,  logging,  os
 #import  pickle
 import cv2
 import jsonpickle
-import jkm.metadata
+import jkm.samplemetadata
 import jkm.ocr
 import jkm.tools
 from jkm.digitisation_properties import DigipropFile
@@ -51,7 +51,7 @@ class SampleEvent(SampleBase,  abc.ABC):
         self._imagelist = [] # List of SamplePhoto subclass instances
         self.prefix  = "" # Common file name prefix (often/ALWAYS same as self.datapath?)
         self.datapath = "" # Data directory for this record 
-        self.meta = jkm.metadata.EventMetadata() # Event-level metadata
+        self.meta = jkm.samplemetadata.EventMetadata() # Event-level metadata
 #        self._has_metadatafile = False
 #        self._is_directory = False
         self._identifier = None
@@ -136,7 +136,7 @@ class SampleImage(SampleBase):
     def __init__(self,  label,  fn = None): 
         super().__init__()
         self.label= label
-        self.meta = jkm.metadata.ImageMetadata(self.label)  #Image-level metadata
+        self.meta = jkm.samplemetadata.ImageMetadata(self.label)  #Image-level metadata
         self.confsection= None
         self._img = None  # Full image data loaded to memory (set to None if not yet loaded)
         self._fn = fn

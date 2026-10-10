@@ -1,10 +1,11 @@
 [data2table]
 format = "csv" # Only format currently supported
-filename = "Z:/juhis_previews_set2_TEST/juhis_isot2_ai_data_raw.csv"
+#filename = "Z:/juhis_previews_set2_TEST/juhis_isot2_ai_data_raw.csv"
+filename = "/home/kahanpaa/projects/_videostill/test_ai_data_raw.csv"
 
 [data] # Which file type identifies a record?
-#main_data_directory = "/home/kahanpaa/projects/_videostill/"
-main_data_directory = "Z:/juhis_previews_set2_TEST/"
+main_data_directory = "/home/kahanpaa/projects/_videostill/"
+#main_data_directory = "Z:/juhis_previews_set2_TEST/"
 datatype_to_load = "SINGLEFILE" # CURRENTLY AVAILABLE OPTIONS = MZH_INSECTLINE, MZH_PLANTLINE, SINGLEFILE
 recognize_by_filename_pattern = ["*.jpg"] # List - Trigger file filename pattern(s) that leads to a sample processing event
 label_file = "Preview002.jpg" # Files with this name pattern are treated as files with labels
@@ -40,15 +41,15 @@ textline = "" # Written into JSON metadata files only
 # license = ""  # Written into JSON metadata files only
 
 [ai]
-model = "gemini-3.1-flash-lite"
+model = "gemini-3.5-flash-lite"
 prompt = "These images are all of the same object. Find text in the images. Reply with JSON, fitting the data into the variables specified in the JSON Schema given."
 max_image_dim = 1200 # integer - maximum image size. Pass 0 or comment out for no scaling
 properties_filename = "" # String - leave empty for no output
 # Authentication to Google Cloud services
-auth_type = "LOCAL_OAUTH" # APIKEY, LOCAL_OAUTH or CLOUD_OAUTH
+auth_type = "APIKEY" # APIKEY, LOCAL_OAUTH or CLOUD_OAUTH
 # Settings for API KEY auth
-#APIkeyfile = "/home/kahanpaa/GEMINI_APIKEY"
-APIkeyfile = "Z:/APIKEYS/GEMINI_APIKEY.txt"
+APIkeyfile = "/home/kahanpaa/GEMINI_APIKEY"
+#APIkeyfile = "Z:/APIKEYS/GEMINI_APIKEY.txt"
 # Google Cloud API settings (LOCAL_OAUTH and CLOUD_OAUTH)
 google_location = "global"
 google_project_id = "gen-lang-client-0404401598"

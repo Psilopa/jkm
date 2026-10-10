@@ -4,7 +4,7 @@ import datetime,  logging,  os, re
 #import  pickle
 import cv2
 import jsonpickle
-import jkm.metadata
+import jkm.samplemetadata
 import jkm.ocr
 import jkm.tools
 from collections import UserDict
@@ -72,7 +72,7 @@ class SampleEvent(SampleBase):
         self.prefix  = "" # Common file name prefix
 #        self.basepath = "" # Common data directory
         self.datapath = "" # Data directory for this record
-        self.meta = jkm.metadata.EventMetadata() # Event-level metadata
+        self.meta = jkm.samplemetadata.EventMetadata() # Event-level metadata
     @property
     def imagelist(self):  return self._imagelist
     @staticmethod
@@ -123,7 +123,7 @@ class SampleImage(SampleBase):
     def __init__(self,  label,  fn = None): 
         super().__init__()
         self.label= label
-        self.meta = jkm.metadata.ImageMetadata(self.label)  #Image-level metadata
+        self.meta = jkm.samplemetadata.ImageMetadata(self.label)  #Image-level metadata
         self.confsection= None
         self._img = None  # Full image data loaded to memory (set to None if not yet loaded)
         if fn is not None: self._fn = fn

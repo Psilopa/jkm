@@ -17,7 +17,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 # For testing, Google Free Key for small tests
-_TESTING_BYPASS_AI_CALL = False
+_TESTING_BYPASS_AI_CALL = True
 _TESTING_JSON_FROM_AI = """
 {
   "verbatim_all_text": [
@@ -35,6 +35,8 @@ _TESTING_JSON_FROM_AI = """
   "verbatim_date": "17.7. 1939",
   "verbatim_field_identifier": "",
   "verbatim_coordinates": "",
+  "verbatim_taxon": "Baccha elongata",
+  "verbatim_identified_by": "J. Kahanpää leg.",
   "notes": "There is a black streak/smudge partially obscuring the collector's name (Rönnholm)."
 }
 """
@@ -48,8 +50,15 @@ def load_apikey(fp):
 #    if not fp.exists(): return None # TODO: SHOULD REPORT ERROR TYPE
     with fp.open() as f: return f.read()
     
-def _parseAI_JSON(text):
+def _parseAI_JSON(text, schema):
     """Cleanup and parse pseudo-JSON as returned from an AI."""
+    if schema: # Check if this is already valid JSON following a Schema
+        try:
+            data = schema.model_validate_json(text)
+            return data.model_dump() # Retrun as a json.loads() equivalent
+        except jkm.labeldata_model.ValidationError:
+            log.error(f"AI data model failed: returned invalid JSON data.")
+            # Fall through and try the simpler method below
     try: 
         # pre-parser clean up: remove everything outside the outermost {}
         first = text.find("{") 
@@ -72,15 +81,16 @@ class AI_output:
     def __init__(self):
         self._text = None
         self._dict = None
+        self.raw = ""
     def to_dict(self):
         return self._dict 
-    def from_dict(self, datadict):
-        self._text = str(datadict)
-        self._dict =  datadict
-        return True # Success
-    def from_text(self,  text):
+#    def from_dict(self, datadict):
+#        self._text = str(datadict)
+#        self._dict =  datadict
+#        return True # Success
+    def from_text(self,  text, schema = None):
         self._text = text
-        self._dict = _parseAI_JSON(self._text)
+        self._dict = _parseAI_JSON(self._text, schema)
         return True # Success
     def __str__(self): 
         if self._dict: return str(self._dict) 
@@ -121,7 +131,12 @@ class geminiAI(): # Make subclasses based on authentication method
             input = content,
             response_format= response_format,
             )
-        return interaction.output_text
+        # TODO: What happens if interaction.output_text  does not exist?
+        # Return raw_output, output_text
+        if not "output_text" in dir(interaction): 
+            return (interaction, None)
+        else: 
+            return (interaction, interaction.output_text )
     
     def _upload_image(self,  filepath): 
         """"Upload an image to AI. 
@@ -153,8 +168,8 @@ class geminiAI(): # Make subclasses based on authentication method
 
         # FAKE CALL FOR TESTING, NO ACTUAL AI CALL
         if _TESTING_BYPASS_AI_CALL:
-            response = 'foo' #
-            text = _TESTING_JSON_FROM_AI            
+            raw = 'foo' 
+            text_output = _TESTING_JSON_FROM_AI            
         else:
             # Create AI client
             log.debug("Create client")
@@ -166,19 +181,22 @@ class geminiAI(): # Make subclasses based on authentication method
             content =  [ {"type": "text", "text": self.prompt} ]
             content += self._add_images(pathlist, image_max_dim)
             try: # Query the model
-                text = self._execute_query(content)
+                rv = self._execute_query(content)
+                (raw, text_output) = self._execute_query(content)
             except gemini_errors.ServerError as msg:
                 raise jkm.errors.AIError(msg)
             except gemini_errors.ClientError as msg:
                 raise jkm.errors.AIError(msg)
             except gemini_errors.APIError as msg:
                 raise jkm.errors.AIError(msg)
-        log.debug( f'Response was "{text }"' )
-        output = AI_output()
-        if text == AI_FAILURE_RETURN_VALUE: return output        # Primitive error handling
-        output.from_text( text ) # Tries parsing the text as JSON
-        # TODO: Better handling of cases that already output JSON
-        return output
+        log.debug( f'Response was "{text_output}"' )
+        outputcontainer = AI_output()
+        if text_output == AI_FAILURE_RETURN_VALUE: return outputcontainer        # Primitive error handling
+        # TODO: Handle errors here
+        outputcontainer.from_text( text_output,
+                                   schema = jkm.labeldata_model.LabelData ) # Tries parsing the text as JSON
+        outputcontainer.raw = raw
+        return outputcontainer
     def _file2bytes(self,  filepath):        
         with filepath.open('rb') as f:   return f.read()
     def _urify_image(self,  filepath):        
