@@ -465,6 +465,9 @@ class jkm_post():
         if spreadsheet: spreadsheet.close()
         logging.shutdown()
         if ext: ext.event_exit(f"{jkm.meta.nameversion} closing down")
+        
+# TODO: Needs to have a *STOP* method to allow others to kill this potentially long-running process cleanly.
+#The threadpool object should handle this
 
 if __name__ == '__main__':
     main(logging_level_file = logging.DEBUG, logging_level_stream = logging.DEBUG)

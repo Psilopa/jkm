@@ -1,16 +1,33 @@
 # -*- coding: utf-8 -*-
 from jkm.jkm_postprocessing_main import jkm_post
+import atexit
 import jkm.ext
 import logging
 from PyQt6.QtCore import QThreadPool, QRunnable, pyqtSlot
-from PyQt6.QtWidgets import (
-    QApplication,
-    QLabel,
-    QMainWindow,
-    QPushButton,
-    QVBoxLayout,
-    QWidget,
-)
+import PyQt6.QtWidgets as QtWidgets
+
+# Hook to jkm output
+class QExt(jkm.ext.ExtBase):
+    def __init__(self,parent):
+        self.parent = parent
+    def event_exit(self, msg):
+        showDialog(self.parent, msg)
+    
+@atexit.register
+def atExit():
+    # Make sure postprocessor shutdown gets called even at unusual program exits
+    pass
+
+# QT-based ext message handler
+
+def showDialog(parent, msg, title = "Note"):
+   msgBox = QtWidgets.QMessageBox(parent)
+   msgBox.setText(msg)
+   msgBox.setWindowTitle(title)
+   msgBox.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok ) 
+   msgBox.setIcon(QtWidgets.QMessageBox.Icon.Question)
+   msgBox.exec()
+
 
 # Use a QThread-based threadpool to avoid UIlockups
 class Worker(QRunnable):
@@ -33,7 +50,7 @@ class myQThreadPool():
         log.debug("Watining for threads to close.")
         self.pool.waitForDone()
 
-class MainWindow(QMainWindow):
+class MainWindow(QtWidgets.QMainWindow):
     def launch_jkm(self):
         self.threadpool = myQThreadPool() 
         thread_count = self.threadpool.pool.maxThreadCount()
@@ -42,7 +59,7 @@ class MainWindow(QMainWindow):
         self.jkm.main(self.logging_level_file,
                       self.logging_level_stream,
                       threadpool=self.threadpool,
-                      ext = jkm.ext.PrinterExt()
+                      ext = QExt(self) # Pass the mainwindow to the event handler
                       )
     def __init__(self, *args, **kwargs):
         self.logging_level_file = logging.DEBUG
@@ -54,6 +71,9 @@ class MainWindow(QMainWindow):
         self.show()
         self.launch_jkm()
 
-app = QApplication([])
+app = QtWidgets.QApplication([])
 window = MainWindow()
 app.exec()
+
+
+
