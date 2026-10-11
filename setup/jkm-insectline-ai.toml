@@ -1,4 +1,4 @@
-[data2table]
+[spreadsheet]
 format = "csv" # Only format currently supported
 filename = "C:/Insect_APPs/labeldata/ai_labeldata.csv"
 write_raw_output  = true
@@ -41,6 +41,7 @@ ai_label_text_extraction = true # false or true
 labeldata_to_CSV = true # false or true: will be ignored if no label data extraction has been done
 # OTHER DATA
 save_JSON = false # false or true  
+write_postprocessor_report_file = true
 
 [meta]
 copyright_owner = "Luomus" # Written into JSON metadata files only

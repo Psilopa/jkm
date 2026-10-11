@@ -1,4 +1,4 @@
-[data2table]
+[spreadsheet]
 format = "csv"
 filename = "/home/kahanpaa/projects/_videostill/juhis_isot2_ai_data_raw.csv"
 write_raw_output  = true
@@ -34,6 +34,7 @@ ocr = false # false or true
 ocr_analysis = false # false or true
 # OTHER DATA
 save_JSON = false # false or true  - Check what this does!
+write_postprocessor_report_file = false
 
 [meta]
 copyright_owner = "Luomus"

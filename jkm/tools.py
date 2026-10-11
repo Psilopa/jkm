@@ -49,6 +49,7 @@ class ColorFormatter(logging.Formatter):
 def setup_logging(name, logging_level_file = logging.INFO, logging_level_stream = logging.INFO):
     """Set up logging services"""
     LOGFORMAT = '%(levelname)s: %(message)s [%(asctime)s]'
+    #TODO: Call needed on windows only!
     os.system('color')  # Ask system console to display color if available
     # Default logger: should do nothing as we add our own handlers, but set just in case
     log = logging.getLogger(name)
@@ -168,3 +169,17 @@ def backup_file(orig_path,  copy_path):
     if  orig_path.exists() and orig_path.is_file():  
         shutil.copy(orig_path,  copy_path)
     return True
+
+def unique(s) :return tuple(set(s))
+
+#def path_in_list(p,pathlist):
+#    for p2 in pathlist: 
+#        if p.samefile(p2): return True
+#    return False		
+
+def quit_if_not_exists(pathname):
+    if not pathname.exists():
+        log.critical(f"Path {pathname} not found. Quitting.")
+        sys.exit()
+
+

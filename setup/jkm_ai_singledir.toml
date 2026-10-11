@@ -1,4 +1,4 @@
-[data2table]
+[spreadsheet]
 format = "csv" # Only format currently supported
 #filename = "Z:/juhis_previews_set2_TEST/juhis_isot2_ai_data_raw.csv"
 filename = "/home/kahanpaa/projects/_videostill/test_ai_data_raw.csv"
@@ -34,6 +34,8 @@ ai_label_text_extraction = true # false or true
 labeldata_to_CSV = true # false or true
 # OTHER DATA
 save_JSON = false # false or true  
+write_postprocessor_report_file = false
+
 
 [meta]
 copyright_owner = "Luomus" # Written into JSON metadata files only

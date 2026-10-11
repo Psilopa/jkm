@@ -45,6 +45,22 @@ class SampleBase(abc.ABC):
     def fromJSONfile(fn):
         with open(fn) as f:
             return  jsonpickle.decode(f.read())
+    @staticmethod
+    # Override in child classes if needed!
+    def find_samples(dirname,datafile_patterns):
+        "Returns a list of matching file names"
+        log.debug(f"Finding '{datafile_patterns}' files to process in {dirname}" )
+        d = Path(dirname) 
+        result = []
+        for pat in datafile_patterns:
+            tempr = d.rglob(pat)
+            log.debug(f"Looking for pattern {pat} in {dirname}")
+            tempr = [x for x in tempr if ( str(x).find("textarea") == -1 )] # Skip files with "textarea" in their name
+            result.extend( tempr )
+        # Delete duplicate files (hard links to the same file)
+        return _UNIQUE(result)
+
+
 #------------------------------------------------------------------------------------------------------    
 class SampleEvent(SampleBase,  abc.ABC):
     "Container for 0+ photos of an sample and event-level metadata."
@@ -73,8 +89,8 @@ class SampleEvent(SampleBase,  abc.ABC):
     def is_directory(self):  return self._is_directory
     @property
     def feature_metadata(self):  return self._has_metadatafile
-    @property
-    def imagelist(self, labels=[]):  
+    @property 
+    def imagelist(self, labels=[]):  # Can a propery have an alternative keyword approach?
         if not labels: 
             return self._imagelist
         else: 
@@ -132,6 +148,9 @@ class SampleEvent(SampleBase,  abc.ABC):
                 log.warning("Renaming file failed with error message: %s" % msg)
             except FileExistsError as msg:
                 log.warning("Target file name already exists, skipping: %s" % msg)
+    def write_postprocessor_properties_file(self, conf):
+        # By default, do nothing
+        return # 
 #------------------------------------------------------------------------------------------------------    
 class SampleImage(SampleBase): 
     "One image plus metadata"
@@ -356,6 +375,28 @@ class LuomusLineSample(SampleEvent):
         log.debug(f"Renaming {self.datapath} to {newpath}")        
         self.datapath.rename(newpath) 
         self.datapath= newpath # Set datapath to the new value only if everything preceding was successful
+    def write_postprocessor_properties_file(self, properties_filename = None):
+        """Write postprocessor.properties file. Uses the same format as the Luomus degitizing line .properties file"""
+        if not properties_filename:
+            properties_filename  = Path(r"postprocessor.properties")
+        else: properties_filename = Path(properties_filename) # Make sure this is a path 
+        try:
+            sample.digipropfile.setheader( f"# {datetime.now()}" )
+            sample.digipropfile.update("full_barcode_data",sample.identifier or "")
+            sample.digipropfile.update("identifier",sample.shortidentifier  or "")
+            sample.digipropfile.update("timestamp",sample.original_timestamp())
+            if sample.identifier: # Only one identifier-containing barcode was found
+                id_OK = sample.verify_identifier() # This should probably be done way earlier elsewhere
+                if not id_OK: 
+                    log.critical(f"{sample.name}: *******\n\n\n\nMALFORMED IDENTIFIER {sample.identifier}*******\n\n\n\n")
+                sample.digipropfile.update("URI_format_OK", str(id_OK) )
+            sample.digipropfile.update("Q-sharp", "" )
+            sample.digipropfile.update("Q-color", "" )
+            sample.digipropfile.save( sample.datapath / properties_filename )
+        except OSError as msg:
+            assert(propfilepath) # Should exist if this exception was triggered
+            log.warning( f"Saving a properties file failed with error message: {msg}" )
+
 #------------------------------------------------------------------------------------------------------    
 class LuomusPlantLineSample(LuomusLineSample): 
     def __init__(self,  time=None):

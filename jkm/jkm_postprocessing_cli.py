@@ -24,29 +24,7 @@ _FAIL_IGNORE = 1
 _FAIL_RETRY = 2
 _num_worker_threads = 1
 _AI_AUTH_TYPES = ("APIKEY", "CLOUD_OAUTH", "LOCAL_OAUTH")
-
-def _UNIQUE(s) :return tuple(set(s))
-
-def quit_if_not_exists(pathname):
-    if not pathname.exists():
-        log.critical(f"Path {pathname} not found. Quitting.")
-        sys.exit()
-
-# Move to Luomus-specific Sample type
-def find_samples(dirname,datafile_patterns):
-    #This just returns a list of matching file names
-    log.debug(f"Finding '{datafile_patterns}' files to process in {dirname}" )
-    d = Path(dirname) 
-    result = []
-    for pat in datafile_patterns:
-        tempr = d.rglob(pat)
-        log.debug(f"Looking for pattern {pat} in {dirname}")
-        tempr = [x for x in tempr if ( str(x).find("textarea") == -1 )] # Skip files with "textarea" in their name
-        result.extend( tempr )
-    # Delete duplicate files (hard links to the same file)
-    return _UNIQUE(result)
-
-
+#------------------ MISC TOOLS  -------------------
 class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
     _lastinsert = None
     def __init__(self, queue, **kwargs): 
@@ -57,33 +35,17 @@ class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
         else: log.debug(f"Prevented double insertion of {event.src_path} into the queue")
         self._lastinsert = event.src_path        
 
-def path_in_list(p,pathlist):
-    for p2 in pathlist: 
-        if p.samefile(p2): return True
-    return False		
-
-def write_postprocessor_properties_file(sample):
-    """Write postprocessor.properties file"""
-    try:
-            sample.digipropfile.setheader( f"# {datetime.now()}" )
-            sample.digipropfile.update("full_barcode_data",sample.identifier or "")
-            sample.digipropfile.update("identifier",sample.shortidentifier  or "")
-            sample.digipropfile.update("timestamp",sample.original_timestamp())
-            if sample.identifier: # Only one identifier-containing barcode was found
-                id_OK = sample.verify_identifier()
-                if not id_OK: 
-                    log.critical(f"{sample.name}: *******\n\n\n\nMALFORMED IDENTIFIER {sample.identifier}*******\n\n\n\n")
-                sample.digipropfile.update("URI_format_OK", str(id_OK) )
-            sample.digipropfile.update("Q-sharp", "" )
-            sample.digipropfile.update("Q-color", "" )
-#            if conf.getb( "tasks", "ocr"): 
-#                sample.digipropfile.update("OCR_result", alltext.replace("\n"," "))
-            propfilepath = sample.datapath /  Path(r"postprocessor.properties") 
-            sample.digipropfile.save( sample.datapath /  Path(r"postprocessor.properties") )
-    except OSError as msg:
-        assert(propfilepath) # Should exist if this exception was triggered
-        log.warning( f"Saving a properties file failed with error message: {msg}" )
-
+def init_logging(logging_level_file, logging_level_stream):
+    log = jkm.tools.setup_logging(jkm.meta.name, logging_level_file, logging_level_stream)
+    jkm.configfile.log = log    
+    jkm.tools.log = log
+    jkm.ocr.log = log  # IF OCR
+    jkm.sample.log = log
+    jkm.samplemetadata.log = log
+    jkm.ai.log = log
+    jkm.barcodes.log = log
+    return log
+    
 #------------------ SINGLE TASKS -------------------
 def task_add_prefix_to_imagefiles(sample):
     try:
@@ -209,15 +171,26 @@ def task_write_spreadsheet(spreadsheet, airesult, barcode_identifier=None, write
         if spreadsheet.isEmpty(): spreadsheet.writeheader()                
     spreadsheet.add_line_from_dict(outdata)
 
+def task_write_postprocessor_report(conf, sample):
+        # This does nothing unless the class reimplements the empty standard def.
+        sample.write_postprocessor_report(conf)
+
+def get_sample_class(sample_format_str):
+        if sample_format_str.lower() == "mzh_insectline":  return jkm.sample.LuomusInsectLineSample
+        elif sample_format_str.lower() ==  "mzh_plantline": return jkm.sample.LuomusPlantLineSample
+        elif sample_format_str.lower() == "singlefile": return jkm.sample.SingleImageSample
+        elif sample_format_str.lower() == "imagedir": return jkm.sample.ImageDirectorySample
+        else:
+            raise jkm.errors.FileLoadingError(f"Unknown sample file/directory format {sample_format}, skippping to next.")
+    
 # ----------------- Process a single event ------------------------
 def processSingleEvent(filename, conf, spreadsheet):
     log.debug(f"Processing data file {filename}" )
     # Variables to hold extracted data
     alltext = ""
     allbarcodes = []
-    # Create SampleEvent instances based on (meta)data file(s)
-    sample_format = conf.get("data", "datatype_to_load")        
     try:
+        # Create a Sample Event
         dirpath= filename.parent
         # Catch some error states
         if not dirpath.is_dir():                
@@ -225,19 +198,20 @@ def processSingleEvent(filename, conf, spreadsheet):
         if not filename.exists():
             raise jkm.errors.FileLoadingError(f"Could not find file {filename}, skipping.")
         # Try to recognise input file/directory format
-        if sample_format.lower() == "mzh_insectline": 
-            sample = jkm.sample.LuomusInsectLineSample.from_directory(dirpath, conf)
-        elif sample_format.lower() ==  "mzh_plantline": 
-            sample = jkm.sample.LuomusPlantLineSample.from_directory(dirpath, conf)
-        elif sample_format.lower() == "singlefile":
-            sample = jkm.sample.SingleImageSample.from_image_file(filename, conf, "generic_camera")
-        elif sample_format.lower() == "imagedir":
-            sample = jkm.sample.ImageDirectorySample.from_directory(dirpath, conf)
-        else:
-            raise jkm.errors.FileLoadingError(f"Unknown sample file/directory format {sample_format}, skippping to next.")
+        sample_format = conf.get("data", "datatype_to_load")        
+        sample_class = get_sample_class( sample_format.lower() )
+        if sample_class in (jkm.sample.LuomusInsectLineSample,
+                            jkm.sample.LuomusPlantLineSample,
+                            jkm.sample.ImageDirectorySample,
+                            ): 
+            sample = sample_class.from_directory(dirpath, conf)
+        elif sample_class in (jkm.sample.SingleImageSample,  ):
+            sample = sample_class.from_image_file(filename, conf)
+        # get_sample_class(sformat) should already block unknown sample types    
+        else: assert False, "Unknown sample format."
     except jkm.errors.FileLoadingError as msg:
-            log.error(msg)
-            return _FAIL_IGNORE
+                log.error(msg)
+                return _FAIL_IGNORE
             
     # MAIN POSTPROCESSOR STARTS HERE
     # TODO: CHECK IF THIS WORKS WITH THE REIMPLEMENTED sample
@@ -286,40 +260,43 @@ def processSingleEvent(filename, conf, spreadsheet):
 
     # DO SOME CLEANUP
     if sample.identifier: allbarcodes.append(sample.identifier)
-    sampleids = _UNIQUE(allbarcodes)
+    sampleids = jkm.tools.unique(allbarcodes)
     if len(sampleids) == 0:
         log.warning(f"{sample.name}:No usable identifiers found")
     elif len(sampleids) > 1:
         log.warning(f"{sample.name}:Several  different identifiers for the sample in barcodes/OCR/sample metadata")
     else: sample.identifier =  sampleids[0] # Sets also sample.shortidentifier
     
-   # Store interpreted data in a table file 
-    if conf.getb( "tasks", "ai_label_text_extraction") and spreadsheet:
-        write_raw_output= conf.getb( "data2table", "write_raw_output", default = True)
-        task_write_spreadsheet(spreadsheet, airesult,sample.identifier, write_raw_output)
-        log.debug(f"{sample.name}: ...table data adding done")
-    else: log.debug(f"{sample.name}: No data export to a spreadsheet.")
-
     # RENAME DIRECTORIES (this may need to stay above file renaming)  
-    if conf.getb( "tasks", "directories_rename_by_barcode_id") and sample.identifier:
+    if sample.shortidentifier and conf.getb( "tasks", "directories_rename_by_barcode_id"):
         task_rename_directories(conf, sample)
     else: log.debug(f"{sample.name}: No directory rename.")
 
     # RENAME FILES
     # Current implementation renames only the original image files as per the configuration file
-    if conf.getb( "tasks", "files_rename_by_barcode_id") and sample.shortidentifier:
+    if sample.shortidentifier and conf.getb( "tasks", "files_rename_by_barcode_id", default=False):
         task_add_prefix_to_imagefiles(sample)
     else: log.debug(f"{sample.name}: No file(s) rename.")
 
-    # Write records to JSON Metadata file (should this be before renaming?)
-    if conf.getb( "tasks", "save_JSON"):
+    # FINALLY, WRITE RESULTS TO FILES
+    # Store interpreted data in a spreadsheet file 
+    if spreadsheet and conf.getb( "tasks", "ai_label_text_extraction"):
+        # Check if we want to store raw/all output from the AI (it can be loooong)
+        write_raw_output= conf.getb( "spreadsheet", "write_raw_output", default = True)
+        task_write_spreadsheet(spreadsheet, airesult,sample.identifier, write_raw_output)
+        log.debug(f"{sample.name}: ...table data adding done")
+    else: log.debug(f"{sample.name}: No data export to a spreadsheet.")
+
+    # Write sample metadata to a JSON Metadata file (should this be before renaming?)
+    if conf.getb( "tasks", "save_JSON", default=False):
         sample.writeMetaJSON()
     else: log.debug(f"{sample.name}: No JSON metadata file created.")
 
-    # FOR MZH IMAGING LINE SAMPLES: write postprocessor.properties
-    if conf.get("data", "datatype_to_load").lower()  in ["mzh_insectline", "mzh_plantline"]:
-        write_postprocessor_properties_file(sample)
-    else: log.debug(f"{sample.name}: No postprocessor.properties file created.")
+    # Write a sample (and sample type) specific postprocessor report file (or files)
+    if conf.getb( "tasks", "write_postprocessor_report_file", default=False):
+        log.debug(f"{sample.name}: Postprocessor report file created for sample.")
+        task_write_postprocessor_report(conf, sample)
+    else: log.debug(f"{sample.name}: No postprocessor report file created for sample.")
 
     return _SUCCESS
 
@@ -343,23 +320,27 @@ def processSampleEvents(queue, conf, sleep_s, spreadsheet):
         log.info(f"Sample events in process queue: {queue.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
 
 def main(logging_level_file = logging.INFO, logging_level_stream = logging.INFO):
-    global log
     threads = []
-    q = queue.Queue() # a FIFO queue of metafile names
-    # Set loggers in other modules
-    log = jkm.tools.setup_logging(jkm.meta.name, logging_level_file, logging_level_stream)
-    jkm.configfile.log = log    
-    jkm.tools.log = log
-    jkm.ocr.log = log  # IF OCR
-    jkm.sample.log = log
-    jkm.samplemetadata.log = log
-    jkm.ai.log = log
-    jkm.barcodes.log = log
+    q = queue.Queue() # a FIFO queue of trigger file names
+    # Set loggers in all modules
+    log = init_logging(logging_level_file, logging_level_stream)
     log.info(f"STARTING NEW SESSION of {jkm.meta.nameversion}")
     # Read config file name from sys.argv and parse the file
     try: 
-        conf = jkm.configfile.load_configuration(jkm.meta.name)
-        quit_if_not_exists(conf.basepath)
+        conf = jkm.configfile.load(jkm.meta.name)
+        try: conf.verify( must_have = ["postprocessor", "tasks", "data","meta","spreadsheet",
+                                      ["data","main_data_directory"],
+                                      ["data","datatype_to_load"],
+                                      ["data","recognize_by_filename_pattern"],
+                                      ["postprocessor","monitor"],
+                                      ["postprocessor","process_existing"],
+                                      ["postprocessor","sleep_after_new_sample_detected"],
+                                        ],
+                         should_have = []
+                        )   
+        except jkm.errors.ConfigWarning: pass # Exception does its own logging
+            
+        jkm.tools.quit_if_not_exists(conf.basepath)
         # Wait period from file detection to file processing
         # Allows for enough time for transfer of a file(s)  to be completed
         sleep_s_before_reading_file = conf.getf("postprocessor", "sleep_after_new_sample_detected")
@@ -368,20 +349,22 @@ def main(logging_level_file = logging.INFO, logging_level_stream = logging.INFO)
         datafile_patterns = conf.getlist("data", "recognize_by_filename_pattern")        
         if conf.getb("postprocessor", "process_existing"):
             # Find list of file names matching a pattern and put them into the queue
-            existingevents = find_samples( conf.basepath,datafile_patterns )
+            sample_format = conf.get("data", "datatype_to_load")        
+            sample_class = get_sample_class( sample_format.lower() )
+            existingevents = sample_class.find_samples( conf.basepath,datafile_patterns )
             for fn in existingevents: q.put(fn)
             log.info(f"Approximate number of sample events to process at launch is {q.qsize()}")
         
-        if conf.getb("tasks", "labeldata_to_CSV"):
+        if conf.getb("tasks", "labeldata_to_CSV", default = False):
             try: # Maybe we should open and close a file every time we access it rather than passing an open file around. What appr                
-                spreadsheetpath = Path( conf.get("data2table","filename") ) 
+                spreadsheetpath = Path( conf.get("spreadsheet","filename") ) 
                 if  _BACKUP_DATATABLE:  
                     timestr = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
                     backup_path = spreadsheetpath.with_stem( spreadsheetpath.stem + "_" + timestr ) 
                     jkm.tools.backup_file(spreadsheetpath,  backup_path) # TODO: check return 
-                format = conf.get("data2table","format") 
-                if format.lower() != "csv": 
-                    log.warning 
+                sheetformat = conf.get("spreadsheet","format") 
+                if sheetformat.lower() != "csv": 
+                    log.warning("Unknown ") 
                 # TODO: should check if file exists, create as needed
                 fieldnames = list(jkm.labeldata_model.LabelData.__fields__.keys())
                 fieldnames += ["raw", "barcode_ID"]
@@ -396,7 +379,7 @@ def main(logging_level_file = logging.INFO, logging_level_stream = logging.INFO)
         
         log.debug(f'Using QR code decoder {conf.get( "barcodes", "barcodepackage")}')
 
-        if conf.getb("tasks", "ai_label_text_extraction"):
+        if conf.getb("tasks", "ai_label_text_extraction", default = False):
             auth_type = conf.get("ai", "auth_type")
             log.debug(f"AI authentication method: {auth_type}")
             if auth_type == 'APIKEY':
@@ -418,14 +401,13 @@ def main(logging_level_file = logging.INFO, logging_level_stream = logging.INFO)
             t.start()
             threads.append(t)    
         if not conf.getb( "postprocessor", "monitor"):
-            log.debug("NOT MONITORING, JUST ONE PASSTHROUGH")
+            log.debug(f"NOT MONITORING - will process target directory once: {str(conf.basepath)} ")
     #        q.join() # block until all tasks are done
         else:        
-            log.debug("MONITORING DIRECTORY")
+            log.debug(f"MONITORING DIRECTORY: {str(conf.basepath)}.")
             # Start a filesystem watchdog thread watching for NEW .metadata files
             event_handler = myFileEventHandler(q, patterns=datafile_patterns) # HERE
             observer = Observer()
-            quit_if_not_exists(conf.basepath)
             observer.schedule(event_handler, str(conf.basepath), recursive=True)
             observer.start()
             # Process data from queue while waiting
@@ -449,8 +431,8 @@ def main(logging_level_file = logging.INFO, logging_level_stream = logging.INFO)
         log.critical(f"Execution failed with error message '{msg}'")
     except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
         log.critical(f"Loading SETUP file item failed with message: {msg}")
-    except Exception as msg:
-        log.error(f"Other error: {msg}")
+#    except Exception as msg:
+#        log.error(f"Other error: {msg}")
     logging.shutdown()
 
 if __name__ == '__main__':

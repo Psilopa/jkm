@@ -11,8 +11,11 @@ class LoggingError(JKError):
         log.log(level,  msg)
         super().__init__(msg)
 
-class CameraError(LoggingError):
+class ConfigError(LoggingError):
     def __init__(self, msg): super().__init__(msg)
+
+class ConfigWarning(LoggingError):
+    def __init__(self, msg): super().__init__(msglevel = logging.WARNING)
 
 class OCRError(LoggingError):
     def __init__(self, msg): super().__init__(msg)
