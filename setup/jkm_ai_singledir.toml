@@ -1,7 +1,7 @@
 [spreadsheet]
 format = "csv" # Only format currently supported
 #filename = "Z:/juhis_previews_set2_TEST/juhis_isot2_ai_data_raw.csv"
-filename = "/home/kahanpaa/projects/_videostill/test_ai_data_raw.csv"
+filename = "/home/kahanpaa/projects/_videostill/ai_data_raw.csv"
 write_raw_output  = true
 
 [data] # Which file type identifies a record?

@@ -31,8 +31,8 @@ class tomlConfig(): # TOML-based replacement
     def getf(self,*args, **kwargs): return self.get(*args, **kwargs, func=float) 
     def getpath(self,*args, **kwargs): return Path(self.get(*args, **kwargs, func=str) )
     def getlist(self,*args, **kwargs): return self.get(*args, **kwargs, func=list) 
-    def has_key(self, key): return key in self.keys()
-    def keys(self): return self._d.keys()
+    def has_section(self, key): return key in self.sections()
+    def sections(self): return self._d.keys()
     @property
     def basepath(self): return Path(self.get("data","main_data_directory"))  # TODO: Should we create if not_exists()    
     # CONF VERIFICATION

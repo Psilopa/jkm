@@ -46,6 +46,23 @@ def init_logging(logging_level_file, logging_level_stream):
     jkm.barcodes.log = log
     return log
     
+def init_spreadsheet(conf): 
+    try: 
+        spreadsheetpath = Path( conf.get("spreadsheet","filename") ) 
+        if  _BACKUP_DATATABLE:  
+            timestr = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
+            backup_path = spreadsheetpath.with_stem( spreadsheetpath.stem + "_" + timestr ) 
+            jkm.tools.backup_file(spreadsheetpath,  backup_path) # TODO: check return 
+        sheetformat = conf.get("spreadsheet","format") 
+        if sheetformat.lower() != "csv": 
+            log.warning("Unknown ") 
+        spreadsheet = jkm.spreadsheet.SpreadsheetCSV(spreadsheetpath)
+        log.info(f"Tabular output is appended to file {spreadsheetpath}")
+    except IOError as msg: 
+        log.critical(f"Error in opening file {spreadsheetpath} for output:{msg}")
+        spreadsheet = None
+    return spreadsheet
+
 #------------------ SINGLE TASKS -------------------
 def task_add_prefix_to_imagefiles(sample):
     try:
@@ -308,8 +325,7 @@ def processSampleEvents(queue, conf, sleep_s, spreadsheet):
         if input is None: break
         filename = Path(input)
         time.sleep(sleep_s) # Wait for all data to arrive
-        try:
-            successQ = processSingleEvent(filename, conf, spreadsheet)        
+        try: successQ = processSingleEvent(filename, conf, spreadsheet)        
         except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
             log.critical(f"Loading SETUP file item failed with message: {msg}")
             successQ = _FAIL_IGNORE
@@ -338,47 +354,22 @@ def main(logging_level_file = logging.INFO, logging_level_stream = logging.INFO)
                                         ],
                          should_have = []
                         )   
-        except jkm.errors.ConfigWarning: pass # Exception does its own logging
-            
+        except jkm.errors.ConfigWarning: pass # Exception does its own logging            
         jkm.tools.quit_if_not_exists(conf.basepath)
-        # Wait period from file detection to file processing
-        # Allows for enough time for transfer of a file(s)  to be completed
-        sleep_s_before_reading_file = conf.getf("postprocessor", "sleep_after_new_sample_detected")
-        # TODO: get data types to process from config file: event packages (identified by metadata files) or simple image files
-        #datatype = conf.get("sampleformat", "datatype_to_load")
         datafile_patterns = conf.getlist("data", "recognize_by_filename_pattern")        
         if conf.getb("postprocessor", "process_existing"):
             # Find list of file names matching a pattern and put them into the queue
             sample_format = conf.get("data", "datatype_to_load")        
             sample_class = get_sample_class( sample_format.lower() )
-            existingevents = sample_class.find_samples( conf.basepath,datafile_patterns )
+            existingevents = sample_class.find_samples(conf.basepath,datafile_patterns)
             for fn in existingevents: q.put(fn)
             log.info(f"Approximate number of sample events to process at launch is {q.qsize()}")
         
         if conf.getb("tasks", "labeldata_to_CSV", default = False):
-            try: # Maybe we should open and close a file every time we access it rather than passing an open file around. What appr                
-                spreadsheetpath = Path( conf.get("spreadsheet","filename") ) 
-                if  _BACKUP_DATATABLE:  
-                    timestr = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
-                    backup_path = spreadsheetpath.with_stem( spreadsheetpath.stem + "_" + timestr ) 
-                    jkm.tools.backup_file(spreadsheetpath,  backup_path) # TODO: check return 
-                sheetformat = conf.get("spreadsheet","format") 
-                if sheetformat.lower() != "csv": 
-                    log.warning("Unknown ") 
-                # TODO: should check if file exists, create as needed
-                fieldnames = list(jkm.labeldata_model.LabelData.__fields__.keys())
-                fieldnames += ["raw", "barcode_ID"]
-                # Hardcoded, not elegant! But we need to know the rows as creation time :/
-                # Alternatively, pass only 
-                spreadsheet = jkm.spreadsheet.SpreadsheetCSV(spreadsheetpath)
-                log.info(f"Tabular output is appended to file {spreadsheetpath}")
-            except IOError as msg: 
-                log.critical(f"Error in opening file {spreadsheetpath} for output:{msg}")
-                spreadsheet = None
-        else: spreadsheet = None
-        
-        log.debug(f'Using QR code decoder {conf.get( "barcodes", "barcodepackage")}')
+            spreadsheet = init_spreadsheet(conf)
 
+        if conf.has_section("barcodes"):
+            log.debug(f'Using QR code decoder {conf.get( "barcodes", "barcodepackage")}')
         if conf.getb("tasks", "ai_label_text_extraction", default = False):
             auth_type = conf.get("ai", "auth_type")
             log.debug(f"AI authentication method: {auth_type}")
@@ -396,8 +387,11 @@ def main(logging_level_file = logging.INFO, logging_level_stream = logging.INFO)
                 raise jkm.errors.JKError(f"Unknown AI authentication method {auth_type}")                
 
          #Start loops looking for data to process and processing it
+        # Wait period from file detection to file processing
+        # Allows for enough time for transfer of a file(s)  to be completed
+        sleep_s_before_reading = conf.getf("postprocessor", "sleep_after_new_sample_detected")
         for i in range(_num_worker_threads):
-            t = threading.Thread(target=processSampleEvents,  args=(q,conf, sleep_s_before_reading_file, spreadsheet))
+            t = threading.Thread(target=processSampleEvents,  args=(q,conf, sleep_s_before_reading, spreadsheet))
             t.start()
             threads.append(t)    
         if not conf.getb( "postprocessor", "monitor"):
@@ -431,8 +425,10 @@ def main(logging_level_file = logging.INFO, logging_level_stream = logging.INFO)
         log.critical(f"Execution failed with error message '{msg}'")
     except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
         log.critical(f"Loading SETUP file item failed with message: {msg}")
-#    except Exception as msg:
-#        log.error(f"Other error: {msg}")
+    except Exception as msg:
+        # Forward all errors to logger before quitting, if we are not writing at DEBUG level
+        if logging_level_stream != logging.DEBUG:
+            log.error(f"Other error: {msg}")
     logging.shutdown()
 
 if __name__ == '__main__':
