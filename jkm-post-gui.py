@@ -1,23 +1,25 @@
 # -*- coding: utf-8 -*-
+import atexit, re, logging
+# Local
 from jkm.jkm_postprocessing_main import jkm_post
-import jkm.meta
-import atexit
-import jkm.external
-import logging
-from PyQt6.QtCore import QThreadPool, QRunnable, pyqtSlot, pyqtSignal
+import jkm.meta, jkm.external
+# QT
+from PyQt6.QtCore import QThreadPool, QRunnable, pyqtSlot, pyqtSignal, QObject
 import PyQt6.QtWidgets as QtWidgets
 from PyQt6 import uic # for uic, install package pyqt6-dev-tools 
 
-# Hook to jkm output
-class QExt(jkm.external.ExtBase):
-    def __init__(self,parent):
-        self.parent = parent
+# Hook from jkm output to QT Signals
+class QExt(jkm.external.ExtBase, QObject):
+    newLogEvent = pyqtSignal(logging.LogRecord)
+    def __init__(self):
+        QObject.__init__(self)
+        jkm.external.ExtBase.__init__(self)
     def event_exit(self, msg):
         pass
-    def event_ai_output(self, container): pass
-    def event_log(self, logrecord):
+    def event_ai_output(self, container):
         pass
-#        self.newLogEvent.emit( logrecord )
+    def event_log(self, logrecord):
+        self.newLogEvent.emit( logrecord )
     
 @atexit.register
 def atExit():
@@ -34,6 +36,22 @@ def showDialog(parent, msg, title = "Note"):
    msgBox.setIcon(QtWidgets.QMessageBox.Icon.Question)
    msgBox.exec()
 
+def _str(x): return x if isinstance(x, str) else x.group(0)
+def color(x, color): return rf"<font color={color}>{_str(x)}</font>" 
+def bold(x): return rf"<b>{_str(x)}</b>" 
+def grey(x): return color(x,"gray") 
+def red(x): return color(x,"red") 
+def red_bold(x): return red(bold(x))
+def nothing(x): return _str(x)
+def empty(x): return ""
+formattingrules = [
+    (re.compile(r"({.*?})"), bold ), # AI JSON output string embadded in log
+    (re.compile(r"DEBUG:*"), grey),
+    (re.compile(r"INFO:\s"), empty),
+    (re.compile(r"WARNING:*"), red),
+    (re.compile(r"ERROR:*"), red_bold),
+    (re.compile(r"CRITICAL:*"), red_bold),
+    ]
 
 # Use a QThread-based threadpool to avoid UIlockups
 class Worker(QRunnable):
@@ -57,28 +75,20 @@ class myQThreadPool(QThreadPool):
         self.waitForDone()
 
 class MainWindow(QtWidgets.QMainWindow):
-#    newLogEvent = pyqtSignal(logging.LogRecord)
-    def launch_jkm(self):
-        self.threadpool = myQThreadPool() 
-        thread_count = self.threadpool.maxThreadCount()
-        print(f"Multithreading with maximum {thread_count} threads")
-        self.jkm = jkm_post()
-        self.jkm.main(self.logging_level_file,
-                      self.logging_level_stream,
-                      threadpool=self.threadpool,
-                      ext = QExt(self) # Pass the mainwindow to the event handler
-                      )
+    rules = formattingrules
     def __init__(self, *args, **kwargs):
+        if "ext" in kwargs:
+            self.ext = kwargs["ext"]
+            del kwargs["ext"]
+        super().__init__(*args, **kwargs)
         self.logging_level_file = logging.DEBUG
         self.logging_level_stream = logging.DEBUG
         self.threadpool = None
-        super().__init__(*args, **kwargs)
+        self.jkm = None
         self._load_UI()
-        self._connectSignalsSlots()
-
+        self._connectSignalsSlots() # Do this only after jkm is created
         self.show()
         self.launch_jkm()
-
     def _load_UI(self):
         """Read an GUI definition file and connect it to data models"""
         uic.loadUi("gui/mainwindow.ui", self)
@@ -86,14 +96,39 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _connectSignalsSlots(self):
         self.actionExit.triggered.connect(self.on_exit)
+        self.actionExit.triggered.connect(self.on_exit)
+        # self.ext *should* be in place by now
+        if self.ext: self.ext.newLogEvent.connect(self.on_logevent)
     
+    def launch_jkm(self):
+        self.threadpool = myQThreadPool() 
+        self.jkm = jkm_post()
+        self.jkm.main(self.logging_level_file,
+                      self.logging_level_stream,
+                      threadpool=self.threadpool,
+                      ext = self.ext 
+                      )
+    def on_logevent(self, logrecord):
+        levelname = logrecord.levelname
+        text = logrecord.message
+        text = f"{levelname}: {text}"
+        self.add_logmsg(text)
+        print("Log event received.")
+
+    def add_logmsg(self,htmltext, endline = "<br/>"):
+        if not endline: endline = ""
+        for re_object, processor in self.rules:
+            htmltext = re_object.sub(processor, htmltext)
+        self.logviewer.insertHtml(htmltext + endline)
+        self.logviewer.ensureCursorVisible() # Force scroll to bottow
+
     def on_exit(self):        
         if self.jkm: self.jkm = None
         self.close()
 
+ext = QExt() # Create jkm-QT communication facilitator first
 app = QtWidgets.QApplication([])
-window = MainWindow()
+window = MainWindow(ext = ext)
 app.exec()
-
 
 

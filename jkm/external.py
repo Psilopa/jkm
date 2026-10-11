@@ -1,11 +1,7 @@
-from abc import ABC, abstractmethod
-class ExtBase(ABC):
+class ExtBase():
     # stubs for event calls for passing data to a GUI. For now, one direction only!
-    @abstractmethod
     def event_exit(self, msg): pass
-    @abstractmethod
     def event_ai_output(self, container): pass
-    @abstractmethod
     def event_log(self, logrecord): pass
 
 class DefaultExt(ExtBase):

@@ -35,7 +35,7 @@
       <height>531</height>
      </rect>
     </property>
-    <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,1,1">
+    <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,1,0">
      <property name="sizeConstraint">
       <enum>QLayout::SizeConstraint::SetNoConstraint</enum>
      </property>
@@ -66,15 +66,12 @@
       </widget>
      </item>
      <item>
-      <widget class="QPlainTextEdit" name="logviewer">
+      <widget class="QTextEdit" name="logviewer">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
          <horstretch>1</horstretch>
          <verstretch>1</verstretch>
         </sizepolicy>
-       </property>
-       <property name="readOnly">
-        <bool>true</bool>
        </property>
       </widget>
      </item>
@@ -156,6 +153,9 @@
   <action name="actionExit">
    <property name="text">
     <string>Exit</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
    </property>
   </action>
  </widget>
