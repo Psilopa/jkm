@@ -35,20 +35,17 @@
       <height>531</height>
      </rect>
     </property>
-    <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,1,0">
+    <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,1,0">
      <property name="sizeConstraint">
       <enum>QLayout::SizeConstraint::SetNoConstraint</enum>
      </property>
      <item>
-      <widget class="QPlainTextEdit" name="ai_output">
+      <widget class="QTextEdit" name="aiviewer">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
          <horstretch>1</horstretch>
          <verstretch>1</verstretch>
         </sizepolicy>
-       </property>
-       <property name="readOnly">
-        <bool>true</bool>
        </property>
       </widget>
      </item>

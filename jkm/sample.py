@@ -57,7 +57,11 @@ class SampleBase(abc.ABC):
         # Delete duplicate files (hard links to the same file)
         return jkm.tools.unique(result)
 
-
+class Results():  # Partial overlap with metadata ... think about this later
+    """Sample analysis results."""
+    ocrtext = None
+    labeltext_ai1 = None
+    barcodes = None
 #------------------------------------------------------------------------------------------------------    
 class SampleEvent(SampleBase,  abc.ABC):
     "Container for 0+ photos of an sample and event-level metadata."
@@ -70,10 +74,9 @@ class SampleEvent(SampleBase,  abc.ABC):
         self.prefix  = "" # Common file name prefix (often/ALWAYS same as self.datapath?)
         self.datapath = "" # Data directory for this record 
         self.meta = jkm.samplemetadata.EventMetadata() # Event-level metadata
-#        self._has_metadatafile = False
-#        self._is_directory = False
         self._identifier = None
         self._shortidentifier = None
+        self.results = Results()
     @property
     def identifier(self):  return self._identifier
     @identifier.setter

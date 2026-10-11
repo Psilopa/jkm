@@ -80,12 +80,23 @@ class AI_output:
     """A class for storing AI output. 
     
     Can hold both unstructured and structured content. If either is missing, returns None. """
+    rawstr = "raw"
     def __init__(self):
         self._text = None
         self._dict = None
         self.raw = ""
+    def _pp_lines(self,dictionary,  noraw):
+        lines = []
+        for k,v in self._dict.items():
+            if noraw and (k == self.rawstr): continue # SUPPRESS 'raw' here
+            if type(v) == dict: lines += self._pp_lines(v, noraw)
+            else: lines.append(f"\t{k}:{v}")
+        return lines
+    def to_prettyprint(self, newline = "\n", noraw = True):
+        lines = self._pp_lines(self._dict, noraw)
+        return newline.join(lines)
     def to_dict(self):
-        self._dict.update( {"raw":self.raw} )
+        self._dict.update( {self.rawstr:self.raw} )
         return self._dict
     def from_text(self,  text, schema = None):
         self._text = text
@@ -97,8 +108,12 @@ class AI_output:
     def __str__(self): 
         if self._dict: return str(self._dict) 
         return str( self._text)
-    def to_json(self):
-        return json.dumps(self._dict)    
+    def to_json(self, suppress_raw = False):
+        if suppress_raw and self.rawstr in self._dict:
+            newdict = self._dict.copy()
+            del newdict[self.rawstr]
+            return json.dumps(newdict)
+        else: return json.dumps(self._dict)
         
 class geminiAI(): # Make subclasses based on authentication method
     def __init__(self):

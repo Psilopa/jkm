@@ -72,9 +72,11 @@ def setup_logging(name,
     # To log file
     filelog = logging.FileHandler(f"{name}.log",  encoding=LOG_FILE_ENCODING)
     filelog.setFormatter(ColorFormatter(LOGFORMAT))
-    filelog.setLevel( logging_level_file )
     # To ext
-    if ext: log.addHandler(ExtHandler(ext))
+    if ext:
+        extlog =ExtHandler(ext)
+        extlog.setLevel( logging_level_stream )
+        log.addHandler(extlog)
     log.info(f"Console logging set to level { logging.getLevelName(logging_level_stream) }.")
     return log
 

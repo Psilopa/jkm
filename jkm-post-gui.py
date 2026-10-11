@@ -11,7 +11,7 @@ from PyQt6 import uic # for uic, install package pyqt6-dev-tools
 # Translates jkm output to QT Signals
 class QExt(jkm.external.ExtBase, QObject):
     newLogEvent = pyqtSignal(logging.LogRecord)
-    newAILabelText = pyqtSignal(jkm.sample.SampleEvent)
+    newAILabelText = pyqtSignal(jkm.ai.AI_output)
     def event_exit(self, msg): pass
     def __init__(self):
         QObject.__init__(self)
@@ -19,12 +19,16 @@ class QExt(jkm.external.ExtBase, QObject):
 
     def event_log(self, logrecord): self.newLogEvent.emit( logrecord )
     #Sample-specific messages
-    def event_ai_labeltext(self, sample): self.newAILabelText.emit( sample )
+    def event_ai_labeltext(self, sample):
+        self.newAILabelText.emit( sample.results.labeltext_ai1 )
     def event_textareas(self, sample): pass
-    def event_OCRtext(self, sample): pass
-    def event_barcode_detection(self, sample): pass
+    def event_OCRtext(self, sample): 
+        ocrtext = sample.results.ocrtext
+    def event_barcode_detection(self, sample): 
+        barcodes = sample.results.barcodes
     def event_new_sample(self, sample): pass
-    def c(self, sample): pass
+    def event_single_sample_id(self, sample): 
+        sid = sample.identifier
     def event_renamed_directories(self, sample): pass
     def event_renamed_image_files(self, sample): pass
     def event_sample_done(self, sample, successQ): pass
@@ -79,7 +83,6 @@ class myQThreadPool(QThreadPool):
             worker.set_func(target, args)
             self.start(worker )
     def join(self):
-        log.debug("Watining for threads to close.")
         self.waitForDone()
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -90,7 +93,7 @@ class MainWindow(QtWidgets.QMainWindow):
             del kwargs["ext"]
         super().__init__(*args, **kwargs)
         self.logging_level_file = logging.DEBUG
-        self.logging_level_stream = logging.DEBUG
+        self.logging_level_stream = logging.INFO
         self.threadpool = None
         self.jkm = None
         self._load_UI()
@@ -106,7 +109,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.actionExit.triggered.connect(self.on_exit)
         self.actionExit.triggered.connect(self.on_exit)
         # self.ext *should* be in place by now
-        if self.ext: self.ext.newLogEvent.connect(self.on_logevent)
+        if self.ext:
+            self.ext.newLogEvent.connect(self.on_logevent)
+            self.ext.newAILabelText.connect(self.on_ailabel)
     
     def launch_jkm(self):
         self.threadpool = myQThreadPool() 
@@ -116,6 +121,13 @@ class MainWindow(QtWidgets.QMainWindow):
                       threadpool=self.threadpool,
                       ext = self.ext 
                       )
+
+    def on_ailabel(self, ai_data):
+        endline = "<br/>"
+        suppress_raw = True
+        text = ai_data.to_prettyprint(endline)
+        if text: 
+            self.aiviewer.insertHtml(text + endline)
 
     def on_logevent(self, logrecord):
         levelname = logrecord.levelname

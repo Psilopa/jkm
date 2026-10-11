@@ -71,6 +71,7 @@ def task_OCR(conf, sample):
         labeltxt = image.ocr(ocr_command) # Default ocr uses fragments created above
         alltext += " " + labeltxt
     sample.meta.addlog("Combined OCR result for all images",alltext,  log_add_hdr= sample.name)
+    sample.results.ocrtext = alltext
     return alltext
 
 def task_read_barcodes(conf,sample):
@@ -85,6 +86,7 @@ def task_read_barcodes(conf,sample):
         except jkm.errors.FileLoadingError as msg:
             log.warning(f"{sample.name}: Barcode detection attempt failed: %s" % msg)
             continue
+    sample.results.ocrtext = allbarcodes
     return allbarcodes
 
 def task_get_text_areas(conf, sample):
@@ -132,6 +134,7 @@ def task_AI_label_data_extraction(conf, sample):
     except (IOError,  jkm.errors.AIError) as msg:
         log.warning(f"{sample.name}: AI Error '{msg}'.")
         airesult = None
+    sample.results.labeltext_ai1 = airesult
     return airesult
     
 def task_rename_directories(conf, sample):
@@ -473,10 +476,10 @@ class jkm_post():
             log.critical(f"Execution failed with error message '{msg}'")
         except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
             log.critical(f"Loading SETUP file item failed with message: {msg}")
-        except Exception as msg:
-            # Forward all errors to logger before quitting, if we are not writing at DEBUG level
-            if logging_level_stream != logging.DEBUG:
-                log.error(f"Other error: {msg}")
+#        except Exception as msg:
+#            # Forward all errors to logger before quitting, if we are not writing at DEBUG level
+#            if logging_level_stream != logging.DEBUG:
+#                logginglog.error(f"Other error: {msg}")
         # Cleanup before closing
         if spreadsheet: spreadsheet.close()
         logging.shutdown()
