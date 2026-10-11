@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-import jkm.jkm_postprocessing_cli
+from jkm.jkm_postprocessing_main import jkm_post
 import logging
 
 logging_level_file = logging.DEBUG
 logging_level_stream = logging.DEBUG
-jkm.jkm_postprocessing_cli.main(logging_level_file, logging_level_stream)
+jkm = jkm_post()
+jkm.main(logging_level_file, logging_level_stream)
