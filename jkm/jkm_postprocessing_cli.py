@@ -17,13 +17,14 @@ import jkm.spreadsheet, jkm.ocr_analysis,  jkm.ai
 import jkm.meta, jkm.errors,  jkm.barcodes
 import jkm.labeldata_model
 
-# CONSTANT
-_BACKUP_DATATABLE = True 
-_SUCCESS = 0
-_FAIL_IGNORE = 1
-_FAIL_RETRY = 2
-_num_worker_threads = 1
+# CONSTANTS
+_BACKUP_DATATABLE = True
+_num_worker_threads = 1 # BETTER KEEP THIS AT 1: AI PROCESSES DO NOT SEEM TO LIKE CONCURRENT CALLS
 _AI_AUTH_TYPES = ("APIKEY", "CLOUD_OAUTH", "LOCAL_OAUTH")
+class processor:
+    SUCCESS = 0
+    FAIL_IGNORE = 1
+    FAIL_RETRY = 2
 #------------------ MISC TOOLS  -------------------
 class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
     _lastinsert = None
@@ -63,6 +64,28 @@ def init_spreadsheet(conf):
         spreadsheet = None
     return spreadsheet
 
+def init_AI_auth(conf):
+    auth_type = conf.get("ai", "auth_type") # Must exist if we want AI
+    log.debug(f"AI authentication method: {auth_type}")
+    if auth_type == 'APIKEY':
+        APIPATH = Path(conf.get("ai","APIkeyfile"))
+        conf.APIKEY = jkm.ai.load_apikey(APIPATH) # HACK, FIND A BETTER WAY TO PASS THIS
+        log.debug(f"Reading API key from {APIPATH}")
+        log.debug(f"AI prompt set to \'{conf.get('ai','prompt')}\'")
+    elif auth_type == "CLOUD_OAUTH":
+        pass # Should verify that necessary conditions to run exist                
+    elif auth_type == "LOCAL_OAUTH":
+        pass # Should verify that necessary conditions to run exist                
+    else:
+        raise jkm.errors.AIError(f"Unknown AI authentication method {auth_type}")                
+
+def find_existing_events(conf):
+            datafile_patterns = conf.getlist("data", "recognize_by_filename_pattern")        
+            # Find list of file names matching a pattern and put them into the queue
+            sample_format = conf.get("data", "datatype_to_load")        
+            sample_class = get_sample_class( sample_format.lower() )
+            found = sample_class.find_samples(conf.basepath,datafile_patterns)          
+            return found
 #------------------ SINGLE TASKS -------------------
 def task_add_prefix_to_imagefiles(sample):
     try:
@@ -228,7 +251,7 @@ def processSingleEvent(filename, conf, spreadsheet):
         else: assert False, "Unknown sample format."
     except jkm.errors.FileLoadingError as msg:
                 log.error(msg)
-                return _FAIL_IGNORE
+                return processor.FAIL_IGNORE
             
     # MAIN POSTPROCESSOR STARTS HERE
     # TODO: CHECK IF THIS WORKS WITH THE REIMPLEMENTED sample
@@ -315,7 +338,7 @@ def processSingleEvent(filename, conf, spreadsheet):
         task_write_postprocessor_report(conf, sample)
     else: log.debug(f"{sample.name}: No postprocessor report file created for sample.")
 
-    return _SUCCESS
+    return processor.SUCCESS
 
 # ----------------- main worker function, called in a new thread created when a sample arrival event is noticed ------------------------
 def processSampleEvents(queue, conf, sleep_s, spreadsheet):
@@ -328,15 +351,16 @@ def processSampleEvents(queue, conf, sleep_s, spreadsheet):
         try: successQ = processSingleEvent(filename, conf, spreadsheet)        
         except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
             log.critical(f"Loading SETUP file item failed with message: {msg}")
-            successQ = _FAIL_IGNORE
-        if successQ is _FAIL_RETRY: queue.put(input) # retry from start 
-        elif successQ is _FAIL_IGNORE: queue.done() 
-        elif successQ is _SUCCESS: pass # Do nothing
+            successQ = processor.FAIL_IGNORE
+        if successQ is processor.FAIL_RETRY: queue.put(input) # retry from start
+        elif successQ is processor.FAIL_IGNORE: queue.done() 
+        elif successQ is processor.SUCCESS: pass # Do nothing
         #DONE
         log.info(f"Sample events in process queue: {queue.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
 
 def main(logging_level_file = logging.INFO, logging_level_stream = logging.INFO):
     threads = []
+    spreadsheet = None
     q = queue.Queue() # a FIFO queue of trigger file names
     # Set loggers in all modules
     log = init_logging(logging_level_file, logging_level_stream)
@@ -344,7 +368,8 @@ def main(logging_level_file = logging.INFO, logging_level_stream = logging.INFO)
     # Read config file name from sys.argv and parse the file
     try: 
         conf = jkm.configfile.load(jkm.meta.name)
-        try: conf.verify( must_have = ["postprocessor", "tasks", "data","meta","spreadsheet",
+        try: # Configuration verification
+            conf.verify( must_have = ["postprocessor", "tasks", "data","meta","spreadsheet",
                                       ["data","main_data_directory"],
                                       ["data","datatype_to_load"],
                                       ["data","recognize_by_filename_pattern"],
@@ -353,38 +378,24 @@ def main(logging_level_file = logging.INFO, logging_level_stream = logging.INFO)
                                       ["postprocessor","sleep_after_new_sample_detected"],
                                         ],
                          should_have = []
-                        )   
+                        )
+            if conf.has_section("barcodes"):
+                barcodepackage = conf.get( "barcodes", "barcodepackage")
+                log.debug(f'Using QR code decoder {barcodepackage}')
+            jkm.tools.quit_if_not_exists(conf.basepath)
         except jkm.errors.ConfigWarning: pass # Exception does its own logging            
-        jkm.tools.quit_if_not_exists(conf.basepath)
         datafile_patterns = conf.getlist("data", "recognize_by_filename_pattern")        
         if conf.getb("postprocessor", "process_existing"):
-            # Find list of file names matching a pattern and put them into the queue
-            sample_format = conf.get("data", "datatype_to_load")        
-            sample_class = get_sample_class( sample_format.lower() )
-            existingevents = sample_class.find_samples(conf.basepath,datafile_patterns)
-            for fn in existingevents: q.put(fn)
+            # Queue existing data from base directory
+            for fn in find_existing_events(conf):
+                q.put(fn)
             log.info(f"Approximate number of sample events to process at launch is {q.qsize()}")
         
         if conf.getb("tasks", "labeldata_to_CSV", default = False):
             spreadsheet = init_spreadsheet(conf)
 
-        if conf.has_section("barcodes"):
-            log.debug(f'Using QR code decoder {conf.get( "barcodes", "barcodepackage")}')
         if conf.getb("tasks", "ai_label_text_extraction", default = False):
-            auth_type = conf.get("ai", "auth_type")
-            log.debug(f"AI authentication method: {auth_type}")
-            if auth_type == 'APIKEY':
-                APIPATH = Path(conf.get("ai","APIkeyfile"))
-                conf.APIKEY = jkm.ai.load_apikey(APIPATH) # HACK, FIND A BETTER WAY TO PASS THIS
-                log.debug(f"Reading API key from {APIPATH}")
-#                log.debug(f"API key is {conf.APIKEY}")
-                log.debug(f"AI prompt set to \'{conf.get('ai','prompt')}\'")
-            elif auth_type == "CLOUD_OAUTH":
-                pass # Should verify that necessary conditions to run exist                
-            elif auth_type == "LOCAL_OAUTH":
-                pass # Should verify that necessary conditions to run exist                
-            else:
-                raise jkm.errors.JKError(f"Unknown AI authentication method {auth_type}")                
+            init_AI_auth(conf) # Reads keys if needed, verifies conf for chosed method. Raises jkm.errors.AIError on failure
 
          #Start loops looking for data to process and processing it
         # Wait period from file detection to file processing
@@ -396,8 +407,8 @@ def main(logging_level_file = logging.INFO, logging_level_stream = logging.INFO)
             threads.append(t)    
         if not conf.getb( "postprocessor", "monitor"):
             log.debug(f"NOT MONITORING - will process target directory once: {str(conf.basepath)} ")
-    #        q.join() # block until all tasks are done
-        else:        
+        else:   
+            # Will also process any data inserted in the queue before this point
             log.debug(f"MONITORING DIRECTORY: {str(conf.basepath)}.")
             # Start a filesystem watchdog thread watching for NEW .metadata files
             event_handler = myFileEventHandler(q, patterns=datafile_patterns) # HERE
@@ -429,7 +440,9 @@ def main(logging_level_file = logging.INFO, logging_level_stream = logging.INFO)
         # Forward all errors to logger before quitting, if we are not writing at DEBUG level
         if logging_level_stream != logging.DEBUG:
             log.error(f"Other error: {msg}")
+    # Cleanup before closing
+    if spreadsheet: spreadsheet.close()
     logging.shutdown()
 
 if __name__ == '__main__':
-    main()
+    main(logging_level_file = logging.DEBUG, logging_level_stream = logging.DEBUG)
