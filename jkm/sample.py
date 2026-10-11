@@ -15,9 +15,6 @@ deg2rotcode = {90: cv2.ROTATE_90_CLOCKWISE,
                180: cv2.ROTATE_180,
                270: cv2.ROTATE_90_COUNTERCLOCKWISE}
 
-# Helper functions
-def _UNIQUE(s) :return list(set(s))
-
 def getFileCreationDateTime(fn):
     # Does not work well on POSIX systems, which return the last modified date for getctime
     timestamp =  os.path.getctime(fn)
@@ -58,25 +55,28 @@ class SampleBase(abc.ABC):
             tempr = [x for x in tempr if ( str(x).find("textarea") == -1 )] # Skip files with "textarea" in their name
             result.extend( tempr )
         # Delete duplicate files (hard links to the same file)
-        return _UNIQUE(result)
+        return jkm.tools.unique(result)
 
-
+class Results():  # Partial overlap with metadata ... think about this later
+    """Sample analysis results."""
+    ocrtext = None
+    labeltext_ai1 = None
+    barcodes = None
 #------------------------------------------------------------------------------------------------------    
 class SampleEvent(SampleBase,  abc.ABC):
     "Container for 0+ photos of an sample and event-level metadata."
     supports_rename_files = True    
     supports_rename_directories = False    
-
+    
     def __init__(self,  time = None):
         super().__init__(time)
         self._imagelist = [] # List of SamplePhoto subclass instances
         self.prefix  = "" # Common file name prefix (often/ALWAYS same as self.datapath?)
         self.datapath = "" # Data directory for this record 
         self.meta = jkm.samplemetadata.EventMetadata() # Event-level metadata
-#        self._has_metadatafile = False
-#        self._is_directory = False
         self._identifier = None
         self._shortidentifier = None
+        self.results = Results()
     @property
     def identifier(self):  return self._identifier
     @identifier.setter
@@ -294,6 +294,8 @@ class CombinedImage(SpecimenImage, LabelImage): # Note: potential problems with 
 #------------------------------------------------------------------------------------------------------    
 class SingleImageSample(SampleEvent): 
     """A single image based minimal sample event"""
+    supports_rename_files = True    
+    supports_rename_directories = False    
     def __init__(self,  time = None):
 #        self._has_metadatafile = False
 #        self._is_directory = False
@@ -320,6 +322,8 @@ class SingleImageSample(SampleEvent):
         return x.split(separator)[-1] # Last element
 #------------------------------------------------------------------------------------------------------    
 class LuomusLineSample(SampleEvent): 
+    supports_rename_files = True    
+    supports_rename_directories = True    
     allowed_URI_domains = ["http://tun.fi/", "http://id.luomus.fi/",""]
     def __init__(self,  time=None):
         super().__init__(time)
@@ -455,6 +459,8 @@ class LuomusInsectLineSample(LuomusLineSample):
 #------------------------------------------------------------------------------------------------------    
 _DEFAULT_IMGDIR_FILE_FORMAT = "*.jpg"
 class ImageDirectorySample(LuomusLineSample): 
+    supports_rename_files = True    
+    supports_rename_directories = True    
     # Read from the SETUP file
     # trigger_pattern = ".identier"
     def __init__(self,  time=None,  imagefilepattern = _DEFAULT_IMGDIR_FILE_FORMAT):

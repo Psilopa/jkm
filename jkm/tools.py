@@ -46,7 +46,17 @@ class ColorFormatter(logging.Formatter):
         formatter = logging.Formatter(log_fmt)
         return formatter.format(record)
             
-def setup_logging(name, logging_level_file = logging.INFO, logging_level_stream = logging.INFO):
+# Send log data to an external reader via an event
+class ExtHandler(logging.Handler):
+    def __init__(self, ext):
+        super().__init__()
+        self.ext = ext
+    def emit(self,record): self.ext.event_log(record)
+
+def setup_logging(name,
+                  logging_level_file = logging.INFO,
+                  logging_level_stream = logging.INFO,
+                  ext = None):
     """Set up logging services"""
     LOGFORMAT = '%(levelname)s: %(message)s [%(asctime)s]'
     #TODO: Call needed on windows only!
@@ -62,8 +72,11 @@ def setup_logging(name, logging_level_file = logging.INFO, logging_level_stream 
     # To log file
     filelog = logging.FileHandler(f"{name}.log",  encoding=LOG_FILE_ENCODING)
     filelog.setFormatter(ColorFormatter(LOGFORMAT))
-    filelog.setLevel( logging_level_file )
-    log.addHandler(filelog)
+    # To ext
+    if ext:
+        extlog =ExtHandler(ext)
+        extlog.setLevel( logging_level_stream )
+        log.addHandler(extlog)
     log.info(f"Console logging set to level { logging.getLevelName(logging_level_stream) }.")
     return log
 
