@@ -2,25 +2,33 @@
 import atexit, re, logging
 # Local
 from jkm.jkm_postprocessing_main import jkm_post
-import jkm.meta, jkm.external
+import jkm.meta, jkm.external, jkm.ai
 # QT
 from PyQt6.QtCore import QThreadPool, QRunnable, pyqtSlot, pyqtSignal, QObject
 import PyQt6.QtWidgets as QtWidgets
 from PyQt6 import uic # for uic, install package pyqt6-dev-tools 
 
-# Hook from jkm output to QT Signals
+# Translates jkm output to QT Signals
 class QExt(jkm.external.ExtBase, QObject):
     newLogEvent = pyqtSignal(logging.LogRecord)
+    newAILabelText = pyqtSignal(jkm.sample.SampleEvent)
+    def event_exit(self, msg): pass
     def __init__(self):
         QObject.__init__(self)
         jkm.external.ExtBase.__init__(self)
-    def event_exit(self, msg):
-        pass
-    def event_ai_output(self, container):
-        pass
-    def event_log(self, logrecord):
-        self.newLogEvent.emit( logrecord )
-    
+
+    def event_log(self, logrecord): self.newLogEvent.emit( logrecord )
+    #Sample-specific messages
+    def event_ai_labeltext(self, sample): self.newAILabelText.emit( sample )
+    def event_textareas(self, sample): pass
+    def event_OCRtext(self, sample): pass
+    def event_barcode_detection(self, sample): pass
+    def event_new_sample(self, sample): pass
+    def c(self, sample): pass
+    def event_renamed_directories(self, sample): pass
+    def event_renamed_image_files(self, sample): pass
+    def event_sample_done(self, sample, successQ): pass
+
 @atexit.register
 def atExit():
     # Make sure postprocessor shutdown gets called even at unusual program exits
@@ -108,14 +116,14 @@ class MainWindow(QtWidgets.QMainWindow):
                       threadpool=self.threadpool,
                       ext = self.ext 
                       )
+
     def on_logevent(self, logrecord):
         levelname = logrecord.levelname
         text = logrecord.message
         text = f"{levelname}: {text}"
         self.add_logmsg(text)
-        print("Log event received.")
 
-    def add_logmsg(self,htmltext, endline = "<br/>"):
+    def add_logmsg(self,htmltext, endline = "<br/>"): # Reused from LabelImaging
         if not endline: endline = ""
         for re_object, processor in self.rules:
             htmltext = re_object.sub(processor, htmltext)

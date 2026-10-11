@@ -192,144 +192,158 @@ def get_sample_class(sample_format_str):
         else:
             raise jkm.errors.FileLoadingError(f"Unknown sample file/directory format {sample_format}, skippping to next.")
     
-# ----------------- Process a single event ------------------------
-def processSingleEvent(filename, conf, spreadsheet):
-    log.debug(f"Processing data file {filename}" )
-    # Variables to hold extracted data
-    alltext = ""
-    allbarcodes = []
-    try:
-        # Create a Sample Event
-        dirpath= filename.parent
-        # Catch some error states
-        if not dirpath.is_dir():                
-            raise jkm.errors.FileLoadingError(f"Cannot find path {dirpath},  skipping to next sample.")
-        if not filename.exists():
-            raise jkm.errors.FileLoadingError(f"Could not find file {filename}, skipping.")
-        # Try to recognise input file/directory format
-        sample_format = conf.get("data", "datatype_to_load")        
-        sample_class = get_sample_class( sample_format.lower() )
-        if sample_class in (jkm.sample.LuomusInsectLineSample,
-                            jkm.sample.LuomusPlantLineSample,
-                            jkm.sample.ImageDirectorySample,
-                            ): 
-            sample = sample_class.from_directory(dirpath, conf)
-        elif sample_class in (jkm.sample.SingleImageSample,  ):
-            sample = sample_class.from_image_file(filename, conf)
-        # get_sample_class(sformat) should already block unknown sample types    
-        else: assert False, "Unknown sample format."
-    except jkm.errors.FileLoadingError as msg:
-                log.error(msg)
-                return processor.FAIL_IGNORE
-            
-    # MAIN POSTPROCESSOR STARTS HERE
-    # TODO: CHECK IF THIS WORKS WITH THE REIMPLEMENTED sample
-    log.info(f"Postprocessing sample {sample.name}")
-
-    # ROTATE?
-    degrees = conf.geti( "tasks", "rotate_before_processing")
-    if degrees: task_rotate(degrees)# non-zero value    
-    else: log.debug(f"{sample.name}: No rotation performed.")
-    # SAVE ROTATED (NOT IMPLEMENTED)
-    
-    # FIND BARCODES?
-    if conf.getb( "tasks", "read_barcodes"):
-        allbarcodes += task_read_barcodes(conf,sample)
-    else: log.debug(f"{sample.name}: No barcode extraction.")
-                
-    # FIND TEXT ARES?
-    if conf.getb( "tasks", "find_text_areas"):
-        textareas = task_get_text_areas(conf, sample)
-    else:
-        textareas = []
-        log.debug(f"{sample.name}: No text area recognition.")
-
-    # PERFORM OCR?
-    if conf.getb( "tasks", "ocr"):
-       alltext = task_OCR(conf, sample)
-    else: log.debug(f"{sample.name}: No OCR.")
-
-    # AI-BASED TEXT EXTRACTION ?
-    if conf.getb( "tasks", "ai_label_text_extraction"):
-        airesult = task_AI_label_data_extraction(conf, sample)
-    else:
-        airesult = None
-        log.debug(f"{sample.name}: No AI label data extraction.")
-
-    # SUBMIT alltext to COMPONENT ANALYSIS ?
-#¤    if conf.getb( "tasks", "ocr") and conf.getb( "tasks", "ocr_analysis"):
- #        ocrdata = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
- #        log.debug(f"{sample.name}: OCR data parsing output: {ocrdata}")
- #   else: 
- #        ocrdata = []
- #        log.debug(f"{sample.name}: No OCR data parsing attempted.")           
-
-     # FOR FURTHER PROCESSING, CHECK IF IDENTIFIER LIST CONTAINS A SINGLE VALID IDENTIFIER
-    # In case sample does already have a known identifier, append to to the list
-
-    # DO SOME CLEANUP
-    if sample.identifier: allbarcodes.append(sample.identifier)
-    sampleids = jkm.tools.unique(allbarcodes)
-    if len(sampleids) == 0:
-        log.warning(f"{sample.name}:No usable identifiers found")
-    elif len(sampleids) > 1:
-        log.warning(f"{sample.name}:Several  different identifiers for the sample in barcodes/OCR/sample metadata")
-    else: sample.identifier =  sampleids[0] # Sets also sample.shortidentifier
-    
-    # RENAME DIRECTORIES (this may need to stay above file renaming)  
-    if sample.shortidentifier and conf.getb( "tasks", "directories_rename_by_barcode_id"):
-        task_rename_directories(conf, sample)
-    else: log.debug(f"{sample.name}: No directory rename.")
-
-    # RENAME FILES
-    # Current implementation renames only the original image files as per the configuration file
-    if sample.shortidentifier and conf.getb( "tasks", "files_rename_by_barcode_id", default=False):
-        task_add_prefix_to_imagefiles(sample)
-    else: log.debug(f"{sample.name}: No file(s) rename.")
-
-    # FINALLY, WRITE RESULTS TO FILES
-    # Store interpreted data in a spreadsheet file 
-    if spreadsheet and conf.getb( "tasks", "ai_label_text_extraction"):
-        # Check if we want to store raw/all output from the AI (it can be loooong)
-        write_raw_output= conf.getb( "spreadsheet", "write_raw_output", default = True)
-        task_write_spreadsheet(spreadsheet, airesult,sample.identifier, write_raw_output)
-        log.debug(f"{sample.name}: ...table data adding done")
-    else: log.debug(f"{sample.name}: No data export to a spreadsheet.")
-
-    # Write sample metadata to a JSON Metadata file (should this be before renaming?)
-    if conf.getb( "tasks", "save_JSON", default=False):
-        sample.writeMetaJSON()
-    else: log.debug(f"{sample.name}: No JSON metadata file created.")
-
-    # Write a sample (and sample type) specific postprocessor report file (or files)
-    if conf.getb( "tasks", "write_postprocessor_report_file", default=False):
-        log.debug(f"{sample.name}: Postprocessor report file created for sample.")
-        task_write_postprocessor_report(conf, sample)
-    else: log.debug(f"{sample.name}: No postprocessor report file created for sample.")
-
-    return processor.SUCCESS
-
-# ----------------- main worker function, called in a new thread created when a sample arrival event is noticed ------------------------
-def processSampleEvents(queue, conf, sleep_s, spreadsheet):
-    while True:
-        # Input queue = name of file found by the directory watcher tool
-        input = queue.get()
-        if input is None: break
-        filename = Path(input)
-        time.sleep(sleep_s) # Wait for all data to arrive
-        try: successQ = processSingleEvent(filename, conf, spreadsheet)        
-        except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
-            log.critical(f"Loading SETUP file item failed with message: {msg}")
-            successQ = processor.FAIL_IGNORE
-        if successQ is processor.FAIL_RETRY: queue.put(input) # retry from start
-        elif successQ is processor.FAIL_IGNORE: queue.done() 
-        elif successQ is processor.SUCCESS: pass # Do nothing
-        #DONE
-        log.info(f"Sample events in process queue: {queue.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
-
-# TODO: move functions from above to class functions & change conf to an attribute
 class jkm_post():
     ext = None
+    # ----------------- Process a single event ------------------------
+    def processSingleEvent(self,filename, conf, spreadsheet):
+        log.debug(f"Processing data file {filename}" )
+        # Variables to hold extracted data
+        alltext = ""
+        allbarcodes = []
+        try:
+            # Create a Sample Event
+            dirpath= filename.parent
+            # Catch some error states
+            if not dirpath.is_dir():                
+                raise jkm.errors.FileLoadingError(f"Cannot find path {dirpath},  skipping to next sample.")
+            if not filename.exists():
+                raise jkm.errors.FileLoadingError(f"Could not find file {filename}, skipping.")
+            # Try to recognise input file/directory format
+            sample_format = conf.get("data", "datatype_to_load")        
+            sample_class = get_sample_class( sample_format.lower() )
+            if sample_class in (jkm.sample.LuomusInsectLineSample,
+                                jkm.sample.LuomusPlantLineSample,
+                                jkm.sample.ImageDirectorySample,
+                                ): 
+                sample = sample_class.from_directory(dirpath, conf)
+            elif sample_class in (jkm.sample.SingleImageSample,  ):
+                sample = sample_class.from_image_file(filename, conf)
+            # get_sample_class(sformat) should already block unknown sample types    
+            else: assert False, "Unknown sample format."
+        except jkm.errors.FileLoadingError as msg:
+                    log.error(msg)
+                    return processor.FAIL_IGNORE
+                
+        # MAIN POSTPROCESSOR STARTS HERE
+        # TODO: CHECK IF THIS WORKS WITH THE REIMPLEMENTED sample
+        log.info(f"Postprocessing sample {sample.name}")
+        if self.ext: self.ext.event_new_sample(sample)
+
+        # ROTATE?
+        degrees = conf.geti( "tasks", "rotate_before_processing")
+        if degrees: task_rotate(degrees)# non-zero value    
+        else: log.debug(f"{sample.name}: No rotation performed.")
+        # SAVE ROTATED (NOT IMPLEMENTED)
+        
+        # FIND BARCODES?
+        if conf.getb( "tasks", "read_barcodes"):
+            allbarcodes += task_read_barcodes(conf,sample)
+            if self.ext: self.ext.event_barcode_detection(sample)
+        else: log.debug(f"{sample.name}: No barcode extraction.")
+                    
+        # FIND TEXT ARES?
+        if conf.getb( "tasks", "find_text_areas"):
+            textareas = task_get_text_areas(conf, sample)
+            if self.ext: self.ext.event_textareas(sample)
+        else:
+            textareas = []
+            log.debug(f"{sample.name}: No text area recognition.")
+
+        # PERFORM OCR?
+        if conf.getb( "tasks", "ocr"):
+            alltext = task_OCR(conf, sample)
+            if self.ext: self.ext.event_OCRtext(sample)
+        else: log.debug(f"{sample.name}: No OCR.")
+
+        # AI-BASED TEXT EXTRACTION ?
+        if conf.getb( "tasks", "ai_label_text_extraction"):
+            airesult = task_AI_label_data_extraction(conf, sample)
+            if self.ext: self.ext.event_ai_labeltext(sample)
+        else:
+            airesult = None
+            log.debug(f"{sample.name}: No AI label data extraction.")
+
+        # SUBMIT alltext to COMPONENT ANALYSIS ?
+    #¤    if conf.getb( "tasks", "ocr") and conf.getb( "tasks", "ocr_analysis"):
+     #        ocrdata = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
+     #        log.debug(f"{sample.name}: OCR data parsing output: {ocrdata}")
+     #   else: 
+     #        ocrdata = []
+     #        log.debug(f"{sample.name}: No OCR data parsing attempted.")           
+
+         # FOR FURTHER PROCESSING, CHECK IF IDENTIFIER LIST CONTAINS A SINGLE VALID IDENTIFIER
+        # In case sample does already have a known identifier, append to to the list
+
+        # DO SOME CLEANUP
+        if sample.identifier: allbarcodes.append(sample.identifier)
+        sampleids = jkm.tools.unique(allbarcodes)
+        if len(sampleids) == 0:
+            log.warning(f"{sample.name}:No usable identifiers found")
+        elif len(sampleids) > 1:
+            log.warning(f"{sample.name}:Several  different identifiers for the sample in barcodes/OCR/sample metadata")
+        else:
+            sample.identifier =  sampleids[0] # Sets also sample.shortidentifier
+            if self.ext: self.ext.event_single_sample_id(sample)
+        
+        # RENAME DIRECTORIES (this may need to stay above file renaming)  
+        if sample.shortidentifier \
+                  and  conf.getb( "tasks", "directories_rename_by_barcode_id") \
+                  and sample.supports_rename_directories:
+            task_rename_directories(conf, sample)
+            if self.ext: self.ext.event_renamed_directories(sample)
+        else: log.debug(f"{sample.name}: No directory rename.")
+
+        # RENAME FILES
+        # Current implementation renames only the original image files as per the configuration file
+        if sample.shortidentifier \
+                        and conf.getb( "tasks", "files_rename_by_barcode_id", default=False) \
+                        and sample.supports_rename_files:
+            task_add_prefix_to_imagefiles(sample)
+            if self.ext: self.ext.event_renamed_image_files(sample)
+        else: log.debug(f"{sample.name}: No file(s) rename.")
+
+        # FINALLY, WRITE RESULTS TO FILES
+        # Store interpreted data in a spreadsheet file 
+        if spreadsheet and conf.getb( "tasks", "ai_label_text_extraction"):
+            # Check if we want to store raw/all output from the AI (it can be loooong)
+            write_raw_output= conf.getb( "spreadsheet", "write_raw_output", default = True)
+            task_write_spreadsheet(spreadsheet, airesult,sample.identifier, write_raw_output)
+            log.debug(f"{sample.name}: ...table data adding done")
+        else: log.debug(f"{sample.name}: No data export to a spreadsheet.")
+
+        # Write sample metadata to a JSON Metadata file (should this be before renaming?)
+        if conf.getb( "tasks", "save_JSON", default=False):
+            sample.writeMetaJSON()
+        else: log.debug(f"{sample.name}: No JSON metadata file created.")
+
+        # Write a sample (and sample type) specific postprocessor report file (or files)
+        if conf.getb( "tasks", "write_postprocessor_report_file", default=False):
+            log.debug(f"{sample.name}: Postprocessor report file created for sample.")
+            task_write_postprocessor_report(conf, sample)
+        else: log.debug(f"{sample.name}: No postprocessor report file created for sample.")
+
+        if self.ext: self.ext.event_sample_done(sample, processor.SUCCESS)
+        return processor.SUCCESS
+
+# ----------------- main worker function, called in a new thread created when a sample arrival event is noticed ------------------------
+    def processSampleEvents(self,queue, conf, sleep_s, spreadsheet):
+        while True:
+            # Input queue = name of file found by the directory watcher tool
+            input = queue.get()
+            if input is None: break
+            filename = Path(input)
+            time.sleep(sleep_s) # Wait for all data to arrive
+            try: successQ = self.processSingleEvent(filename, conf, spreadsheet)        
+            except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
+                log.critical(f"Loading SETUP file item failed with message: {msg}")
+                successQ = processor.FAIL_IGNORE
+            if successQ is processor.FAIL_RETRY: queue.put(input) # retry from start
+            elif successQ is processor.FAIL_IGNORE: queue.done() 
+            elif successQ is processor.SUCCESS: pass # Do nothing
+#            if self.ext: self.ext.event_sample_done(sample, processor.SUCCESS) # ... but we do NOT know the sample here, at it is not returned. TODO
+            #DONE
+            log.info(f"Sample events in process queue: {queue.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
+
     def init_logging(self,logging_level_file, logging_level_stream):
         log = jkm.tools.setup_logging(jkm.meta.name, logging_level_file, logging_level_stream, ext = self.ext)
         jkm.configfile.log = log    
@@ -425,7 +439,7 @@ class jkm_post():
             # Allows for enough time for transfer of a file(s)  to be completed
             sleep_s_before_reading = conf.getf("postprocessor", "sleep_after_new_sample_detected")
             for i in range(_num_worker_threads):
-                threadpool.newthread(target=processSampleEvents,  args=(q,conf, sleep_s_before_reading, spreadsheet) )
+                threadpool.newthread(target=self.processSampleEvents,  args=(q,conf, sleep_s_before_reading, spreadsheet) )
             if not conf.getb( "postprocessor", "monitor"):
                 log.debug(f"NOT MONITORING - will process target directory once: {str(conf.basepath)} ")
             else:   
