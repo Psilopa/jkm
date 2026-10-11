@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import time,  logging,  ast,  math,  re,  io,  shutil, os 
-import time,  logging,  ast,  math,  re,  io,  shutil, os 
 from pathlib import Path
 import numpy as np
 import cv2
@@ -72,10 +71,13 @@ def setup_logging(name,
     # To log file
     filelog = logging.FileHandler(f"{name}.log",  encoding=LOG_FILE_ENCODING)
     filelog.setFormatter(ColorFormatter(LOGFORMAT))
+    filelog.setLevel( logging_level_file )
+    log.addHandler(filelog)
     # To ext
     if ext:
         extlog =ExtHandler(ext)
-        extlog.setLevel( logging_level_stream )
+        # At least for now, default external logging to use the same settings as stream
+        extlog.setLevel( logging_level_stream ) 
         log.addHandler(extlog)
     log.info(f"Console logging set to level { logging.getLevelName(logging_level_stream) }.")
     return log
