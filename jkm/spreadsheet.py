@@ -43,8 +43,6 @@ class SpreadsheetCSV():
                                     )  
         self.writer = csv.DictWriter(self.csvfile, fieldnames, dialect = self.dialect,  extrasaction='raise')
     def add_line_from_dict(self, datarowdict):
-        for k in datarowdict.keys():
-            print(f"{k} = ", datarowdict[k])
 #        datarowdict = {k:v for k,v in datarowdict.items()}
         self.writer.writerow(  datarowdict )
         self.csvfile.flush() # Write data to file immediately
