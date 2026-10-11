@@ -16,6 +16,7 @@ import jkm.configfile,  jkm.sample,  jkm.tools
 import jkm.spreadsheet, jkm.ocr_analysis,  jkm.ai
 import jkm.meta, jkm.errors,  jkm.barcodes
 import jkm.labeldata_model
+import jkm.external as ext
 
 # CONSTANTS
 _BACKUP_DATATABLE = True
@@ -46,49 +47,6 @@ class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
         if event.src_path != self._lastinsert: self.queue.put(event.src_path)
         else: log.debug(f"Prevented double insertion of {event.src_path} into the queue")
         self._lastinsert = event.src_path        
-
-def init_logging(logging_level_file, logging_level_stream):
-    log = jkm.tools.setup_logging(jkm.meta.name, logging_level_file, logging_level_stream)
-    jkm.configfile.log = log    
-    jkm.tools.log = log
-    jkm.ocr.log = log  # IF OCR
-    jkm.sample.log = log
-    jkm.samplemetadata.log = log
-    jkm.ai.log = log
-    jkm.barcodes.log = log
-    return log
-    
-def init_spreadsheet(conf): 
-    try: 
-        spreadsheetpath = Path( conf.get("spreadsheet","filename") ) 
-        if  _BACKUP_DATATABLE:  
-            timestr = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
-            backup_path = spreadsheetpath.with_stem( spreadsheetpath.stem + "_" + timestr ) 
-            jkm.tools.backup_file(spreadsheetpath,  backup_path) # TODO: check return 
-        sheetformat = conf.get("spreadsheet","format") 
-        if sheetformat.lower() != "csv": 
-            log.warning("Unknown ") 
-        spreadsheet = jkm.spreadsheet.SpreadsheetCSV(spreadsheetpath)
-        log.info(f"Tabular output is appended to file {spreadsheetpath}")
-    except IOError as msg: 
-        log.critical(f"Error in opening file {spreadsheetpath} for output:{msg}")
-        spreadsheet = None
-    return spreadsheet
-
-def init_AI_auth(conf):
-    auth_type = conf.get("ai", "auth_type") # Must exist if we want AI
-    log.debug(f"AI authentication method: {auth_type}")
-    if auth_type == 'APIKEY':
-        APIPATH = Path(conf.get("ai","APIkeyfile"))
-        conf.APIKEY = jkm.ai.load_apikey(APIPATH) # HACK, FIND A BETTER WAY TO PASS THIS
-        log.debug(f"Reading API key from {APIPATH}")
-        log.debug(f"AI prompt set to \'{conf.get('ai','prompt')}\'")
-    elif auth_type == "CLOUD_OAUTH":
-        pass # Should verify that necessary conditions to run exist                
-    elif auth_type == "LOCAL_OAUTH":
-        pass # Should verify that necessary conditions to run exist                
-    else:
-        raise jkm.errors.AIError(f"Unknown AI authentication method {auth_type}")                
 
 def find_existing_events(conf):
             datafile_patterns = conf.getlist("data", "recognize_by_filename_pattern")        
@@ -370,9 +328,51 @@ def processSampleEvents(queue, conf, sleep_s, spreadsheet):
         log.info(f"Sample events in process queue: {queue.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
 
 # TODO: move functions from above to class functions & change conf to an attribute
-import jkm.ext
 class jkm_post():
     ext = None
+    def init_logging(self,logging_level_file, logging_level_stream):
+        log = jkm.tools.setup_logging(jkm.meta.name, logging_level_file, logging_level_stream, ext = self.ext)
+        jkm.configfile.log = log    
+        jkm.tools.log = log
+        jkm.ocr.log = log  # IF OCR
+        jkm.sample.log = log
+        jkm.samplemetadata.log = log
+        jkm.ai.log = log
+        jkm.barcodes.log = log
+        return log
+        
+    def init_spreadsheet(self,conf): 
+        try: 
+            spreadsheetpath = Path( conf.get("spreadsheet","filename") ) 
+            if  _BACKUP_DATATABLE:  
+                timestr = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
+                backup_path = spreadsheetpath.with_stem( spreadsheetpath.stem + "_" + timestr ) 
+                jkm.tools.backup_file(spreadsheetpath,  backup_path) # TODO: check return 
+            sheetformat = conf.get("spreadsheet","format") 
+            if sheetformat.lower() != "csv": 
+                log.warning("Unknown ") 
+            spreadsheet = jkm.spreadsheet.SpreadsheetCSV(spreadsheetpath)
+            log.info(f"Tabular output is appended to file {spreadsheetpath}")
+        except IOError as msg: 
+            log.critical(f"Error in opening file {spreadsheetpath} for output:{msg}")
+            spreadsheet = None
+        return spreadsheet
+
+    def init_AI_auth(self,conf):
+        auth_type = conf.get("ai", "auth_type") # Must exist if we want AI
+        log.debug(f"AI authentication method: {auth_type}")
+        if auth_type == 'APIKEY':
+            APIPATH = Path(conf.get("ai","APIkeyfile"))
+            conf.APIKEY = jkm.ai.load_apikey(APIPATH) # HACK, FIND A BETTER WAY TO PASS THIS
+            log.debug(f"Reading API key from {APIPATH}")
+            log.debug(f"AI prompt set to \'{conf.get('ai','prompt')}\'")
+        elif auth_type == "CLOUD_OAUTH":
+            pass # Should verify that necessary conditions to run exist                
+        elif auth_type == "LOCAL_OAUTH":
+            pass # Should verify that necessary conditions to run exist                
+        else:
+            raise jkm.errors.AIError(f"Unknown AI authentication method {auth_type}")                
+
     def main(self,logging_level_file = logging.INFO, logging_level_stream = logging.INFO,threadpool = myThreadPool(), ext=None ):
         """jkm_post main function.
 
@@ -382,11 +382,11 @@ class jkm_post():
             threadpool - a thread pool. GUI implementations should provide a GUI-save version
             ext - a even handler object. 
             """
-        ext = ext # hooks for an external event handler (like a GUI)
+        self.ext = ext # hooks for an external event handler (like a GUI)
         spreadsheet = None
         q = queue.Queue() # a FIFO queue of trigger file names
         # Set loggers in all modules
-        log = init_logging(logging_level_file, logging_level_stream)
+        log = self.init_logging(logging_level_file, logging_level_stream)
         log.info(f"STARTING NEW SESSION of {jkm.meta.nameversion}")
         # Read config file name from sys.argv and parse the file
         try: 
@@ -415,10 +415,10 @@ class jkm_post():
                 log.info(f"Approximate number of sample events to process at launch is {q.qsize()}")
             
             if conf.getb("tasks", "labeldata_to_CSV", default = False):
-                spreadsheet = init_spreadsheet(conf)
+                spreadsheet = self.init_spreadsheet(conf)
 
             if conf.getb("tasks", "ai_label_text_extraction", default = False):
-                init_AI_auth(conf) # Reads keys if needed, verifies conf for chosed method. Raises jkm.errors.AIError on failure
+                self.init_AI_auth(conf) # Reads keys if needed, verifies conf for chosed method. Raises jkm.errors.AIError on failure
 
              #Start loops looking for data to process and processing it
             # Wait period from file detection to file processing
@@ -452,7 +452,9 @@ class jkm_post():
             log.info("Ending session, closing log files.")
             if spreadsheet: spreadsheet.save()
         except UnicodeEncodeError as msg:
-            log.critical(f"Unicode encoding error: '{msg}'")
+            msg = f"Unicode encoding error: '{msg}'"
+            log.critical()
+            if ext: ext.event_failure(f"Unicode encoding error: '{msg}'")
         except jkm.errors.JKError as msg:
             log.critical(f"Execution failed with error message '{msg}'")
         except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
@@ -464,7 +466,7 @@ class jkm_post():
         # Cleanup before closing
         if spreadsheet: spreadsheet.close()
         logging.shutdown()
-        if ext: ext.event_exit(f"{jkm.meta.nameversion} closing down")
+        if self.ext: ext.event_exit(f"{jkm.meta.nameversion} closing down")
         
 # TODO: Needs to have a *STOP* method to allow others to kill this potentially long-running process cleanly.
 #The threadpool object should handle this
