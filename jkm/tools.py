@@ -46,25 +46,24 @@ class ColorFormatter(logging.Formatter):
         formatter = logging.Formatter(log_fmt)
         return formatter.format(record)
             
-def setup_logging(name, debug = False):
+def setup_logging(name, logging_level_file = logging.INFO, logging_level_stream = logging.INFO):
     """Set up logging services"""
     LOGFORMAT = '%(levelname)s: %(message)s [%(asctime)s]'
     os.system('color')  # Ask system console to display color if available
+    # Default logger: should do nothing as we add our own handlers, but set just in case
     log = logging.getLogger(name)
-    if debug: log.setLevel(logging.DEBUG)
-    else: log.setLevel(logging.INFO)
+    log.setLevel(logging_level_file)
     # To console
-    chc = logging.StreamHandler( )
-    chc.setFormatter(ColorFormatter(LOGFORMAT))
-    log.addHandler(chc)
+    consolelog = logging.StreamHandler( )
+    consolelog.setFormatter(ColorFormatter(LOGFORMAT))
+    consolelog.setLevel( logging_level_stream )
+    log.addHandler(consolelog)
     # To log file
-    chf = logging.FileHandler(f"{name}.log",  encoding=LOG_FILE_ENCODING)
-    chc.setFormatter(ColorFormatter(LOGFORMAT))
-    if debug: chf.setLevel(logging.DEBUG)
-    else: chf.setLevel(logging.INFO)
-    log.addHandler(chf)
-    if debug: log.info("Logging set up for debug.")
-    else: log.info("Logging set up for not debugging data.")
+    filelog = logging.FileHandler(f"{name}.log",  encoding=LOG_FILE_ENCODING)
+    filelog.setFormatter(ColorFormatter(LOGFORMAT))
+    filelog.setLevel( logging_level_file )
+    log.addHandler(filelog)
+    log.info(f"Console logging set to level { logging.getLevelName(logging_level_stream) }.")
     return log
 
 def monitor_disk_space(dir_name,limit,levels=[1,0.1,0.01]):

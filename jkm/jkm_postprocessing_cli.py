@@ -85,9 +85,10 @@ def write_postprocessor_properties_file(sample):
         log.warning( f"Saving a properties file failed with error message: {msg}" )
 
 #------------------ SINGLE TASKS -------------------
-def task_rename_files(sample):
+def task_add_prefix_to_imagefiles(sample):
     try:
-        sample.rename_all_files(sample.shortidentifier)
+        new_name_prefix = sample.shortidentifier
+        sample.add_prefix_to_imagefiles(new_name_prefix, prefix_separator= "_")
     except (jkm.errors.JKError, FileNotFoundError) as msg:
         log.error(f"{sample.name}: Renaming files failed: {msg}.")                
 
@@ -307,7 +308,7 @@ def processSingleEvent(filename, conf, spreadsheet):
     # RENAME FILES
     # Current implementation renames only the original image files as per the configuration file
     if conf.getb( "tasks", "files_rename_by_barcode_id") and sample.shortidentifier:
-        task_rename_files(sample)
+        task_add_prefix_to_imagefiles(sample)
     else: log.debug(f"{sample.name}: No file(s) rename.")
 
     # Write records to JSON Metadata file (should this be before renaming?)
@@ -341,12 +342,12 @@ def processSampleEvents(queue, conf, sleep_s, spreadsheet):
         #DONE
         log.info(f"Sample events in process queue: {queue.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
 
-def main(debug = False):
+def main(logging_level_file = logging.INFO, logging_level_stream = logging.INFO):
     global log
     threads = []
     q = queue.Queue() # a FIFO queue of metafile names
     # Set loggers in other modules
-    log = jkm.tools.setup_logging(jkm.meta.name, debug = debug)
+    log = jkm.tools.setup_logging(jkm.meta.name, logging_level_file, logging_level_stream)
     jkm.configfile.log = log    
     jkm.tools.log = log
     jkm.ocr.log = log  # IF OCR

@@ -10,7 +10,7 @@ import jkm.tools
 from jkm.digitisation_properties import DigipropFile
 import jkm.errors
 
-log = logging.getLogger() # Overwrite if needed
+log = logging.getLogger() # Overwrite from calling script for fancier logging
 deg2rotcode = {90: cv2.ROTATE_90_CLOCKWISE,
                180: cv2.ROTATE_180,
                270: cv2.ROTATE_90_COUNTERCLOCKWISE}
@@ -29,6 +29,8 @@ def getFileCreationDateTime(fn):
 #    if imgtype.lower().strip() == 'specimen': return SpecimenImage()
 #------------------------------------------------------------------------------------------------------    
 class SampleBase(abc.ABC):
+    supports_rename_files = False
+    supports_rename_directories = False    
     def __init__(self, time = None): 
         if not time: self._time = datetime.datetime.now()
         else: self._time = time
@@ -46,6 +48,9 @@ class SampleBase(abc.ABC):
 #------------------------------------------------------------------------------------------------------    
 class SampleEvent(SampleBase,  abc.ABC):
     "Container for 0+ photos of an sample and event-level metadata."
+    supports_rename_files = True    
+    supports_rename_directories = False    
+
     def __init__(self,  time = None):
         super().__init__(time)
         self._imagelist = [] # List of SamplePhoto subclass instances
@@ -268,6 +273,33 @@ class CombinedImage(SpecimenImage, LabelImage): # Note: potential problems with 
         super().__init__(label,  fn)
 
 #------------------------------------------------------------------------------------------------------    
+class SingleImageSample(SampleEvent): 
+    """A single image based minimal sample event"""
+    def __init__(self,  time = None):
+#        self._has_metadatafile = False
+#        self._is_directory = False
+        super().__init__(time)
+    @staticmethod
+    def from_image_file(imgfile, conf, label="generic_camera"): 
+        # Assumes jpg file name is metadata file name
+        log.debug("Creating sample data from JPEG image and config file metadata")
+        # Extract creating time from JPG and to be used as the Sample event creationtime        
+        filecreated = getFileCreationDateTime(imgfile)
+        imgfile = Path(imgfile)
+	# Create a CombinedImage to hold image data 
+	# As this is a single image sample, we assume the image can hold both specimen and label data and use CombinedImage
+        image = CombinedImage(label, fn = imgfile)
+	# Create a new SingleImageSample instance and return it 
+        s = SingleImageSample( time = filecreated )
+        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
+        s.datapath = imgfile.parent # Use the directory holding the file as the Sample 'home'
+        s.prefix = imgfile.stem # default naming scheme for sample-related objects
+        s.addImage(image)
+        return s        
+    def _shortenidentifier(self, x): # Overrides base class
+        separator = r'/'
+        return x.split(separator)[-1] # Last element
+#------------------------------------------------------------------------------------------------------    
 class LuomusLineSample(SampleEvent): 
     allowed_URI_domains = ["http://tun.fi/", "http://id.luomus.fi/",""]
     def __init__(self,  time=None):
@@ -379,30 +411,6 @@ class LuomusInsectLineSample(LuomusLineSample):
         for ofp, ofn in zip(objectfilepaths, object_titles):
             s.addImage( SpecimenImage(ofn, fn = ofp)  )
         return s             
-#------------------------------------------------------------------------------------------------------    
-class SingleImageSample(SampleEvent): 
-    """A single image based minimal sample event"""
-    def __init__(self,  time = None):
-#        self._has_metadatafile = False
-#        self._is_directory = False
-        super().__init__(time)
-    @staticmethod
-    def from_image_file(imgfile, conf, label="generic_camera"): 
-        # Assumes jpg file name is metadata file name
-        log.debug("Creating sample data from JPEG image and config file metadata")
-        itime = getFileCreationDateTime(imgfile)
-        imgfile = Path(imgfile)
-        image = CombinedImage(label, fn = imgfile)
-        # Extract creating time from JPG and use it as the Sample event time        
-        s = SingleImageSample( time = itime )
-        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
-        s.datapath = imgfile.parent
-        s.addImage(image)
-        s.prefix = imgfile.stem
-        return s        
-    def _shortenidentifier(self, x): # Overrides base class
-        separator = r'/'
-        return x.split(separator)[-1] # Last element
 #------------------------------------------------------------------------------------------------------    
 _DEFAULT_IMGDIR_FILE_FORMAT = "*.jpg"
 class ImageDirectorySample(LuomusLineSample): 
