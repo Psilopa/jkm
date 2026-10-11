@@ -372,7 +372,17 @@ def processSampleEvents(queue, conf, sleep_s, spreadsheet):
 # TODO: move functions from above to class functions & change conf to an attribute
 import jkm.ext
 class jkm_post():
-    def main(self,logging_level_file = logging.INFO, logging_level_stream = logging.INFO,threadpool = myThreadPool() ):
+    ext = None
+    def main(self,logging_level_file = logging.INFO, logging_level_stream = logging.INFO,threadpool = myThreadPool(), ext=None ):
+        """jkm_post main function.
+
+            Arguments:
+            logging_level_file - 
+            logging_level_stream -  
+            threadpool - a thread pool. GUI implementations should provide a GUI-save version
+            ext - a even handler object. 
+            """
+        ext = ext # hooks for an external event handler (like a GUI)
         spreadsheet = None
         q = queue.Queue() # a FIFO queue of trigger file names
         # Set loggers in all modules
@@ -454,6 +464,7 @@ class jkm_post():
         # Cleanup before closing
         if spreadsheet: spreadsheet.close()
         logging.shutdown()
+        if ext: ext.event_exit(f"{jkm.meta.nameversion} closing down")
 
 if __name__ == '__main__':
     main(logging_level_file = logging.DEBUG, logging_level_stream = logging.DEBUG)
