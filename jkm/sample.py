@@ -1,6 +1,7 @@
 import abc
 from pathlib import Path
-import datetime,  logging,  os
+from datetime import datetime
+import logging,  os
 #import  pickle
 import cv2
 import jsonpickle
@@ -18,7 +19,7 @@ deg2rotcode = {90: cv2.ROTATE_90_CLOCKWISE,
 def getFileCreationDateTime(fn):
     # Does not work well on POSIX systems, which return the last modified date for getctime
     timestamp =  os.path.getctime(fn)
-    return datetime.datetime.fromtimestamp(timestamp)
+    return datetime.fromtimestamp(timestamp)
 
 #def create_new_image(imgtype): 
 #    "Create a new SampleImage subclass instance based on the requested type"
@@ -29,7 +30,7 @@ class SampleBase(abc.ABC):
     supports_rename_files = False
     supports_rename_directories = False    
     def __init__(self, time = None): 
-        if not time: self._time = datetime.datetime.now()
+        if not time: self._time = datetime.now()
         else: self._time = time
         self.name = str(self) # TODO: replace with better names in subclasses, should use timestamp or camera name
     @property
@@ -83,6 +84,7 @@ class SampleEvent(SampleBase,  abc.ABC):
     def identifier(self, x):  
         self._identifier = x    
         self._shortidentifier = self._shortenidentifier(x)
+        self.name = x
     @property
     def shortidentifier(self):  return self._shortidentifier
     @property
@@ -148,7 +150,7 @@ class SampleEvent(SampleBase,  abc.ABC):
                 log.warning("Renaming file failed with error message: %s" % msg)
             except FileExistsError as msg:
                 log.warning("Target file name already exists, skipping: %s" % msg)
-    def write_postprocessor_properties_file(self, conf):
+    def write_postprocessor_report(self, conf, properties_filename = None):
         # By default, do nothing
         return # 
 #------------------------------------------------------------------------------------------------------    
@@ -379,24 +381,24 @@ class LuomusLineSample(SampleEvent):
         log.debug(f"Renaming {self.datapath} to {newpath}")        
         self.datapath.rename(newpath) 
         self.datapath= newpath # Set datapath to the new value only if everything preceding was successful
-    def write_postprocessor_properties_file(self, properties_filename = None):
+    def write_postprocessor_report(self, conf, properties_filename = None):
         """Write postprocessor.properties file. Uses the same format as the Luomus degitizing line .properties file"""
-        if not properties_filename:
+        if (properties_filename is None) or (not properties_filename):
             properties_filename  = Path(r"postprocessor.properties")
         else: properties_filename = Path(properties_filename) # Make sure this is a path 
         try:
-            sample.digipropfile.setheader( f"# {datetime.now()}" )
-            sample.digipropfile.update("full_barcode_data",sample.identifier or "")
-            sample.digipropfile.update("identifier",sample.shortidentifier  or "")
-            sample.digipropfile.update("timestamp",sample.original_timestamp())
-            if sample.identifier: # Only one identifier-containing barcode was found
-                id_OK = sample.verify_identifier() # This should probably be done way earlier elsewhere
+            self.digipropfile.setheader( f"# {datetime.now()}" )
+            self.digipropfile.update("full_barcode_data",self.identifier or "")
+            self.digipropfile.update("identifier",self.shortidentifier  or "")
+            self.digipropfile.update("timestamp",self.original_timestamp())
+            if self.identifier: # Only one identifier-containing barcode was found
+                id_OK = self.verify_identifier() # This should probably be done way earlier elsewhere
                 if not id_OK: 
-                    log.critical(f"{sample.name}: *******\n\n\n\nMALFORMED IDENTIFIER {sample.identifier}*******\n\n\n\n")
-                sample.digipropfile.update("URI_format_OK", str(id_OK) )
-            sample.digipropfile.update("Q-sharp", "" )
-            sample.digipropfile.update("Q-color", "" )
-            sample.digipropfile.save( sample.datapath / properties_filename )
+                    log.critical(f"{self.name}: *******\n\n\n\nMALFORMED IDENTIFIER {self.identifier}*******\n\n\n\n")
+                self.digipropfile.update("URI_format_OK", str(id_OK) )
+            self.digipropfile.update("Q-sharp", "" )
+            self.digipropfile.update("Q-color", "" )
+            self.digipropfile.save( self.datapath / properties_filename )
         except OSError as msg:
             assert(propfilepath) # Should exist if this exception was triggered
             log.warning( f"Saving a properties file failed with error message: {msg}" )

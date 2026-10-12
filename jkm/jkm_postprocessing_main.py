@@ -70,7 +70,7 @@ def task_OCR(conf, sample):
         if not image.has_labels : continue # Skip pure specimen images
         labeltxt = image.ocr(ocr_command) # Default ocr uses fragments created above
         alltext += " " + labeltxt
-    sample.meta.addlog("Combined OCR result for all images",alltext,  log_add_hdr= sample.name)
+    sample.meta.addlog("Combined OCR result for all images",alltext,  log_add_hdr= sample.name, lvl = logging.DEBUG)
     sample.results.ocrtext = alltext
     return alltext
 
@@ -81,7 +81,7 @@ def task_read_barcodes(conf,sample):
         try:
             # NOTE: the choice of barcose detector tool is hardcoded in jkm/barcodes.py
             bkdata = image.readbarcodes(barcodepackage)
-            image.meta.addlog("Barcode contents", bkdata, log_add_hdr= sample.name)
+            image.meta.addlog("Barcode contents", bkdata, log_add_hdr= sample.name, lvl=logging.DEBUG)
             allbarcodes += bkdata
         except jkm.errors.FileLoadingError as msg:
             log.warning(f"{sample.name}: Barcode detection attempt failed: %s" % msg)
@@ -96,7 +96,7 @@ def task_get_text_areas(conf, sample):
         log.debug(f"{sample.name}: Searching for text areas in {image.label} of sample {sample.name}")
         neuralnet = conf.get( "ocr", "EASTfile")
         textareas = image.findtextareas(neuralnet)
-        image.meta.addlog("Text areas found", str(textareas),  log_add_hdr= sample.name)
+        image.meta.addlog("Text areas found", str(textareas),  log_add_hdr= sample.name, lvl = logging.DEBUG)
         if conf.getb( "postprocessor", "save_text_area_images"): 
             image.savetextareas("_textarea_")
     return textareas
@@ -125,7 +125,7 @@ def task_AI_label_data_extraction(conf, sample):
         airesult = myai.query_images( imagepaths,  image_max_dim = image_max_dim)
         if myai: myai.close()
         # airesult can contain almost anything, possibly including non-valid UTF8. Should sanitize better.
-        log.info(f"{sample.name}:AI call for data extraction returned {str(airesult)}")
+        log.debug(f"{sample.name}:AI call for data extraction returned {str(airesult)}")
         outfn = conf.get("ai","properties_filename")
         if outfn: # If a properties_filename was defined
             outpath = sample.datapath / outfn
@@ -229,7 +229,7 @@ class jkm_post():
                 
         # MAIN POSTPROCESSOR STARTS HERE
         # TODO: CHECK IF THIS WORKS WITH THE REIMPLEMENTED sample
-        log.info(f"Postprocessing sample {sample.name}")
+        log.info(f"New sample found, initial name {sample.name}")
         if self.ext: self.ext.event_new_sample(sample)
 
         # ROTATE?
@@ -261,6 +261,7 @@ class jkm_post():
         # AI-BASED TEXT EXTRACTION ?
         if conf.getb( "tasks", "ai_label_text_extraction"):
             airesult = task_AI_label_data_extraction(conf, sample)
+            log.info(f'AI label analysis results was "\n{airesult.to_prettyprint()}\n"\n')
             if self.ext: self.ext.event_ai_labeltext(sample)
         else:
             airesult = None
@@ -325,6 +326,7 @@ class jkm_post():
             task_write_postprocessor_report(conf, sample)
         else: log.debug(f"{sample.name}: No postprocessor report file created for sample.")
 
+        log.info(f"Postprocessing sample {sample.name} ready.")
         if self.ext: self.ext.event_sample_done(sample, processor.SUCCESS)
         return processor.SUCCESS
 
@@ -348,6 +350,7 @@ class jkm_post():
             log.info(f"Sample events in process queue: {queue.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
 
     def init_logging(self,logging_level_file, logging_level_stream):
+        global log  # !!!!
         log = jkm.tools.setup_logging(jkm.meta.name, logging_level_file, logging_level_stream, ext = self.ext)
         jkm.configfile.log = log    
         jkm.tools.log = log
@@ -369,7 +372,7 @@ class jkm_post():
             if sheetformat.lower() != "csv": 
                 log.warning("Unknown ") 
             spreadsheet = jkm.spreadsheet.SpreadsheetCSV(spreadsheetpath)
-            log.info(f"Tabular output is appended to file {spreadsheetpath}")
+            log.debug(f"Tabular output is appended to file {spreadsheetpath}")
         except IOError as msg: 
             log.critical(f"Error in opening file {spreadsheetpath} for output:{msg}")
             spreadsheet = None
@@ -487,6 +490,3 @@ class jkm_post():
         
 # TODO: Needs to have a *STOP* method to allow others to kill this potentially long-running process cleanly.
 #The threadpool object should handle this
-
-if __name__ == '__main__':
-    main(logging_level_file = logging.DEBUG, logging_level_stream = logging.DEBUG)

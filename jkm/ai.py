@@ -17,7 +17,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 # For testing, Google Free Key for small tests
-_TESTING_BYPASS_AI_CALL = True
+_TESTING_BYPASS_AI_CALL = False
 _TESTING_JSON_FROM_AI = r"""
 {
   "verbatim_all_text": [
@@ -181,7 +181,7 @@ class geminiAI(): # Make subclasses based on authentication method
         if not self.prompt: raise jkm.errors.AIError("No prompt for AI provided.")
 #        img_bytes = [self._file2bytes(x) for x in pathlist]
 #        sumsize = int(sum( [len(x) for x in img_bytes] )/1024)
-#        log.info( f"Images to bytes done, size {sumsize} kb" )
+#        log.debug( f"Images to bytes done, size {sumsize} kb" )
 
         # FAKE CALL FOR TESTING, NO ACTUAL AI CALL
         if _TESTING_BYPASS_AI_CALL:

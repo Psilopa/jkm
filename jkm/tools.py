@@ -196,5 +196,3 @@ def quit_if_not_exists(pathname):
     if not pathname.exists():
         log.critical(f"Path {pathname} not found. Quitting.")
         sys.exit()
-
-
