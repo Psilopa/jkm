@@ -82,6 +82,7 @@ class myQThreadPool(QThreadPool):
             worker = Worker()
             worker.set_func(target, args)
             self.start(worker )
+    def activethreadcount(self): return self.activeThreadCount() 
     def join(self):
         self.waitForDone()
 

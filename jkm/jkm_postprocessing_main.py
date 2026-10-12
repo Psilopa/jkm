@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+""" Class usage: create a jkm_post object and call its main() function. """
+#
 # Check: Watchdog in licences using the Apache License, Version 2.0 
 # ADD ATEXIT CALL TO CLOSE LOG FILES ON CRASH OR OTHER CLEAN ERROR HANDLING
 import logging
@@ -9,8 +11,7 @@ import time,  logging,  threading, sys, configparser, queue
 from datetime import datetime
 from pathlib import Path
 # non-stdlib modules
-from watchdog.observers import Observer
-import watchdog.events
+import watchdog, watchdog.events
 # app-specific modules
 import jkm.configfile,  jkm.sample,  jkm.tools
 import jkm.spreadsheet,  jkm.ai
@@ -29,6 +30,8 @@ class processor:
 #------------------ MISC TOOLS  -------------------
 # Default threadpool, using Python threading module.
 class myThreadPool():
+    @property
+    def activethreadcount(self): return len(self.threads) 
     def __init__(self):
         self.threads = []
     def newthread(self, target, args= ()):
@@ -203,12 +206,84 @@ def task_write_postprocessor_report(conf, sample):
         # This does nothing unless the class reimplements the empty standard def.
         sample.write_postprocessor_report(conf)
 
+# MAIN PROCESSOR
 class jkm_post():
     def __init__(self):
         # The ext instance contains event functions that are called by main() does a task.
         # This allows external sources like a GUI to track the progress of jkm-post.main()
-        self.ext = None 
-        #
+        self.ext = None
+        self.fsobserver = None # A watchdog file system observer
+        self.filequeue = queue.Queue() # a FIFO queue of trigger file names
+        self.threadpool = None # A worker thread pool ... set in main() !
+        self.spreadsheet = None # a Spreadsheet obsect
+    # ----------------- Verify setup --------------------------------
+    def verify_conf(self, conf):
+        try: # Configuration verification
+            conf.verify( must_have = ["postprocessor", "tasks", "data","meta","spreadsheet",
+                                      ["data","main_data_directory"],
+                                      ["data","datatype_to_load"],
+                                      ["data","recognize_by_filename_pattern"],
+                                      ["postprocessor","monitor"],
+                                      ["postprocessor","process_existing"],
+                                      ["postprocessor","sleep_after_new_sample_detected"],
+                                        ],
+                         should_have = []
+                        )
+            if conf.has_section("barcodes"):
+                log.debug(f'Using QR code decoder { conf.get( "barcodes", "barcodepackage") }')
+            jkm.tools.quit_if_not_exists(conf.basepath)
+        except jkm.errors.ConfigWarning: # ConfigError is way worse and is handled at the end
+            pass # Exception does its own logging  
+    # ----------------- Initialize state  -----------------------------
+    def init_logging(self,logging_level_file, logging_level_stream):
+        global log  # !!!!
+        log = jkm.tools.setup_logging(jkm.meta.name, logging_level_file, logging_level_stream, ext = self.ext)
+        jkm.configfile.log = log    
+        jkm.tools.log = log
+        jkm.ocr.log = log  # IF OCR
+        jkm.sample.log = log
+        jkm.samplemetadata.log = log
+        jkm.ai.log = log
+        jkm.barcodes.log = log
+        return log
+        
+    def init_spreadsheet(self,conf): 
+        try: 
+            spreadsheetpath = Path( conf.get("spreadsheet","filename") ) 
+            if  _BACKUP_DATATABLE:  
+                timestr = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
+                backup_path = spreadsheetpath.with_stem( spreadsheetpath.stem + "_" + timestr ) 
+                jkm.tools.backup_file(spreadsheetpath,  backup_path) # TODO: check return 
+            sheetformat = conf.get("spreadsheet","format") 
+            if sheetformat.lower() != "csv": 
+                log.warning("Unknown ") 
+            self.spreadsheet = jkm.spreadsheet.SpreadsheetCSV(spreadsheetpath)
+            log.debug(f"Tabular output is appended to file {spreadsheetpath}")
+        except IOError as msg: 
+            log.critical(f"Error in opening file {spreadsheetpath} for output:{msg}")
+            self.spreadsheet = None
+        return self.spreadsheet
+
+    def init_AI_auth(self,conf):
+        conf.verify( must_have = ["ai", ["ai","auth_type"] ] )
+        auth_type = conf.get("ai", "auth_type") # Must exist if we want AI
+        log.debug(f"AI authentication method: {auth_type}")
+        if auth_type == 'APIKEY':
+            conf.verify( must_have = [["ai","APIkeyfile"]] )
+            APIPATH = Path(conf.get("ai","APIkeyfile"))
+            conf.APIKEY = jkm.ai.load_apikey(APIPATH) # HACK, FIND A BETTER WAY TO PASS THIS
+            log.debug(f"Reading API key from {APIPATH}")
+            log.debug(f"AI prompt set to \'{conf.get('ai','prompt')}\'")
+        elif auth_type == "CLOUD_OAUTH":
+            conf.verify( must_have = [["ai","google_project_id"], ["ai","google_location"],
+                                      ["ai","app_token_path"], ["ai","tmp_token_path"],
+                                      ] )
+        elif auth_type == "LOCAL_OAUTH":
+            conf.verify( must_have = [["ai","google_project_id"], ["ai","google_location"],
+                                      ] )
+        else:
+            raise jkm.errors.AIError(f"Unknown AI authentication method {auth_type}")                
+
     # ----------------- Process a single event ------------------------
     def processSingleEvent(self,filename, conf, spreadsheet):
         log.debug(f"Processing data file {filename}" )
@@ -316,10 +391,10 @@ class jkm_post():
 
         # FINALLY, WRITE RESULTS TO FILES
         # Store interpreted data in a spreadsheet file 
-        if spreadsheet and conf.getb( "tasks", "ai_label_text_extraction"):
+        if self.spreadsheet and conf.getb( "tasks", "ai_label_text_extraction"):
             # Check if we want to store raw/all output from the AI (it can be loooong)
             write_raw_output= conf.getb( "spreadsheet", "write_raw_output", default = True)
-            task_write_spreadsheet(spreadsheet, airesult,sample.identifier, write_raw_output)
+            task_write_spreadsheet(self.spreadsheet, airesult,sample.identifier, write_raw_output)
             log.debug(f"{sample.name}: ...table data adding done")
         else: log.debug(f"{sample.name}: No data export to a spreadsheet.")
 
@@ -341,66 +416,20 @@ class jkm_post():
 # ----------------- main worker function, called in a new thread created when a sample arrival event is noticed ------------------------
     def processSampleEvents(self,queue, conf, sleep_s, spreadsheet):
         while True:
-            # Input queue = name of file found by the directory watcher tool
-            input = queue.get()
-            if input is None: break
-            filename = Path(input)
+            # Input queue item = name of file found by the directory watcher tool
+            next_input = queue.get()
+            if next_input is None: break
+            filename = Path( next_input )
             time.sleep(sleep_s) # Wait for all data to arrive
-            try: successQ = self.processSingleEvent(filename, conf, spreadsheet)        
-            except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
-                log.critical(f"Loading SETUP file item failed with message: {msg}")
-                successQ = processor.FAIL_IGNORE
-            if successQ is processor.FAIL_RETRY: queue.put(input) # retry from start
+            successQ = self.processSingleEvent( filename, conf, self.spreadsheet )        
+            if successQ is processor.FAIL_RETRY: queue.put( next_input ) # retry from start
             elif successQ is processor.FAIL_IGNORE: queue.done() 
             elif successQ is processor.SUCCESS: pass # Do nothing
 #            if self.ext: self.ext.event_sample_done(sample, processor.SUCCESS) # ... but we do NOT know the sample here, at it is not returned. TODO
             #DONE
             log.info(f"Sample events in process queue: {queue.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
 
-    def init_logging(self,logging_level_file, logging_level_stream):
-        global log  # !!!!
-        log = jkm.tools.setup_logging(jkm.meta.name, logging_level_file, logging_level_stream, ext = self.ext)
-        jkm.configfile.log = log    
-        jkm.tools.log = log
-        jkm.ocr.log = log  # IF OCR
-        jkm.sample.log = log
-        jkm.samplemetadata.log = log
-        jkm.ai.log = log
-        jkm.barcodes.log = log
-        return log
-        
-    def init_spreadsheet(self,conf): 
-        try: 
-            spreadsheetpath = Path( conf.get("spreadsheet","filename") ) 
-            if  _BACKUP_DATATABLE:  
-                timestr = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
-                backup_path = spreadsheetpath.with_stem( spreadsheetpath.stem + "_" + timestr ) 
-                jkm.tools.backup_file(spreadsheetpath,  backup_path) # TODO: check return 
-            sheetformat = conf.get("spreadsheet","format") 
-            if sheetformat.lower() != "csv": 
-                log.warning("Unknown ") 
-            spreadsheet = jkm.spreadsheet.SpreadsheetCSV(spreadsheetpath)
-            log.debug(f"Tabular output is appended to file {spreadsheetpath}")
-        except IOError as msg: 
-            log.critical(f"Error in opening file {spreadsheetpath} for output:{msg}")
-            spreadsheet = None
-        return spreadsheet
-
-    def init_AI_auth(self,conf):
-        auth_type = conf.get("ai", "auth_type") # Must exist if we want AI
-        log.debug(f"AI authentication method: {auth_type}")
-        if auth_type == 'APIKEY':
-            APIPATH = Path(conf.get("ai","APIkeyfile"))
-            conf.APIKEY = jkm.ai.load_apikey(APIPATH) # HACK, FIND A BETTER WAY TO PASS THIS
-            log.debug(f"Reading API key from {APIPATH}")
-            log.debug(f"AI prompt set to \'{conf.get('ai','prompt')}\'")
-        elif auth_type == "CLOUD_OAUTH":
-            pass # Should verify that necessary conditions to run exist                
-        elif auth_type == "LOCAL_OAUTH":
-            pass # Should verify that necessary conditions to run exist                
-        else:
-            raise jkm.errors.AIError(f"Unknown AI authentication method {auth_type}")                
-
+# ----------------- only function others should call! -----------------------------
     def main(self,logging_level_file = logging.INFO, logging_level_stream = logging.INFO,threadpool = myThreadPool(), ext=None ):
         """jkm_post main function.
 
@@ -411,90 +440,93 @@ class jkm_post():
             ext - a even handler object. 
             """
         self.ext = ext # hooks for an external event handler (like a GUI)
-        spreadsheet = None
-        q = queue.Queue() # a FIFO queue of trigger file names
+        self.threadpool = threadpool
         # Set loggers in all modules
         log = self.init_logging(logging_level_file, logging_level_stream)
-        log.info(f"STARTING NEW SESSION of {jkm.meta.nameversion}")
+        log.info(f"STARTING NEW SESSION of {jkm.meta.nameversion}") # We having logging set up
         # Read config file name from sys.argv and parse the file
         try: 
             conf = jkm.configfile.load(jkm.meta.name)
-            try: # Configuration verification
-                conf.verify( must_have = ["postprocessor", "tasks", "data","meta","spreadsheet",
-                                          ["data","main_data_directory"],
-                                          ["data","datatype_to_load"],
-                                          ["data","recognize_by_filename_pattern"],
-                                          ["postprocessor","monitor"],
-                                          ["postprocessor","process_existing"],
-                                          ["postprocessor","sleep_after_new_sample_detected"],
-                                            ],
-                             should_have = []
-                            )
-                if conf.has_section("barcodes"):
-                    barcodepackage = conf.get( "barcodes", "barcodepackage")
-                    log.debug(f'Using QR code decoder {barcodepackage}')
-                jkm.tools.quit_if_not_exists(conf.basepath)
-            except jkm.errors.ConfigWarning: pass # Exception does its own logging            
-            datafile_patterns = conf.getlist("data", "recognize_by_filename_pattern")        
-            if conf.getb("postprocessor", "process_existing"):
-                # Queue existing data from base directory
+            self.verify_conf(conf) # Check that config has basic data needed to run
+            datafile_patterns = conf.getlist("data", "recognize_by_filename_pattern")
+
+            if conf.getb("postprocessor", "process_existing"):            
                 for fn in find_existing_events(conf):
-                    q.put(fn)
-                log.info(f"Approximate number of sample events to process at launch is {q.qsize()}")
+                    self.filequeue.put(fn)
+                log.info(f"Approximate number of sample events to process at launch is {self.filequeue.qsize()}")
             
             if conf.getb("tasks", "labeldata_to_CSV", default = False):
-                spreadsheet = self.init_spreadsheet(conf)
+                self.spreadsheet = self.init_spreadsheet(conf)
 
             if conf.getb("tasks", "ai_label_text_extraction", default = False):
-                self.init_AI_auth(conf) # Reads keys if needed, verifies conf for chosed method. Raises jkm.errors.AIError on failure
+                # Reads keys if needed, verifies conf for chosen method. Raises jkm.errors.AIError on failure
+                self.init_AI_auth(conf) 
 
-             #Start loops looking for data to process and processing it
+            # Create worker threads for handlinf Sample processing requests
+            wait_after_sample_s = conf.getf("postprocessor", "sleep_after_new_sample_detected")
+            for i in range(_num_worker_threads):
+                self.threadpool.newthread( target = self.processSampleEvents,
+                                      args = (self.filequeue,conf, wait_after_sample_s, self.spreadsheet) )
+            #Start loops looking for data to process and processing it
             # Wait period from file detection to file processing
             # Allows for enough time for transfer of a file(s)  to be completed
-            sleep_s_before_reading = conf.getf("postprocessor", "sleep_after_new_sample_detected")
-            for i in range(_num_worker_threads):
-                threadpool.newthread(target=self.processSampleEvents,  args=(q,conf, sleep_s_before_reading, spreadsheet) )
             if not conf.getb( "postprocessor", "monitor"):
                 log.debug(f"NOT MONITORING - will process target directory once: {str(conf.basepath)} ")
             else:   
-                # Will also process any data inserted in the queue before this point
+                # Monitor file system --- will also process any data inserted in the queue before this point!
                 log.debug(f"MONITORING DIRECTORY: {str(conf.basepath)}.")
                 # Start a filesystem watchdog thread watching for NEW .metadata files
-                event_handler = myFileEventHandler(q, patterns=datafile_patterns) # HERE
-                observer = Observer()
-                observer.schedule(event_handler, str(conf.basepath), recursive=True)
-                observer.start()
-                # Process data from queue while waiting
+                event_handler = myFileEventHandler(self.filequeue, patterns=datafile_patterns) # HERE
+                self.fsobserver = watchdog.observers.Observer() 
+                self.fsobserver.schedule(event_handler, str(conf.basepath), recursive=True)
+                self.fsobserver.start()
+                # wait: fsobserver sends handling requests to threadpool threads from the queue
+                # note that  processSampleEvents has a sleep to stop the process from eating all resources.
                 try: 
                     while True:
                         time.sleep(2)
-                        log.debug(f"Queue size is currently {q.qsize()}" )
-                except KeyboardInterrupt: # TODO: Add other end-of-life sources
-                    observer.stop()
-                    # Wait for other threads to stop 
-                observer.join() # block until all tasks are done
-
-            log.info("Ending session, waiting for worker threads to finish.")    
-            for i in range(_num_worker_threads): q.put(None) # Signal end-of-life to worker threads
-            threadpool.join() # Wait for each worker thread to end properly
-            log.info("Ending session, closing log files.")
-            if spreadsheet: spreadsheet.save()
+                        log.debug(f"Queue size is currently {self.filequeue.qsize()}" )
+                except KeyboardInterrupt:
+                    pass # Fall through to the end of the script
+        # Check for fatal error states:
         except UnicodeEncodeError as msg:
             msg = f"Unicode encoding error: '{msg}'"
-            log.critical()
-            if ext: ext.event_failure(f"Unicode encoding error: '{msg}'")
+            log.critical(msg)
+            if ext: ext.event_failure( msg )
         except jkm.errors.JKError as msg:
-            log.critical(f"Execution failed with error message '{msg}'")
-        except (configparser.NoOptionError,  configparser.NoSectionError) as msg:  
-            log.critical(f"Loading SETUP file item failed with message: {msg}")
+            # jkm.errors.ConfigError gets caught here
+            msg = f"Execution failed with error message '{msg}'"
+            log.critical(msg)
+            if ext: ext.event_failure( msg )
 #        except Exception as msg:
 #            # Forward all errors to logger before quitting, if we are not writing at DEBUG level
 #            if logging_level_stream != logging.DEBUG:
 #                logginglog.error(f"Other error: {msg}")
-        # Cleanup before closing
-        if spreadsheet: spreadsheet.close()
+        # Cleanup before closing: close all threading processes etc.
+        self.stop()
+
+    def stop(self):
+        """End of run tasks. Stop gracefully."""
+        if self.fsobserver:
+            self.fsobserver.stop() # Stop the watchdog file system observer
+            self.fsobserver.join() # block until all tasks are done
+            self.fsobserver = None
+        log.debug("Ending session, shutting down file system observer.")
+        # Signal end-of-life to worker threads
+        if self.threadpool:
+            end_of_life_signal = None # Standard for queue.Queue()        
+            for i in range(self.threadpool.activethreadcount):
+                self.filequeue.put( end_of_life_signal )
+                log.debug(f"Ending session, worker thread {i+1} closed.")
+            # Wait for each worker thread to end properly
+            log.info("Ending session, waiting for worker threads to finish.")    
+            self.threadpool.join()
+            log.info("\tdone.")    
+            self.threadpool= None
+        log.debug("Ending session, closing spreadsheet file.")
+        if self.spreadsheet:
+            self.spreadsheet.close() # Close tries to save, but lets we certain.
+        if self.ext: ext.event_exit(f"{jkm.meta.nameversion} closing down") # Just in case, do before closing logs
+        log.info("Ending session, closing log files.")
         logging.shutdown()
-        if self.ext: ext.event_exit(f"{jkm.meta.nameversion} closing down")
         
-# TODO: Needs to have a *STOP* method to allow others to kill this potentially long-running process cleanly.
-#The threadpool object should handle this
