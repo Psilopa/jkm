@@ -42,8 +42,4 @@ Content to be processed is detected on the basis of a file name as specified in 
 
 DEV OPTIONS
 * jkm.ai has a _TESTING_BYPASS_AI_CALL option to use hardcoded AI output rather than actually propting the AI (note: this needs updating if the AI output format changes)"
-<<<<<<< HEAD
 * Debug-level logging can be turned on and off from jkm-post.py.
-=======
-* Debug-level logging can be turned on and off from jkm-post.py.
->>>>>>> 4887c5bd7ebbfc948a8a5ddbfaaf94d2268c7078
