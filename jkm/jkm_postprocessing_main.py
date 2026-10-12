@@ -4,19 +4,19 @@
 import logging
 log = logging.getLogger() # Overwrite if needed
 
-import time,  logging,  threading, sys,   configparser
+# Standard python modules
+import time,  logging,  threading, sys, configparser, queue
 from datetime import datetime
 from pathlib import Path
-import queue
 # non-stdlib modules
 from watchdog.observers import Observer
 import watchdog.events
 # app-specific modules
 import jkm.configfile,  jkm.sample,  jkm.tools
-import jkm.spreadsheet, jkm.ocr_analysis,  jkm.ai
+import jkm.spreadsheet,  jkm.ai
 import jkm.meta, jkm.errors,  jkm.barcodes
-import jkm.labeldata_model
 import jkm.external as ext
+# import jkm.ocr_analysis
 
 # CONSTANTS
 _BACKUP_DATATABLE = True
@@ -27,17 +27,32 @@ class processor:
     FAIL_IGNORE = 1
     FAIL_RETRY = 2
 #------------------ MISC TOOLS  -------------------
+# Default threadpool, using Python threading module.
 class myThreadPool():
     def __init__(self):
         self.threads = []
-    def newthread(self, target=None, args= ()):
-        if target:
-            t = threading.Thread(target=target, args=args)
-            t.start()
-            self.threads.append(t)            
+    def newthread(self, target, args= ()):
+        t = threading.Thread(target=target, args=args)
+        t.start()
+        self.threads.append(t)            
     def join(self):
         for t in self.threads: t.join()
+        self.threads = []
 
+# MAP sample format string from config to a sample class
+# NEW CLASS DEVELOPERS: ADD YOUR CLASS HERE
+def get_sample_class(sample_format_str):
+    str2class = {
+        "mzh_insectline" : jkm.sample.LuomusInsectLineSample,
+        "mzh_plantline":  jkm.sample.LuomusPlantLineSample,
+        "singlefile":  jkm.sample.SingleImageSample,
+        "imagedir":  jkm.sample.ImageDirectorySample,
+        }
+    try:
+        return str2class[ sample_format_str.lower() ]
+    except KeyError:
+        raise jkm.errors.FileLoadingError(f"Unknown sample file/directory format {sample_format}, skippping to next.")
+    
 class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
     _lastinsert = None
     def __init__(self, queue, **kwargs): 
@@ -55,6 +70,7 @@ def find_existing_events(conf):
             sample_class = get_sample_class( sample_format.lower() )
             found = sample_class.find_samples(conf.basepath,datafile_patterns)          
             return found
+        
 #------------------ SINGLE TASKS -------------------
 def task_add_prefix_to_imagefiles(sample):
     try:
@@ -187,21 +203,16 @@ def task_write_postprocessor_report(conf, sample):
         # This does nothing unless the class reimplements the empty standard def.
         sample.write_postprocessor_report(conf)
 
-def get_sample_class(sample_format_str):
-        if sample_format_str.lower() == "mzh_insectline":  return jkm.sample.LuomusInsectLineSample
-        elif sample_format_str.lower() ==  "mzh_plantline": return jkm.sample.LuomusPlantLineSample
-        elif sample_format_str.lower() == "singlefile": return jkm.sample.SingleImageSample
-        elif sample_format_str.lower() == "imagedir": return jkm.sample.ImageDirectorySample
-        else:
-            raise jkm.errors.FileLoadingError(f"Unknown sample file/directory format {sample_format}, skippping to next.")
-    
 class jkm_post():
-    ext = None
+    def __init__(self):
+        # The ext instance contains event functions that are called by main() does a task.
+        # This allows external sources like a GUI to track the progress of jkm-post.main()
+        self.ext = None 
+        #
     # ----------------- Process a single event ------------------------
     def processSingleEvent(self,filename, conf, spreadsheet):
         log.debug(f"Processing data file {filename}" )
         # Variables to hold extracted data
-        alltext = ""
         allbarcodes = []
         try:
             # Create a Sample Event
@@ -221,30 +232,41 @@ class jkm_post():
                 sample = sample_class.from_directory(dirpath, conf)
             elif sample_class in (jkm.sample.SingleImageSample,  ):
                 sample = sample_class.from_image_file(filename, conf)
-            # get_sample_class(sformat) should already block unknown sample types    
+            # get_sample_class(sformat) should already block unknown sample types:   
             else: assert False, "Unknown sample format."
         except jkm.errors.FileLoadingError as msg:
                     log.error(msg)
                     return processor.FAIL_IGNORE
                 
         # MAIN POSTPROCESSOR STARTS HERE
-        # TODO: CHECK IF THIS WORKS WITH THE REIMPLEMENTED sample
         log.info(f"New sample found, initial name {sample.name}")
         if self.ext: self.ext.event_new_sample(sample)
 
-        # ROTATE?
+        # ROTATE IMAGES ?
         degrees = conf.geti( "tasks", "rotate_before_processing")
         if degrees: task_rotate(degrees)# non-zero value    
         else: log.debug(f"{sample.name}: No rotation performed.")
         # SAVE ROTATED (NOT IMPLEMENTED)
         
-        # FIND BARCODES?
+        # FIND BARCODES ?
         if conf.getb( "tasks", "read_barcodes"):
             allbarcodes += task_read_barcodes(conf,sample)
             if self.ext: self.ext.event_barcode_detection(sample)
         else: log.debug(f"{sample.name}: No barcode extraction.")
                     
-        # FIND TEXT ARES?
+        # FOR FURTHER PROCESSING, CHECK IF IDENTIFIER LIST CONTAINS A SINGLE VALID IDENTIFIER
+        # In case sample does already have a known identifier, append to to the list
+        if sample.identifier: allbarcodes.append(sample.identifier)
+        sampleids = jkm.tools.unique(allbarcodes)
+        if len(sampleids) == 0:
+            log.warning(f"{sample.name}:No usable identifiers found")
+        elif len(sampleids) > 1:
+            log.warning(f"{sample.name}:Several  different identifiers for the sample in barcodes/OCR/sample metadata")
+        else:
+            sample.identifier =  sampleids[0] # Sets also sample.shortidentifier
+            if self.ext: self.ext.event_single_sample_id(sample)
+        
+        # FIND TEXT ARES ?
         if conf.getb( "tasks", "find_text_areas"):
             textareas = task_get_text_areas(conf, sample)
             if self.ext: self.ext.event_textareas(sample)
@@ -252,9 +274,9 @@ class jkm_post():
             textareas = []
             log.debug(f"{sample.name}: No text area recognition.")
 
-        # PERFORM OCR?
+        # PERFORM Classic OCR ?
         if conf.getb( "tasks", "ocr"):
-            alltext = task_OCR(conf, sample)
+            task_OCR(conf, sample)
             if self.ext: self.ext.event_OCRtext(sample)
         else: log.debug(f"{sample.name}: No OCR.")
 
@@ -267,28 +289,14 @@ class jkm_post():
             airesult = None
             log.debug(f"{sample.name}: No AI label data extraction.")
 
-        # SUBMIT alltext to COMPONENT ANALYSIS ?
-    #¤    if conf.getb( "tasks", "ocr") and conf.getb( "tasks", "ocr_analysis"):
-     #        ocrdata = jkm.ocr_analysis.ocr_analysis_Luomus(alltext)
-     #        log.debug(f"{sample.name}: OCR data parsing output: {ocrdata}")
-     #   else: 
-     #        ocrdata = []
-     #        log.debug(f"{sample.name}: No OCR data parsing attempted.")           
+        # SUBMIT alltext to COMPONENT ANALYSIS (splitting raw text into locality, collector etc)?
+#       if conf.getb( "tasks", "ocr") and
+#          conf.getb( "tasks", "ocr_analysis") and
+#          sample.results.ocrtext:
+#         **** Not currently implemented. ****
+#       Also, the current AI label data extractor does already do this. 
+#       A large task and very content-
 
-         # FOR FURTHER PROCESSING, CHECK IF IDENTIFIER LIST CONTAINS A SINGLE VALID IDENTIFIER
-        # In case sample does already have a known identifier, append to to the list
-
-        # DO SOME CLEANUP
-        if sample.identifier: allbarcodes.append(sample.identifier)
-        sampleids = jkm.tools.unique(allbarcodes)
-        if len(sampleids) == 0:
-            log.warning(f"{sample.name}:No usable identifiers found")
-        elif len(sampleids) > 1:
-            log.warning(f"{sample.name}:Several  different identifiers for the sample in barcodes/OCR/sample metadata")
-        else:
-            sample.identifier =  sampleids[0] # Sets also sample.shortidentifier
-            if self.ext: self.ext.event_single_sample_id(sample)
-        
         # RENAME DIRECTORIES (this may need to stay above file renaming)  
         if sample.shortidentifier \
                   and  conf.getb( "tasks", "directories_rename_by_barcode_id") \
