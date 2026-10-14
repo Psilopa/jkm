@@ -11,7 +11,7 @@ import time,  logging,  threading, sys, configparser, queue
 from datetime import datetime
 from pathlib import Path
 # non-stdlib modules
-import watchdog, watchdog.events
+import watchdog.events, watchdog.observers
 # app-specific modules
 import jkm.configfile,  jkm.sample,  jkm.tools
 import jkm.spreadsheet,  jkm.ai
@@ -21,7 +21,7 @@ import jkm.external as ext
 
 # CONSTANTS
 _BACKUP_DATATABLE = True
-_num_worker_threads = 1 # BETTER KEEP THIS AT 1: AI PROCESSES DO NOT SEEM TO LIKE CONCURRENT CALLS
+_num_worker_threads = 3 # BETTER KEEP THIS AT 1: AI PROCESSES DO NOT SEEM TO LIKE CONCURRENT CALLS
 _AI_AUTH_TYPES = ("APIKEY", "CLOUD_OAUTH", "LOCAL_OAUTH")
 class processor:
     SUCCESS = 0
@@ -146,7 +146,7 @@ def task_AI_label_data_extraction(conf, sample):
         # airesult can contain almost anything, possibly including non-valid UTF8. Should sanitize better.
         log.debug(f"{sample.name}:AI call for data extraction returned {str(airesult)}")
         outfn = conf.get("ai","properties_filename")
-        if outfn: # If a properties_filename was defined
+        if outfn and (airesult is not None): # If a properties_filename was defined
             outpath = sample.datapath / outfn
             with outpath.open("w") as f: f.write(airesult.to_json())                                                        
         else: log.debug(f"{sample.name}:No AI properties file generation requested in config file")
@@ -156,8 +156,11 @@ def task_AI_label_data_extraction(conf, sample):
     sample.results.labeltext_ai1 = airesult
     return airesult
     
-def task_rename_directories(conf, sample):
+def task_rename_directories(conf, sample, sleep_before = 0):
     # Tries a few times in case directory renaming is blocked by other processes
+    if sleep_before > 0: 
+        log.debug(f"Sleeping {sleep_before} seconds before directory renaming to allow for other programs to finish.")
+        time.sleep(sleep_before)
     prefix = sample.datapath.name # last element of directory path
     log.debug(f"{sample.name}: Renaming directory based on barcode content")
     attempt_times = 2
@@ -192,7 +195,7 @@ def task_write_spreadsheet(spreadsheet, airesult, barcode_identifier=None, write
     raw = "raw"
     if barcode_identifier: outdata = {"barcode_ID": barcode_identifier or ""}
     else: outdata = {}
-    if airesult:
+    if airesult is not None:
         outdata.update(airesult.to_dict() )
         outdata.update( {raw: airesult.raw} )
     if (not write_raw_output) and (raw in outdata):
@@ -376,7 +379,8 @@ class jkm_post():
         if sample.shortidentifier \
                   and  conf.getb( "tasks", "directories_rename_by_barcode_id") \
                   and sample.supports_rename_directories:
-            task_rename_directories(conf, sample)
+            sleep_before = conf.geti("postprocessor", "sleep_before_renaming", default=0)
+            task_rename_directories(conf, sample, sleep_before)
             if self.ext: self.ext.event_renamed_directories(sample)
         else: log.debug(f"{sample.name}: No directory rename.")
 
@@ -444,6 +448,8 @@ class jkm_post():
         # Set loggers in all modules
         log = self.init_logging(logging_level_file, logging_level_stream)
         log.info(f"STARTING NEW SESSION of {jkm.meta.nameversion}") # We having logging set up
+        if jkm.ai.TESTING_BYPASS_AI_CALL:
+            log.warning("*******AI BYPASS TESTING MODE IS ON*******")
         # Read config file name from sys.argv and parse the file
         try: 
             conf = jkm.configfile.load(jkm.meta.name)
@@ -484,7 +490,7 @@ class jkm_post():
                 # note that  processSampleEvents has a sleep to stop the process from eating all resources.
                 try: 
                     while True:
-                        time.sleep(2)
+                        time.sleep(1)
                         log.debug(f"Queue size is currently {self.filequeue.qsize()}" )
                 except KeyboardInterrupt:
                     pass # Fall through to the end of the script
