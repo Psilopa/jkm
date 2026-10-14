@@ -9,7 +9,7 @@ from google import genai
 from google.genai import types
 from google.genai import errors as gemini_errors
 from google.genai.types import HttpOptions
-import jkm.labeldata_model
+import jkm.labeldata_model as labeldata_model
 
 # For local OAUTH token management, used by local_oauth_geminiAI
 from google.auth.transport.requests import Request
@@ -17,7 +17,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 # For testing, Google Free Key for small tests
-_TESTING_BYPASS_AI_CALL = True
+TESTING_BYPASS_AI_CALL = False
 _TESTING_JSON_FROM_AI = r"""
 {
   "verbatim_all_text": [
@@ -57,7 +57,7 @@ def _parseAI_JSON(text, schema):
         try:
             data = schema.model_validate_json(text)
             return data.model_dump() # Retrun as a json.loads() equivalent
-        except jkm.labeldata_model.ValidationError:
+        except labeldata_model.ValidationError:
             log.error(f"AI data model failed: returned invalid JSON data.")
             # Fall through and try the simpler method below
     try: 
@@ -141,7 +141,7 @@ class geminiAI(): # Make subclasses based on authentication method
         response_format={
             "type": "text",
             "mime_type": "application/json",
-            "schema": jkm.labeldata_model.LabelData.model_json_schema()
+            "schema": labeldata_model.LabelData.model_json_schema()
             }
         interaction  = self.client.interactions.create (
             model = self._MODEL,
@@ -184,7 +184,7 @@ class geminiAI(): # Make subclasses based on authentication method
 #        log.debug( f"Images to bytes done, size {sumsize} kb" )
 
         # FAKE CALL FOR TESTING, NO ACTUAL AI CALL
-        if _TESTING_BYPASS_AI_CALL:
+        if TESTING_BYPASS_AI_CALL:
             text_output = _TESTING_JSON_FROM_AI            
             raw = _TESTING_RAW_JSON 
         else:
@@ -212,7 +212,7 @@ class geminiAI(): # Make subclasses based on authentication method
         if text_output == AI_FAILURE_RETURN_VALUE: return outputcontainer        # Primitive error handling
         # TODO: Handle errors here
         outputcontainer.from_text( text_output,
-                                   schema = jkm.labeldata_model.LabelData ) # Tries parsing the text as JSON
+                                   schema = labeldata_model.LabelData ) # Tries parsing the text as JSON
         outputcontainer.raw = raw
         return outputcontainer
     def _file2bytes(self,  filepath):        
