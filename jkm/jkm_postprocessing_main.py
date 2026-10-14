@@ -184,11 +184,13 @@ def task_rename_directories(conf, sample, sleep_before = 0):
             attempt_current += 1
             time.sleep(wait_time)
 
-def task_rotate(sample, degrees):
-    assert(degrees in [0,90,180,270])
+def task_rotate(sample, degrees, allowed_values = None):
+    if allowed_values and (degrees not in allowed_values):
+        raise jkm.errors.TaskError(
+            f"Given image rotation amount not in allowed range ({allowed_values})")
     for image in sample.imagelist:
         log.debug(f"{sample.name}: Rotating image {image.name}")
-        image.rotate(rot)
+        image.rotate(degrees)
 
 def task_write_spreadsheet(spreadsheet, airesult, barcode_identifier=None, write_raw_output=True):
     # We handle spreadsheet opening here because we do not know possible header fields at script start time!
@@ -222,7 +224,7 @@ class jkm_post():
     # ----------------- Verify setup --------------------------------
     def verify_conf(self, conf):
         try: # Configuration verification
-            conf.verify( must_have = ["postprocessor", "tasks", "data","meta","spreadsheet",
+            conf.verify( must_have = ["postprocessor", "task", "data","meta","spreadsheet",
                                       ["data","main_data_directory"],
                                       ["data","datatype_to_load"],
                                       ["data","recognize_by_filename_pattern"],
@@ -286,6 +288,15 @@ class jkm_post():
                                       ] )
         else:
             raise jkm.errors.AIError(f"Unknown AI authentication method {auth_type}")                
+    # ----------------- A meta-task ------------------------
+    def task_edit_images(self, conf, sample):
+        # ROTATE IMAGES ?
+        if conf.geti( "task", "image", "rotate_images"):
+            log.debug(f"Rotating image {sample.name}")
+            degrees = conf.geti( "task", "image", "rotate", "degrees")    
+            task_rotate(sample, degrees, [0, 90, 180, 270])# non-zero value    
+        else: log.debug(f"{sample.name}: No rotation performed.")
+        # SAVE ROTATED (NOT IMPLEMENTED)
 
     # ----------------- Process a single event ------------------------
     def processSingleEvent(self,filename, conf, spreadsheet):
@@ -320,14 +331,14 @@ class jkm_post():
         log.info(f"New sample found, initial name {sample.name}")
         if self.ext: self.ext.event_new_sample(sample)
 
-        # ROTATE IMAGES ?
-        degrees = conf.geti( "tasks", "rotate_before_processing")
-        if degrees: task_rotate(degrees)# non-zero value    
-        else: log.debug(f"{sample.name}: No rotation performed.")
-        # SAVE ROTATED (NOT IMPLEMENTED)
+        # IMAGE EDITING        
+        edit_images = conf.getb( "task", "image_editing_tasks")
+        # This meta-function does its own logging etc
+        if edit_images:
+            self.task_edit_images(conf, sample) 
         
         # FIND BARCODES ?
-        if conf.getb( "tasks", "read_barcodes"):
+        if conf.getb( "task", "read_barcodes"):
             allbarcodes += task_read_barcodes(conf,sample)
             if self.ext: self.ext.event_barcode_detection(sample)
         else: log.debug(f"{sample.name}: No barcode extraction.")
@@ -345,7 +356,7 @@ class jkm_post():
             if self.ext: self.ext.event_single_sample_id(sample)
         
         # FIND TEXT ARES ?
-        if conf.getb( "tasks", "find_text_areas"):
+        if conf.getb( "task", "find_text_areas"):
             textareas = task_get_text_areas(conf, sample)
             if self.ext: self.ext.event_textareas(sample)
         else:
@@ -353,13 +364,13 @@ class jkm_post():
             log.debug(f"{sample.name}: No text area recognition.")
 
         # PERFORM Classic OCR ?
-        if conf.getb( "tasks", "ocr"):
+        if conf.getb( "task", "ocr"):
             task_OCR(conf, sample)
             if self.ext: self.ext.event_OCRtext(sample)
         else: log.debug(f"{sample.name}: No OCR.")
 
         # AI-BASED TEXT EXTRACTION ?
-        if conf.getb( "tasks", "ai_label_text_extraction"):
+        if conf.getb( "task", "ai_label_text_extraction"):
             airesult = task_AI_label_data_extraction(conf, sample)
             log.info(f'AI label analysis results was "\n{airesult.to_prettyprint()}\n"\n')
             if self.ext: self.ext.event_ai_labeltext(sample)
@@ -368,8 +379,8 @@ class jkm_post():
             log.debug(f"{sample.name}: No AI label data extraction.")
 
         # SUBMIT alltext to COMPONENT ANALYSIS (splitting raw text into locality, collector etc)?
-#       if conf.getb( "tasks", "ocr") and
-#          conf.getb( "tasks", "ocr_analysis") and
+#       if conf.getb( "task", "ocr") and
+#          conf.getb( "task", "ocr_analysis") and
 #          sample.results.ocrtext:
 #         **** Not currently implemented. ****
 #       Also, the current AI label data extractor does already do this. 
@@ -377,7 +388,7 @@ class jkm_post():
 
         # RENAME DIRECTORIES (this may need to stay above file renaming)  
         if sample.shortidentifier \
-                  and  conf.getb( "tasks", "directories_rename_by_barcode_id") \
+                  and  conf.getb( "task", "directories_rename_by_barcode_id") \
                   and sample.supports_rename_directories:
             sleep_before = conf.geti("postprocessor", "sleep_before_renaming", default=0)
             task_rename_directories(conf, sample, sleep_before)
@@ -387,7 +398,7 @@ class jkm_post():
         # RENAME FILES
         # Current implementation renames only the original image files as per the configuration file
         if sample.shortidentifier \
-                        and conf.getb( "tasks", "files_rename_by_barcode_id", default=False) \
+                        and conf.getb( "task", "files_rename_by_barcode_id", default=False) \
                         and sample.supports_rename_files:
             task_add_prefix_to_imagefiles(sample)
             if self.ext: self.ext.event_renamed_image_files(sample)
@@ -395,7 +406,7 @@ class jkm_post():
 
         # FINALLY, WRITE RESULTS TO FILES
         # Store interpreted data in a spreadsheet file 
-        if self.spreadsheet and conf.getb( "tasks", "ai_label_text_extraction"):
+        if self.spreadsheet and conf.getb( "task", "ai_label_text_extraction"):
             # Check if we want to store raw/all output from the AI (it can be loooong)
             write_raw_output= conf.getb( "spreadsheet", "write_raw_output", default = True)
             task_write_spreadsheet(self.spreadsheet, airesult,sample.identifier, write_raw_output)
@@ -403,12 +414,12 @@ class jkm_post():
         else: log.debug(f"{sample.name}: No data export to a spreadsheet.")
 
         # Write sample metadata to a JSON Metadata file (should this be before renaming?)
-        if conf.getb( "tasks", "save_JSON", default=False):
+        if conf.getb( "task", "save_JSON", default=False):
             sample.writeMetaJSON()
         else: log.debug(f"{sample.name}: No JSON metadata file created.")
 
         # Write a sample (and sample type) specific postprocessor report file (or files)
-        if conf.getb( "tasks", "write_postprocessor_report_file", default=False):
+        if conf.getb( "task", "write_postprocessor_report_file", default=False):
             log.debug(f"{sample.name}: Postprocessor report file created for sample.")
             task_write_postprocessor_report(conf, sample)
         else: log.debug(f"{sample.name}: No postprocessor report file created for sample.")
@@ -461,10 +472,10 @@ class jkm_post():
                     self.filequeue.put(fn)
                 log.info(f"Approximate number of sample events to process at launch is {self.filequeue.qsize()}")
             
-            if conf.getb("tasks", "labeldata_to_CSV", default = False):
+            if conf.getb("task", "labeldata_to_CSV", default = False):
                 self.spreadsheet = self.init_spreadsheet(conf)
 
-            if conf.getb("tasks", "ai_label_text_extraction", default = False):
+            if conf.getb("task", "ai_label_text_extraction", default = False):
                 # Reads keys if needed, verifies conf for chosen method. Raises jkm.errors.AIError on failure
                 self.init_AI_auth(conf) 
 
@@ -525,9 +536,7 @@ class jkm_post():
                 self.filequeue.put( end_of_life_signal )
                 log.debug(f"Ending session, worker thread {i+1} closed.")
             # Wait for each worker thread to end properly
-            log.info("Ending session, waiting for worker threads to finish.")    
             self.threadpool.join()
-            log.info("\tdone.")    
             self.threadpool= None
         log.debug("Ending session, closing spreadsheet file.")
         if self.spreadsheet:

@@ -122,7 +122,7 @@ class SampleEvent(SampleBase,  abc.ABC):
         self.prefix = Path(self.time.strftime(cf.get("postprocessor","filename_timestamp_format") ))
 #        self.basepath = Path(cf.basepath)
         self.datapath = Path(cf.basepath) 
-        if cf.getb("tasks","create_directories") and not no_new_directiories:
+        if cf.getb("task","create_directories") and not no_new_directiories:
             self.datapath = Path(cf.basepath) / self.prefix
             log.info(f"Creating new directory for data: {self.datapath}" )
             self.datapath.mkdir() # Create subdirectory (unlikely to exist, but TODO: verify)
