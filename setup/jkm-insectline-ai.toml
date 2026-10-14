@@ -17,7 +17,8 @@ object_titles = ["habitus1"] # Written into metadata only
 # Having BOTH monitor and process_existing as true is asking for trouble...
 monitor = true # false or true
 process_existing = false # false or true
-sleep_after_new_sample_detected = 10 # integer - Allows for enough time for transfer of a file(s)  to be completed
+sleep_after_new_sample_detected = 1 # integer, seconds - Allows for enough time for transfer of a file(s)  to be completed
+sleep_before_renaming = 7 # integer, seconds - Wait before directory renaming to make sure other processes have time to complete.
 ## rotation, clockwise, in degrees, allowed values  = 0, 90, 180 or 270
 filename_timestamp_format = "%Y%m%d_%Hh%Mm%Ss"
 
