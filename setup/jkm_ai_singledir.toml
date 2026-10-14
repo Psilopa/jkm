@@ -39,11 +39,20 @@ write_postprocessor_report_file = false
 # IMAGE CHANGE TASKS
 [task.image]
 rotate_images = false
+crop_images = true
 
 [task.image.rotate]
 degrees = 180
 ## rotation, clockwise, in degrees, allowed values  = 0, 90, 180 or 270
 #save_rotated = false
+
+[task.image.crop.1]
+target = "specimen"  # string - specimen, label, or all
+method = "fixed"     # string - only fixed currently supported
+min_w = 100          # integer - pixel value 
+max_w = 1000         # integer - pixel value or inf for image edge
+#min_h = 0           # integer - pixel value 
+#min_h = 2000        # integer - pixel value or inf for image edge
 
 [ai]
 model = "gemini-3.5-flash-lite"

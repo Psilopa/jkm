@@ -192,6 +192,11 @@ def task_rotate(sample, degrees, allowed_values = None):
         log.debug(f"{sample.name}: Rotating image {image.name}")
         image.rotate(degrees)
 
+def task_crop(sample, parameters):
+    print("Crop called with params", parameters)
+    for image in sample.imagelist:
+        log.debug(f"{sample.name}: Cropping image {image.name}")
+
 def task_write_spreadsheet(spreadsheet, airesult, barcode_identifier=None, write_raw_output=True):
     # We handle spreadsheet opening here because we do not know possible header fields at script start time!
     raw = "raw"
@@ -291,12 +296,17 @@ class jkm_post():
     # ----------------- A meta-task ------------------------
     def task_edit_images(self, conf, sample):
         # ROTATE IMAGES ?
-        if conf.geti( "task", "image", "rotate_images"):
+        if conf.getb( "task", "image", "rotate_images"):
             log.debug(f"Rotating image {sample.name}")
             degrees = conf.geti( "task", "image", "rotate", "degrees")    
             task_rotate(sample, degrees, [0, 90, 180, 270])# non-zero value    
+            # SAVE ROTATED (NOT IMPLEMENTED)
         else: log.debug(f"{sample.name}: No rotation performed.")
-        # SAVE ROTATED (NOT IMPLEMENTED)
+        if conf.getb( "task", "image", "crop_images"):
+            for n in conf.getlist( "task", "image", "crop"):
+                params = conf.getlist( "task", "image", "crop", n )
+                task_crop(sample, params)
+        else: log.debug(f"{sample.name}: No crop performed.")
 
     # ----------------- Process a single event ------------------------
     def processSingleEvent(self,filename, conf, spreadsheet):
