@@ -1,8 +1,6 @@
-import logging, re,  sys
 import importlib
 # non-std common libraries
 import cv2
-
 # application-specific modules
 import jkm.tools as tools
 from jkm.errors import BarcodeError
@@ -11,12 +9,16 @@ CONST_QREADER = "qreader"
 CONST_PYZBAR = "pyzbar"
 pyzbar = QReader = None
 
-log = logging.getLogger() # Overwrite if needed
-
 def _extract_pyzbar(greyimg, encoding=None):
     """Extract barcode data using PyZBar.
     
-    Returns a list of found (nonempty) values. Can contain duplicates.
+    Returns a list of found (nonempty) values. It nay contain duplicates.
+
+    Arguments:
+    greyimg: a in image object (cv2 image, a  numpy array, or a file name)
+
+    Keywords:
+    encoding: encoding on the barcode content, if known.
     """
     barcodes = []
     # try qr recognition at different image sizes
@@ -33,9 +35,13 @@ def _extract_pyzbar(greyimg, encoding=None):
     return [x for x in d if x] # Make sure the result is a list of non-empty string
 
 def _extract_qreader(greyimg):
-    """Extract barcode data using QReader.
-    
-    Returns a list of found (nonempty) values. Can contain duplicates.
+    """Extract barcode data using QReader. Returns a list of found (nonempty) values. It may contain duplicates.
+        
+    Arguments:
+    greyimg: a in image object (cv2 image, a  numpy array, or a file name)
+
+    Keywords:
+    encoding: encoding on the barcode content, if known.
     """
     try:
         qreader = QReader( model_size='l',min_confidence=0.05 )
@@ -43,8 +49,8 @@ def _extract_qreader(greyimg):
         # Make sure the result is a list of non-empty strings (removes None values and empty strings)
         d = [x for x in decoded_text if x] # Make sure the result is a list of non-empty string
     except ModuleNotFoundError as msg:
-        # qreader install on my computer lacks the ultralytics.yolo package
-        log.warning(msg)
+        # Some qreader installs fail due to a missing ultralytics.yolo package
+        log.error(msg + " Could not search for barcodes.")
         d = []
     return d
     
@@ -63,11 +69,11 @@ def extractbarcodedata(image, qrpackage, increasecontast=False,
     """
     global QReader, pyzbar
     if qrpackage not in (CONST_QREADER, CONST_PYZBAR):
-        log.critical(f"Unknown barcode reader tool '{qrpackage}'")
-        sys.exit()
+        raise BarcodeError(f"Unknown barcode reader tool '{qrpackage}'")
     img = tools.load_img(image)
     greyimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    if increasecontast: greyimg = tools.increaseTopContrast(greyimg,greyrange)
+    if increasecontast:
+        greyimg = tools.increaseTopContrast(greyimg,greyrange)
     if qrpackage == CONST_PYZBAR:
         if not pyzbar: 
             importlib.import_module("pyzbar")
@@ -80,26 +86,26 @@ def extractbarcodedata(image, qrpackage, increasecontast=False,
     # else: should not happen as tested above
     return d
 
-def sampleids(data):
-    # Add CETAF verification here too...
-    # read: a list of strings
-    # return a list of (namespace,id) tuples of all detected labels
-    sids = []
-    reg1 = re.compile("/([A-Z0-9]+.[0-9-]+)",re.IGNORECASE)
-    reg2 = re.compile("([A-Z0-9]+.[0-9-]+)",re.IGNORECASE)
-    log.debug("Trying to find CETAF Identifiers in %s" % data)
-    for l in data:
-        m = reg1.search(l)
-        if m:            
-            log.debug("Found CETAF identifier with end value %s" % m.group(1))
-            sids.append(m.group(1))
-        else:
-            m = reg2.search(l)
-            if m:            
-                log.debug("Found short identifier with end value %s" % m.group(1))
-                sids.append(m.group(1))
-    if len(sids) == 0: raise BarcodeError("Sample ID format unrecognised.")
-    if len(sids) > 1:
-        log.error("Several barcodes in image. Handling of this situation not supported.")
-        sys.exit()
-    return sids
+##def sampleids(data):
+##    # Add CETAF verification here too...
+##    # read: a list of strings
+##    # return a list of (namespace,id) tuples of all detected labels
+##    sids = []
+##    reg1 = re.compile("/([A-Z0-9]+.[0-9-]+)",re.IGNORECASE)
+##    reg2 = re.compile("([A-Z0-9]+.[0-9-]+)",re.IGNORECASE)
+##    log.debug("Trying to find CETAF Identifiers in %s" % data)
+##    for l in data:
+##        m = reg1.search(l)
+##        if m:            
+##            log.debug("Found CETAF identifier with end value %s" % m.group(1))
+##            sids.append(m.group(1))
+##        else:
+##            m = reg2.search(l)
+##            if m:            
+##                log.debug("Found short identifier with end value %s" % m.group(1))
+##                sids.append(m.group(1))
+##    if len(sids) == 0: raise BarcodeError("Sample ID format unrecognised.")
+##    if len(sids) > 1:
+##        log.error("Several barcodes in image. Handling of this situation not supported.")
+##        sys.exit()
+##    return sids
