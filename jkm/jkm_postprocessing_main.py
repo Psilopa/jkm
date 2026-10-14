@@ -389,7 +389,7 @@ class jkm_post():
         # AI-BASED TEXT EXTRACTION ?
         if conf.getb( "task", "ai_label_text_extraction"):
             airesult = task_AI_label_data_extraction(conf, sample)
-            log.info(f'AI label analysis results was "\n{airesult.to_prettyprint()}\n"\n')
+            log.info(f'AI label analysis results was \n"{airesult.to_prettyprint()}\n"\n')
             if self.ext: self.ext.event_ai_labeltext(sample)
         else:
             airesult = None

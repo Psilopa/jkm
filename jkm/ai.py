@@ -85,12 +85,14 @@ class AI_output:
         self._text = None
         self._dict = None
         self.raw = ""
-    def _pp_lines(self,dictionary,  noraw):
+    def _pp_lines(self,dictionary,  noraw, insert="\t"):
         lines = []
         for k,v in self._dict.items():
             if noraw and (k == self.rawstr): continue # SUPPRESS 'raw' here
             if type(v) == dict: lines += self._pp_lines(v, noraw)
-            else: lines.append(f"\t{k}:{v}")
+            elif k == "verbatim_all_text": # A bit of a hack
+                lines.append( f"{insert}{k}:\n{v}" )
+            else: lines.append(f"{insert}{k}:{v}")
         return lines
     def to_prettyprint(self, newline = "\n", noraw = True):
         lines = self._pp_lines(self._dict, noraw)

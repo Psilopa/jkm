@@ -57,7 +57,8 @@ def setup_logging(name,
                   logging_level_stream = logging.INFO,
                   ext = None):
     """Set up logging services"""
-    STREAMLOGFORMAT = '%(message)s [%(asctime)s]'
+    STREAMLOGFORMAT = '[%(asctime)s] %(message)s'
+#    STREAMLOGFORMAT = '%(message)s'
     FILELOGFORMAT = '%(levelname)s: %(message)s [%(asctime)s]'
     #TODO: Call needed on windows only!
     os.system('color')  # Ask system console to display color if available
