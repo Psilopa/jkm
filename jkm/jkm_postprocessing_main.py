@@ -8,6 +8,7 @@ log = logging.getLogger() # Overwrite if needed
 
 # Standard python modules
 import time,  logging,  threading, sys, configparser, queue
+from math import inf
 from datetime import datetime
 from pathlib import Path
 # non-stdlib modules
@@ -192,10 +193,15 @@ def task_rotate(sample, degrees, allowed_values = None):
         log.debug(f"{sample.name}: Rotating image {image.name}")
         image.rotate(degrees)
 
-def task_crop(sample, parameters):
-    print("Crop called with params", parameters)
+def task_crop(sample, p):
+    log.debug(f"Crop called with parameters {p}")
+    target = p.get("target")
+    method = p.get("method")
+    assert target in ["specimen", "label", "all"] , "Unknown crop target" # SHOULD NOT BE ASSERT
+    assert method in ["fixed"] , "Unknown cro method" # SHOULD NOT BE ASSERT
     for image in sample.imagelist:
         log.debug(f"{sample.name}: Cropping image {image.name}")
+#        image.cropfixed()
 
 def task_write_spreadsheet(spreadsheet, airesult, barcode_identifier=None, write_raw_output=True):
     # We handle spreadsheet opening here because we do not know possible header fields at script start time!
@@ -301,10 +307,11 @@ class jkm_post():
             degrees = conf.geti( "task", "image", "rotate", "degrees")    
             task_rotate(sample, degrees, [0, 90, 180, 270])# non-zero value    
             # SAVE ROTATED (NOT IMPLEMENTED)
+            # goes here
         else: log.debug(f"{sample.name}: No rotation performed.")
         if conf.getb( "task", "image", "crop_images"):
             for n in conf.getlist( "task", "image", "crop"):
-                params = conf.getlist( "task", "image", "crop", n )
+                params = conf.getdict( "task", "image", "crop", n )
                 task_crop(sample, params)
         else: log.debug(f"{sample.name}: No crop performed.")
 
@@ -420,7 +427,7 @@ class jkm_post():
             # Check if we want to store raw/all output from the AI (it can be loooong)
             write_raw_output= conf.getb( "spreadsheet", "write_raw_output", default = True)
             task_write_spreadsheet(self.spreadsheet, airesult,sample.identifier, write_raw_output)
-            log.debug(f"{sample.name}: ...table data adding done")
+            log.debug(f"{sample.name}: Adding row to spreadsheet done.")
         else: log.debug(f"{sample.name}: No data export to a spreadsheet.")
 
         # Write sample metadata to a JSON Metadata file (should this be before renaming?)
@@ -538,13 +545,11 @@ class jkm_post():
             self.fsobserver.stop() # Stop the watchdog file system observer
             self.fsobserver.join() # block until all tasks are done
             self.fsobserver = None
-        log.debug("Ending session, shutting down file system observer.")
         # Signal end-of-life to worker threads
         if self.threadpool:
             end_of_life_signal = None # Standard for queue.Queue()        
             for i in range(self.threadpool.activethreadcount):
                 self.filequeue.put( end_of_life_signal )
-                log.debug(f"Ending session, worker thread {i+1} closed.")
             # Wait for each worker thread to end properly
             self.threadpool.join()
             self.threadpool= None

@@ -11,7 +11,6 @@ def _recursedict(d, args):
     if len(args) == 1: #This was the last element
         return d[key]
     else: return  _recursedict( d[key], args[1:] )
-    sys.exit()
 
 class tomlConfig(): # TOML-based replacement
     def __init__(self, fn=None):
@@ -25,22 +24,12 @@ class tomlConfig(): # TOML-based replacement
             self._d = tomllib.load(f) # CAN FAIL
     def get(self, *args, func=str, default=None):
         return func( _recursedict(self._d, args) )
-#    def get(self,l1, l2 = None, l3 = None, func=str, default=None):    
-#        l1 = args[0:1] or None
-#        l2 = args[1:2] or None
-#        l3 = args[2:3] or None
-#        print("L'S = ", l1, l2, l3)
-#        if l2 is l3 is None: 
-#            return func(self._d.get(l1, default))
-#        elif l3 is None: 
-#            return func(self._d[l1].get(l2, default))
-#        else: 
-#            return func(self._d[l1][l2].get(l3, default))
     def getstr(self,*args, **kwargs): return self.get(*args, **kwargs, func=str)
     def getb(self,*args, **kwargs): return self.get(*args, **kwargs, func=bool) 
     def geti(self,*args, **kwargs): return self.get(*args, **kwargs, func=int) 
     def getf(self,*args, **kwargs): return self.get(*args, **kwargs, func=float) 
     def getpath(self,*args, **kwargs): return Path(self.get(*args, **kwargs, func=str) )
+    def getdict(self,*args, **kwargs): return self.get(*args, **kwargs, func=dict) 
     def getlist(self,*args, **kwargs): return self.get(*args, **kwargs, func=list) 
     def has_section(self, key): return key in self.sections()
     def sections(self): return self._d.keys()

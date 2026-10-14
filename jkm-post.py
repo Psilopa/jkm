@@ -2,8 +2,8 @@
 from jkm.jkm_postprocessing_main import jkm_post
 import logging
 # For testing
-import jkm.ai
-jkm.ai.TESTING_BYPASS_AI_CALL = True
+###import jkm.ai
+#jkm.ai.TESTING_BYPASS_AI_CALL = True
 
 logging_level_file = logging.DEBUG
 logging_level_stream = logging.INFO

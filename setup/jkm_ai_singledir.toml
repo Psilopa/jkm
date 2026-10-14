@@ -49,8 +49,8 @@ degrees = 180
 [task.image.crop.1]
 target = "specimen"  # string - specimen, label, or all
 method = "fixed"     # string - only fixed currently supported
-min_w = 100          # integer - pixel value 
-max_w = 1000         # integer - pixel value or inf for image edge
+min_w = 1000         # integer - pixel value 
+max_w = inf          # integer - pixel value or inf for image edge
 #min_h = 0           # integer - pixel value 
 #min_h = 2000        # integer - pixel value or inf for image edge
 

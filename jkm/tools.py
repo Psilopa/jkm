@@ -57,7 +57,8 @@ def setup_logging(name,
                   logging_level_stream = logging.INFO,
                   ext = None):
     """Set up logging services"""
-    LOGFORMAT = '%(levelname)s: %(message)s [%(asctime)s]'
+    STREAMLOGFORMAT = '%(message)s [%(asctime)s]'
+    FILELOGFORMAT = '%(levelname)s: %(message)s [%(asctime)s]'
     #TODO: Call needed on windows only!
     os.system('color')  # Ask system console to display color if available
     # Default logger: should do nothing as we add our own handlers, but set just in case
@@ -65,12 +66,12 @@ def setup_logging(name,
     log.setLevel(logging_level_file)
     # To console
     consolelog = logging.StreamHandler( )
-    consolelog.setFormatter(ColorFormatter(LOGFORMAT))
+    consolelog.setFormatter(ColorFormatter(STREAMLOGFORMAT))
     consolelog.setLevel( logging_level_stream )
     log.addHandler(consolelog)
     # To log file
     filelog = logging.FileHandler(f"{name}.log",  encoding=LOG_FILE_ENCODING)
-    filelog.setFormatter(ColorFormatter(LOGFORMAT))
+    filelog.setFormatter(ColorFormatter(FILELOGFORMAT))
     filelog.setLevel( logging_level_file )
     log.addHandler(filelog)
     # To ext
@@ -78,6 +79,7 @@ def setup_logging(name,
         extlog =ExtHandler(ext)
         # At least for now, default external logging to use the same settings as stream
         extlog.setLevel( logging_level_stream ) 
+        extlog.setFormatter( logging.Formatter(fmt=FILELOGFORMAT) ) 
         log.addHandler(extlog)
     log.info(f"Console logging set to level { logging.getLevelName(logging_level_stream) }.")
     return log
