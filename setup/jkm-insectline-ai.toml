@@ -61,7 +61,8 @@ textline = "" # Written into JSON metadata files only
 
 [ai]
 model = "gemini-3.5-flash-lite"
-prompt = "These images are all of the same object. Find text in the images. Reply with JSON, fitting the data into the variables specified in the JSON Schema given."
+#prompt = "These images are all of the same object. Find text in the images. Reply with JSON, fitting the data into the variables specified in the JSON Schema given."
+prompt = "Your task is to accurately transcribe handwritten and typewritten specimen labels based on one or more photographs, minimizing CER and WER. Work character by character, word by word, line by line, label by label, transcribing the text exactly as it appears on the labels. To maintain the authenticity of the historical text, retain spelling errors, grammar, syntax, capitalization, and punctuation. Transcribe all the text on the labels. They may be in any language using Latin alphabet with diacritics, and may also contain numbers, dates, codes and abbreviations. Reply with JSON, fitting the data into the variables specified in the JSON Schema given."
 properties_filename = "" # String - leave empty for no output
 # Authentication to Google Cloud services
 auth_type = "LOCAL_OAUTH" # APIKEY, LOCAL_OAUTH or CLOUD_OAUTH
