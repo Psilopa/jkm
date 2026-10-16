@@ -1,0 +1,83 @@
+[spreadsheet]
+format = "csv" # Only format currently supported
+filename = "C:/Insect_APPs/labeldata/ai_labeldata.csv"
+write_raw_output  = true
+
+[data] # Which file type identifies a record?
+#main_data_directory = "/home/kahanpaa/projects/_videostill/"
+main_data_directory = "C:/Insect_APPs/data"
+datatype_to_load = "MZH_INSECTLINE" # CURRENTLY AVAILABLE OPTIONS = MZH_INSECTLINE, MZH_PLANTLINE, SINGLEFILE
+recognize_by_filename_pattern = ["Preview002.jpg"] # List - Trigger file filename pattern(s) that leads to a sample processing event
+label_file = "Preview002.jpg" # Files with this name pattern are treated as files with labels
+object_files = ["Preview001.jpg"] # Files with this name pattern are treated as files with specimens (if both match, treated as combined)
+label_title = "specimens_and_labels" # Written into metadata only
+object_titles = ["habitus1"] # Written into metadata only
+
+[postprocessor]
+# Having BOTH monitor and process_existing as true is asking for trouble...
+monitor = true # false or true
+process_existing = false # false or true
+sleep_after_new_sample_detected = 1 # integer, seconds - Allows for enough time for transfer of a file(s)  to be completed
+sleep_before_renaming = 7 # integer, seconds - Wait before directory renaming to make sure other processes have time to complete.
+## rotation, clockwise, in degrees, allowed values  = 0, 90, 180 or 270
+filename_timestamp_format = "%Y%m%d_%Hh%Mm%Ss"
+
+[task]
+# FILE AND DIRECTORY NAMING AND MOVING TASKS
+create_directories = false # false or true
+files_rename_by_barcode_id = false # false or true
+directories_rename_by_barcode_id = true # false or true
+# IMAGE EDITING TASKS
+image_editing_tasks = true              
+#save_rotated = yes
+# DATA EXTRACTION TASKS
+read_barcodes = true # false or true - Read barcodes 
+# Find areas with text using cv2 computer vision
+find_text_areas = false # false or true
+save_text_area_images = false # false or true
+ocr = false # false or true
+ocr_analysis = false # false or true
+# LABEL DATA EXTRACTION TASKS
+ai_label_text_extraction = true # false or true
+labeldata_to_CSV = true # false or true: will be ignored if no label data extraction has been done
+# OTHER DATA
+save_JSON = false # false or true  
+write_postprocessor_report_file = true
+
+# IMAGE CHANGE TASKS
+[task.image]
+rotate_images = false
+
+#[task.image.rotate]
+#degrees = 180
+## rotation, clockwise, in degrees, allowed values  = 0, 90, 180 or 270
+#save_rotated = false
+
+[meta]
+copyright_owner = "Luomus" # Written into JSON metadata files only
+operator = "Luomus digitoijat" # Written into JSON metadata files only
+textline = "" # Written into JSON metadata files only
+# license = ""  # Written into JSON metadata files only
+
+[ai]
+model = "gemini-3.5-flash-lite"
+#prompt = "These images are all of the same object. Find text in the images. Reply with JSON, fitting the data into the variables specified in the JSON Schema given."
+prompt = "Your task is to accurately transcribe handwritten and typewritten specimen labels based on one or more photographs, minimizing CER and WER. Work character by character, word by word, line by line, label by label, transcribing the text exactly as it appears on the labels. To maintain the authenticity of the historical text, retain spelling errors, grammar, syntax, capitalization, and punctuation. Transcribe all the text on the labels. They may be in any language using Latin alphabet with diacritics, and may also contain numbers, dates, codes and abbreviations. Reply with JSON, fitting the data into the variables specified in the JSON Schema given."
+properties_filename = "" # String - leave empty for no output
+# Authentication to Google Cloud services
+auth_type = "LOCAL_OAUTH" # APIKEY, LOCAL_OAUTH or CLOUD_OAUTH
+# Google Cloud API settings (LOCAL_OAUTH and CLOUD_OAUTH)
+google_location = "global"
+google_project_id = "gen-lang-client-0404401598"
+# Settings LOCAL_OAUTH: OAUTH2 authentication without Google's Gcloud tool
+app_token_path = "C:/Insect_APPs/ACT/jkm_token.json" # Should be readable
+tmp_token_path = "C:/Insect_APPs/ACT/temptoken.json" # Should be writeable
+
+# Setting for the barcode recognition tool
+[barcodes]
+increase_contrast = true # false or true - if true, will increase contrast before barcode recognition attempt
+grey_range = 50 # integer - CHECK MEANING
+secondary_from_ocr = false # false or true - Attempt reading specimen ID from the image if barcode was not found (or readable)
+barcodepackage = "pyzbar" # qreader or pyzbar - Python qr package used
+# TODO: barcode type list
+

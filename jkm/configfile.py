@@ -1,65 +1,73 @@
 from pathlib import Path
-#import configparser
 import logging,  sys, argparse
 import jkm.tools  as tools
-import jkm.errors as errors
+from jkm.errors import ConfigError, ConfigWarning
+#import jkm.errors as errors
 import tomllib
-
 log = logging.getLogger() # Overwrite if needed
+
+def _recursedict(d, args):
+    key = args[0]
+    if len(args) == 1: #This was the last element
+        return d[key]
+    else: return  _recursedict( d[key], args[1:] )
 
 class tomlConfig(): # TOML-based replacement
     def __init__(self, fn=None):
+        self._d = None # Should be a dictionary-like object    
         if fn: self.loadfile(fn)
     def loadfile(self,fn, encoding="utf8"):
         fp = Path(fn)
         if not fp.exists() or not fp.is_file():
             raise FileNotFoundError("File not found")
         with fp.open("rb") as f: 
-            self._c = tomllib.load(f) # CAN FAIL
-    def get(self,x, y = None):
-        # Primitive, should handle more nested levels and errors
-        if not y: return self._c.get(x)
-        else: return self._c[x].get(y)
-#        except configparser.Error as msg: raise errors.LoggingError(msg, level = logging.CRITICAL) 
-    def getstr(self,*args): return str(self.get(*args)) 
-    def getb(self,*args): return bool(self.get(*args)) 
-    def geti(self,*args): return int(self.get(*args)) 
-    def getf(self,*args): return float(self.get(*args)) 
-    def getpath(self,*args): return Path(self.get(*args))
-    def getlist(self,*args): return self.get(*args)        
-    def has_section(self, section): return self._c.has_section(section)
-    def sections(self): return self._c.sections()
+            self._d = tomllib.load(f) # CAN FAIL
+    def get(self, *args, func=str, default=None):
+        return func( _recursedict(self._d, args) )
+    def getstr(self,*args, **kwargs): return self.get(*args, **kwargs, func=str)
+    def getb(self,*args, **kwargs): return self.get(*args, **kwargs, func=bool) 
+    def geti(self,*args, **kwargs): return self.get(*args, **kwargs, func=int) 
+    def getf(self,*args, **kwargs): return self.get(*args, **kwargs, func=float) 
+    def getpath(self,*args, **kwargs): return Path(self.get(*args, **kwargs, func=str) )
+    def getdict(self,*args, **kwargs): return self.get(*args, **kwargs, func=dict) 
+    def getlist(self,*args, **kwargs): return self.get(*args, **kwargs, func=list) 
+    def has_section(self, key): return key in self.sections()
+    def sections(self): return self._d.keys()
     @property
     def basepath(self): return Path(self.get("data","main_data_directory"))  # TODO: Should we create if not_exists()    
- 
+    # CONF VERIFICATION
+    def on_error(self, list_tree):
+        raise ConfigError(
+            f"Missing required config file item '{ ':'.join(list_tree) }'.")
+    def on_warning(self, list_tree):
+        raise ConfigWarning(
+            f"Missing expected config file item '{ ':'.join(list_tree) }'.")
+    def _checkstring(self,item,current_dict, onfail, tree=[]):
+        newtree = tree + [item] # List of section levels (plus last item)
+        if item not in current_dict: onfail(newtree)
+        
+    def _verify_list(self, items, current_dict, onfail, tree=[]):
+        """
+        Verify that the given items exist in the conf object.
 
-class OLD_Multicamconfig():
-    def __init__(self, fn=None):
-        self._c = configparser.ConfigParser(interpolation=None)
-        if fn: self.loadfile(fn)
-        self.monitor = False
-    def loadfile(self,fn, encoding="utf8"):
-            fnp = Path(fn)
-            if not fnp.exists() or not fnp.is_file(): raise FileNotFoundError("File not found")
-            with fnp.open(encoding=encoding) as f:
-                self._c = configparser.ConfigParser(interpolation=None)
-                self._c.read_file(f)
-    def get(self,*args,**kwargs): 
-        try: return self._c.get(*args, **kwargs)
-        except configparser.Error as msg: raise errors.LoggingError(msg, level = logging.CRITICAL) 
-    def getstr(self,*args,**kwargs): return str(self._c.get(*args, **kwargs)) 
-    def getb(self,*args,**kwargs): return self._c.getboolean(*args, **kwargs)
-    def geti(self,*args,**kwargs): return self._c.getint(*args, **kwargs)
-    def getf(self,*args,**kwargs): return self._c.getfloat(*args, **kwargs)
-    def getpath(self,*args,**kwargs): return Path(self._c.get(*args, **kwargs))
-    def getlist(self,*args,**kwargs):
-        return tools.string2list(self._c.get(*args, **kwargs))
-    def has_section(self, section): return self._c.has_section(section)
-    def sections(self): return self._c.sections()
-    @property
-    def basepath(self): return Path(self._c.get("basic","main_data_directory"))  # TODO: Should we create if not_exists()    
- 
+        Parameter onfail must be a function."""
+        for item in items: # item = name of a item, or a list
+            if type(item) is str:
+                self._checkstring(item, current_dict, onfail, tree)
+            elif type(item) is list and len(item) >1:
+                section_name = item[0]
+                nextname = item[1]
+                ctree = tree + [section_name]
+                newdict = current_dict[section_name]
+                self._checkstring(nextname, newdict, onfail, ctree)
 
+    def verify(self, must_have=[], should_have=[]): 
+        """Verify that the given must_have and should_have list content exist in the conf object.
+
+        Both lists may have sublists: ["section","value"]."""
+        self._verify_list(must_have, self._d, self.on_error)
+        self._verify_list(should_have, self._d, self.on_warning)
+            
 # --- parse command-line arguments ---
 def parse_args(programname): # 
     """Get command-line arguments using argparse.ArgumentParser."""
@@ -71,7 +79,7 @@ def parse_args(programname): #
             )
     return parser.parse_args()
 
-def load_configuration(programname):
+def load(programname):
     """Returns a config class instance with loaded data. Exits on failure as config data must be available."""    
     try:
         cmdargs  = parse_args(programname)
@@ -81,4 +89,4 @@ def load_configuration(programname):
     except Exception as err:
         log.critical(f"Loading configuration file {conf_fn} failed: {err}")
         sys.exit()
-        
+

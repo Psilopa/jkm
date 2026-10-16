@@ -1,27 +1,25 @@
 import abc
 from pathlib import Path
-import datetime,  logging,  os
+from datetime import datetime
+import logging,  os
 #import  pickle
 import cv2
 import jsonpickle
-import jkm.metadata
+import jkm.samplemetadata
 import jkm.ocr
 import jkm.tools
 from jkm.digitisation_properties import DigipropFile
 import jkm.errors
 
-log = logging.getLogger() # Overwrite if needed
+log = logging.getLogger() # Overwrite from calling script for fancier logging
 deg2rotcode = {90: cv2.ROTATE_90_CLOCKWISE,
                180: cv2.ROTATE_180,
                270: cv2.ROTATE_90_COUNTERCLOCKWISE}
 
-# Helper functions
-def _UNIQUE(s) :return list(set(s))
-
 def getFileCreationDateTime(fn):
     # Does not work well on POSIX systems, which return the last modified date for getctime
     timestamp =  os.path.getctime(fn)
-    return datetime.datetime.fromtimestamp(timestamp)
+    return datetime.fromtimestamp(timestamp)
 
 #def create_new_image(imgtype): 
 #    "Create a new SampleImage subclass instance based on the requested type"
@@ -29,8 +27,10 @@ def getFileCreationDateTime(fn):
 #    if imgtype.lower().strip() == 'specimen': return SpecimenImage()
 #------------------------------------------------------------------------------------------------------    
 class SampleBase(abc.ABC):
+    supports_rename_files = False
+    supports_rename_directories = False    
     def __init__(self, time = None): 
-        if not time: self._time = datetime.datetime.now()
+        if not time: self._time = datetime.now()
         else: self._time = time
         self.name = str(self) # TODO: replace with better names in subclasses, should use timestamp or camera name
     @property
@@ -43,33 +43,56 @@ class SampleBase(abc.ABC):
     def fromJSONfile(fn):
         with open(fn) as f:
             return  jsonpickle.decode(f.read())
+    @staticmethod
+    # Override in child classes if needed!
+    def find_samples(dirname,datafile_patterns):
+        "Returns a list of matching file names"
+        log.debug(f"Finding '{datafile_patterns}' files to process in {dirname}" )
+        d = Path(dirname) 
+        result = []
+        for pat in datafile_patterns:
+            tempr = d.rglob(pat)
+            log.debug(f"Looking for pattern {pat} in {dirname}")
+            tempr = [x for x in tempr if ( str(x).find("textarea") == -1 )] # Skip files with "textarea" in their name
+            result.extend( tempr )
+        # Delete duplicate files (hard links to the same file)
+        return jkm.tools.unique(result)
+
+class Results():  # Partial overlap with metadata ... think about this later
+    """Sample analysis results."""
+    ocrtext = None
+    labeltext_ai1 = None
+    barcodes = None
 #------------------------------------------------------------------------------------------------------    
 class SampleEvent(SampleBase,  abc.ABC):
     "Container for 0+ photos of an sample and event-level metadata."
+    supports_rename_files = True    
+    supports_rename_directories = False    
+    
     def __init__(self,  time = None):
         super().__init__(time)
         self._imagelist = [] # List of SamplePhoto subclass instances
         self.prefix  = "" # Common file name prefix (often/ALWAYS same as self.datapath?)
         self.datapath = "" # Data directory for this record 
-        self.meta = jkm.metadata.EventMetadata() # Event-level metadata
-#        self._has_metadatafile = False
-#        self._is_directory = False
+        self.meta = jkm.samplemetadata.EventMetadata() # Event-level metadata
         self._identifier = None
         self._shortidentifier = None
+        self.results = Results()
     @property
     def identifier(self):  return self._identifier
     @identifier.setter
     def identifier(self, x):  
         self._identifier = x    
         self._shortidentifier = self._shortenidentifier(x)
+        self.name = x
     @property
     def shortidentifier(self):  return self._shortidentifier
     @property
     def is_directory(self):  return self._is_directory
     @property
     def feature_metadata(self):  return self._has_metadatafile
-    @property
-    def imagelist(self, labels=[]):  
+    @property 
+    def imagelist(self, labels=[]):  # Can a propery have an alternative keyword approach?
         if not labels: 
             return self._imagelist
         else: 
@@ -99,7 +122,7 @@ class SampleEvent(SampleBase,  abc.ABC):
         self.prefix = Path(self.time.strftime(cf.get("postprocessor","filename_timestamp_format") ))
 #        self.basepath = Path(cf.basepath)
         self.datapath = Path(cf.basepath) 
-        if cf.getb("tasks","create_directories") and not no_new_directiories:
+        if cf.getb("task","create_directories") and not no_new_directiories:
             self.datapath = Path(cf.basepath) / self.prefix
             log.info(f"Creating new directory for data: {self.datapath}" )
             self.datapath.mkdir() # Create subdirectory (unlikely to exist, but TODO: verify)
@@ -127,6 +150,9 @@ class SampleEvent(SampleBase,  abc.ABC):
                 log.warning("Renaming file failed with error message: %s" % msg)
             except FileExistsError as msg:
                 log.warning("Target file name already exists, skipping: %s" % msg)
+    def write_postprocessor_report(self, conf, properties_filename = None):
+        # By default, do nothing
+        return # 
 #------------------------------------------------------------------------------------------------------    
 class SampleImage(SampleBase): 
     "One image plus metadata"
@@ -136,7 +162,7 @@ class SampleImage(SampleBase):
     def __init__(self,  label,  fn = None): 
         super().__init__()
         self.label= label
-        self.meta = jkm.metadata.ImageMetadata(self.label)  #Image-level metadata
+        self.meta = jkm.samplemetadata.ImageMetadata(self.label)  #Image-level metadata
         self.confsection= None
         self._img = None  # Full image data loaded to memory (set to None if not yet loaded)
         self._fn = fn
@@ -185,7 +211,7 @@ class SampleImage(SampleBase):
 #    def writeImage(filename): pass
     def copyMetadatafFomConf(self, configobject):
         cf = configobject
-        self.addMeta("Free text", cf.get(self.confsection,"freetextline", fallback=""))
+#        self.addMeta("Free text", cf.get(self.confsection,"freetextline", fallback=""))
         self.addMeta("Image timing", self.time)
     def addMeta(self,title,content=""):
         self.meta.add(title,  content)
@@ -268,7 +294,38 @@ class CombinedImage(SpecimenImage, LabelImage): # Note: potential problems with 
         super().__init__(label,  fn)
 
 #------------------------------------------------------------------------------------------------------    
+class SingleImageSample(SampleEvent): 
+    """A single image based minimal sample event"""
+    supports_rename_files = True    
+    supports_rename_directories = False    
+    def __init__(self,  time = None):
+#        self._has_metadatafile = False
+#        self._is_directory = False
+        super().__init__(time)
+    @staticmethod
+    def from_image_file(imgfile, conf, label="generic_camera"): 
+        # Assumes jpg file name is metadata file name
+        log.debug("Creating sample data from JPEG image and config file metadata")
+        # Extract creating time from JPG and to be used as the Sample event creationtime        
+        filecreated = getFileCreationDateTime(imgfile)
+        imgfile = Path(imgfile)
+	# Create a CombinedImage to hold image data 
+	# As this is a single image sample, we assume the image can hold both specimen and label data and use CombinedImage
+        image = CombinedImage(label, fn = imgfile)
+	# Create a new SingleImageSample instance and return it 
+        s = SingleImageSample( time = filecreated )
+        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
+        s.datapath = imgfile.parent # Use the directory holding the file as the Sample 'home'
+        s.prefix = imgfile.stem # default naming scheme for sample-related objects
+        s.addImage(image)
+        return s        
+    def _shortenidentifier(self, x): # Overrides base class
+        separator = r'/'
+        return x.split(separator)[-1] # Last element
+#------------------------------------------------------------------------------------------------------    
 class LuomusLineSample(SampleEvent): 
+    supports_rename_files = True    
+    supports_rename_directories = True    
     allowed_URI_domains = ["http://tun.fi/", "http://id.luomus.fi/",""]
     def __init__(self,  time=None):
         super().__init__(time)
@@ -315,7 +372,7 @@ class LuomusLineSample(SampleEvent):
         else: id0 = self.identifier
         if not id0: raise jkm.errors.JKError("No identifier known, cannot rename directory")
         newprefix = "_".join([id0 , prefix])            
-        if config.getb("basic","create_directories"): # if a subdirectory was created for data
+        if config.getb("tasks","create_directories"): # if a subdirectory was created for data
              newbase = basepath / id0 # example [basebath]/GX.38276
              newpath = newbase / newprefix # example [basebath]/GX.38276/GX.38276_timestamp
              if not newbase.exists(): newbase.mkdir() 
@@ -324,6 +381,28 @@ class LuomusLineSample(SampleEvent):
         log.debug(f"Renaming {self.datapath} to {newpath}")        
         self.datapath.rename(newpath) 
         self.datapath= newpath # Set datapath to the new value only if everything preceding was successful
+    def write_postprocessor_report(self, conf, properties_filename = None):
+        """Write postprocessor.properties file. Uses the same format as the Luomus degitizing line .properties file"""
+        if (properties_filename is None) or (not properties_filename):
+            properties_filename  = Path(r"postprocessor.properties")
+        else: properties_filename = Path(properties_filename) # Make sure this is a path 
+        try:
+            self.digipropfile.setheader( f"# {datetime.now()}" )
+            self.digipropfile.update("full_barcode_data",self.identifier or "")
+            self.digipropfile.update("identifier",self.shortidentifier  or "")
+            self.digipropfile.update("timestamp",self.original_timestamp())
+            if self.identifier: # Only one identifier-containing barcode was found
+                id_OK = self.verify_identifier() # This should probably be done way earlier elsewhere
+                if not id_OK: 
+                    log.critical(f"{self.name}: *******\n\n\n\nMALFORMED IDENTIFIER {self.identifier}*******\n\n\n\n")
+                self.digipropfile.update("URI_format_OK", str(id_OK) )
+            self.digipropfile.update("Q-sharp", "" )
+            self.digipropfile.update("Q-color", "" )
+            self.digipropfile.save( self.datapath / properties_filename )
+        except OSError as msg:
+            assert(propfilepath) # Should exist if this exception was triggered
+            log.warning( f"Saving a properties file failed with error message: {msg}" )
+
 #------------------------------------------------------------------------------------------------------    
 class LuomusPlantLineSample(LuomusLineSample): 
     def __init__(self,  time=None):
@@ -360,7 +439,7 @@ class LuomusInsectLineSample(LuomusLineSample):
     def from_directory(dirpath, conf): 
         log.debug("Creating sample data from JPEG image and jkm config file metadata") 
         # Does not currently read digitization.propersies or the XML file
-        labelpath = dirpath / Path(conf.get("sampleformat", "label_file"))
+        labelpath = dirpath / Path(conf.get("data", "label_file"))
         # Extract creating time from JPG and use it as the Sample event time        
         itime = getFileCreationDateTime(labelpath)
         s = LuomusLineSample( time = itime )
@@ -380,32 +459,10 @@ class LuomusInsectLineSample(LuomusLineSample):
             s.addImage( SpecimenImage(ofn, fn = ofp)  )
         return s             
 #------------------------------------------------------------------------------------------------------    
-class SingleImageSample(SampleEvent): 
-    """A single image based minimal sample event"""
-    def __init__(self,  time = None):
-#        self._has_metadatafile = False
-#        self._is_directory = False
-        super().__init__(time)
-    @staticmethod
-    def from_image_file(imgfile, conf, label="generic_camera"): 
-        # Assumes jpg file name is metadata file name
-        log.debug("Creating sample data from JPEG image and config file metadata")
-        itime = getFileCreationDateTime(imgfile)
-        imgfile = Path(imgfile)
-        image = CombinedImage(label, fn = imgfile)
-        # Extract creating time from JPG and use it as the Sample event time        
-        s = SingleImageSample( time = itime )
-        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
-        s.datapath = imgfile.parent
-        s.addImage(image)
-        s.prefix = imgfile.stem
-        return s        
-    def _shortenidentifier(self, x): # Overrides base class
-        separator = r'/'
-        return x.split(separator)[-1] # Last element
-#------------------------------------------------------------------------------------------------------    
 _DEFAULT_IMGDIR_FILE_FORMAT = "*.jpg"
 class ImageDirectorySample(LuomusLineSample): 
+    supports_rename_files = True    
+    supports_rename_directories = True    
     # Read from the SETUP file
     # trigger_pattern = ".identier"
     def __init__(self,  time=None,  imagefilepattern = _DEFAULT_IMGDIR_FILE_FORMAT):

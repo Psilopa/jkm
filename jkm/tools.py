@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import time,  logging,  ast,  math,  re,  io,  shutil, os 
-import time,  logging,  ast,  math,  re,  io,  shutil, os 
 from pathlib import Path
 import numpy as np
 import cv2
@@ -9,6 +8,22 @@ from jkm.errors import FileLoadingError
 log = logging.getLogger() # Overwrite if needed
 LOG_FILE_ENCODING = "utf8"
 
+def list2printvalues(mylist):
+    out = []
+    for valuedict in mylist:
+        out +=  valuedict.values()
+    return "\n".join(out)
+    
+def json2printdict(json):
+    if type(json) == str: json = jsonmodule.loads(json)
+    # Reformat a JSON reply to for Table output
+    rv = {}
+    for key in json.keys():
+        if type(json[key]) == list:
+            rv[key] = list2printvalues(json[key])
+        else: rv[key] = json[key]
+    return rv    
+        
 class ColorFormatter(logging.Formatter):
     grey = "\x1b[38;20m"
     white = "\x1b[0m"
@@ -30,27 +45,44 @@ class ColorFormatter(logging.Formatter):
         formatter = logging.Formatter(log_fmt)
         return formatter.format(record)
             
-def setup_logging(name, debug = False):
+# Send log data to an external reader via an event
+class ExtHandler(logging.Handler):
+    def __init__(self, ext):
+        super().__init__()
+        self.ext = ext
+    def emit(self,record): self.ext.event_log(record)
+
+def setup_logging(name,
+                  logging_level_file = logging.INFO,
+                  logging_level_stream = logging.INFO,
+                  ext = None):
     """Set up logging services"""
+    STREAMLOGFORMAT = '[%(asctime)s] %(message)s'
+#    STREAMLOGFORMAT = '%(message)s'
+    FILELOGFORMAT = '%(levelname)s: %(message)s [%(asctime)s]'
+    #TODO: Call needed on windows only!
     os.system('color')  # Ask system console to display color if available
+    # Default logger: should do nothing as we add our own handlers, but set just in case
     log = logging.getLogger(name)
-    if debug: log.setLevel(logging.DEBUG)
-    else: log.setLevel(logging.INFO)
+    log.setLevel(logging_level_file)
     # To console
-    chc = logging.StreamHandler( )
-    log.addHandler(chc)
+    consolelog = logging.StreamHandler( )
+    consolelog.setFormatter(ColorFormatter(STREAMLOGFORMAT))
+    consolelog.setLevel( logging_level_stream )
+    log.addHandler(consolelog)
     # To log file
-    chf = logging.FileHandler(f"{name}.log",  encoding=LOG_FILE_ENCODING)
-    if debug: chf.setLevel(logging.DEBUG)
-    else: chf.setLevel(logging.INFO)
-    log.addHandler(chf)
-#    simpleformat = '%(message)s'
-#    for handler in log.handlers[:]: handler.setFormatter(ColorFormatter(simpleformat))
-#    log.info("\n") # Print some empty lines using a simplified format
-    logformat = '%(levelname)s: %(message)s [%(asctime)s]'
-    for handler in log.handlers[:]: handler.setFormatter(ColorFormatter(logformat))
-    if debug: log.info("Logging set up for debug.")
-    else: log.info("Logging set up for not debugging data.")
+    filelog = logging.FileHandler(f"{name}.log",  encoding=LOG_FILE_ENCODING)
+    filelog.setFormatter(ColorFormatter(FILELOGFORMAT))
+    filelog.setLevel( logging_level_file )
+    log.addHandler(filelog)
+    # To ext
+    if ext:
+        extlog =ExtHandler(ext)
+        # At least for now, default external logging to use the same settings as stream
+        extlog.setLevel( logging_level_stream ) 
+        extlog.setFormatter( logging.Formatter(fmt=FILELOGFORMAT) ) 
+        log.addHandler(extlog)
+    log.info(f"Console logging set to level { logging.getLevelName(logging_level_stream) }.")
     return log
 
 def monitor_disk_space(dir_name,limit,levels=[1,0.1,0.01]):
@@ -155,3 +187,15 @@ def backup_file(orig_path,  copy_path):
     if  orig_path.exists() and orig_path.is_file():  
         shutil.copy(orig_path,  copy_path)
     return True
+
+def unique(s) :return tuple(set(s))
+
+#def path_in_list(p,pathlist):
+#    for p2 in pathlist: 
+#        if p.samefile(p2): return True
+#    return False		
+
+def quit_if_not_exists(pathname):
+    if not pathname.exists():
+        log.critical(f"Path {pathname} not found. Quitting.")
+        sys.exit()
