@@ -28,7 +28,7 @@ class processor:
     SUCCESS = 0
     FAIL_IGNORE = 1
     FAIL_RETRY = 2
-#------------------ MISC TOOLS  -------------------
+#------------------ MISC TOOLS  ------------------- 
 # Default threadpool, using Python threading module.
 class myThreadPool():
     @property
@@ -50,7 +50,8 @@ def get_sample_class(sample_format_str):
         "mzh_insectline" : jkm.sample.LuomusInsectLineSample,
         "mzh_plantline":  jkm.sample.LuomusPlantLineSample,
         "singlefile":  jkm.sample.SingleImageSample,
-        "imagedir":  jkm.sample.ImageDirectorySample,
+#        "imagedir":  jkm.sample.ImageDirectorySample, # For each directory, all images = a sample
+        "resourcelist":  jkm.sample.URI_list_Sample,
         }
     try:
         return str2class[ sample_format_str.lower() ]
@@ -68,12 +69,13 @@ class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
         self._lastinsert = event.src_path        
 
 def find_existing_events(conf):
-            datafile_patterns = conf.getlist("data", "recognize_by_filename_pattern")        
-            # Find list of file names matching a pattern and put them into the queue
-            sample_format = conf.get("data", "datatype_to_load")        
-            sample_class = get_sample_class( sample_format.lower() )
-            found = sample_class.find_samples(conf.basepath,datafile_patterns)          
-            return found
+    "Returns a tuple of URIs pointing to a resource that can be used to build an event."
+    datafile_patterns = conf.getlist("data", "recognize_by_filename_pattern")        
+    # Find list of file names matching a pattern and put them into the queue
+    sample_format = conf.get("data", "datatype_to_load")        
+    sample_class = get_sample_class( sample_format.lower() )
+    found = sample_class.find_samples(conf.basepath,datafile_patterns)          
+    return found
         
 #------------------ SINGLE TASKS -------------------
 def task_add_prefix_to_imagefiles(sample):
@@ -229,7 +231,7 @@ class jkm_post():
         # This allows external sources like a GUI to track the progress of jkm-post.main()
         self.ext = None
         self.fsobserver = None # A watchdog file system observer
-        self.filequeue = queue.Queue() # a FIFO queue of trigger file names
+        self.URIqueue = queue.Queue() # a FIFO queue of URIs that are (hopefully) usable for building Sample objects
         self.threadpool = None # A worker thread pool ... set in main() !
         self.spreadsheet = None # a Spreadsheet obsect
     # ----------------- Verify setup --------------------------------
@@ -247,7 +249,7 @@ class jkm_post():
                         )
             if conf.has_section("barcodes"):
                 log.debug(f'Using QR code decoder { conf.get( "barcodes", "barcodepackage") }')
-            jkm.tools.quit_if_not_exists(conf.basepath)
+            if not conf.basepath.exists(): raise jkm.errors.ConfigError(f"Resource base {conf.basepath} does not exist.")
         except jkm.errors.ConfigWarning: # ConfigError is way worse and is handled at the end
             pass # Exception does its own logging  
     # ----------------- Initialize state  -----------------------------
@@ -316,18 +318,22 @@ class jkm_post():
         else: log.debug(f"{sample.name}: No crop performed.")
 
     # ----------------- Process a single event ------------------------
-    def processSingleEvent(self,filename, conf, spreadsheet):
-        log.debug(f"Processing data file {filename}" )
+    def _is_existing_path(self, sourceURI):
+        # Create a Sample Event
+        filepath = Path.from_uri(str(sourceURI))
+        dirpath= filepath.parent
+        # Catch some error states
+        if not dirpath.is_dir():                
+            raise jkm.errors.FileLoadingError(f"Cannot find path {filepath},  skipping to next sample.")
+        if not filepath.exists():
+            raise jkm.errors.FileLoadingError(f"Could not find file {filepath}, skipping.")
+        return filepath
+
+    def processSingleEvent(self,sourceURI, conf, spreadsheet):
+        log.debug(f"Processing data from {sourceURI}" )
         # Variables to hold extracted data
         allbarcodes = []
         try:
-            # Create a Sample Event
-            dirpath= filename.parent
-            # Catch some error states
-            if not dirpath.is_dir():                
-                raise jkm.errors.FileLoadingError(f"Cannot find path {dirpath},  skipping to next sample.")
-            if not filename.exists():
-                raise jkm.errors.FileLoadingError(f"Could not find file {filename}, skipping.")
             # Try to recognise input file/directory format
             sample_format = conf.get("data", "datatype_to_load")        
             sample_class = get_sample_class( sample_format.lower() )
@@ -335,16 +341,20 @@ class jkm_post():
                                 jkm.sample.LuomusPlantLineSample,
                                 jkm.sample.ImageDirectorySample,
                                 ): 
-                sample = sample_class.from_directory(dirpath, conf)
+                filepath = self._is_existing_path(sourceURI)
+                sample = sample_class.from_directory(filepath.parent , conf)
             elif sample_class in (jkm.sample.SingleImageSample,  ):
-                sample = sample_class.from_image_file(filename, conf)
+                filepath = self._is_existing_path(sourceURI)
+                sample = sample_class.from_image_file(filepath, conf)
+            elif sample_class in (jkm.sample.URI_list_Sample,  ):
+                sample = sample_class.from_URI(sourceURI, conf)
             # get_sample_class(sformat) should already block unknown sample types:   
-            else: assert False, "Unknown sample format."
+            else: jkm.errors.FileLoadingError(f"Unknown sample type {sample_format}")
         except jkm.errors.FileLoadingError as msg:
                     log.error(msg)
                     return processor.FAIL_IGNORE
                 
-        # MAIN POSTPROCESSOR STARTS HERE
+##        # MAIN POSTPROCESSOR STARTS HERE
         log.info(f"New sample found, initial name {sample.name}")
         if self.ext: self.ext.event_new_sample(sample)
 
@@ -448,17 +458,14 @@ class jkm_post():
 # ----------------- main worker function, called in a new thread created when a sample arrival event is noticed ------------------------
     def processSampleEvents(self,queue, conf, sleep_s, spreadsheet):
         while True:
-            # Input queue item = name of file found by the directory watcher tool
             next_input = queue.get()
             if next_input is None: break
-            filename = Path( next_input )
             time.sleep(sleep_s) # Wait for all data to arrive
-            successQ = self.processSingleEvent( filename, conf, self.spreadsheet )        
+            successQ = self.processSingleEvent( next_input, conf, self.spreadsheet )        
             if successQ is processor.FAIL_RETRY: queue.put( next_input ) # retry from start
             elif successQ is processor.FAIL_IGNORE: queue.done() 
             elif successQ is processor.SUCCESS: pass # Do nothing
 #            if self.ext: self.ext.event_sample_done(sample, processor.SUCCESS) # ... but we do NOT know the sample here, at it is not returned. TODO
-            #DONE
             log.info(f"Sample events in process queue: {queue.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
 
 # ----------------- only function others should call! -----------------------------
@@ -486,8 +493,8 @@ class jkm_post():
 
             if conf.getb("postprocessor", "process_existing"):            
                 for fn in find_existing_events(conf):
-                    self.filequeue.put(fn)
-                log.info(f"Approximate number of sample events to process at launch is {self.filequeue.qsize()}")
+                    self.URIqueue.put(fn)
+                log.info(f"Approximate number of sample events to process at launch is {self.URIqueue.qsize()}")
             
             if conf.getb("task", "labeldata_to_CSV", default = False):
                 self.spreadsheet = self.init_spreadsheet(conf)
@@ -500,7 +507,7 @@ class jkm_post():
             wait_after_sample_s = conf.getf("postprocessor", "sleep_after_new_sample_detected")
             for i in range(_num_worker_threads):
                 self.threadpool.newthread( target = self.processSampleEvents,
-                                      args = (self.filequeue,conf, wait_after_sample_s, self.spreadsheet) )
+                                      args = (self.URIqueue,conf, wait_after_sample_s, self.spreadsheet) )
             #Start loops looking for data to process and processing it
             # Wait period from file detection to file processing
             # Allows for enough time for transfer of a file(s)  to be completed
@@ -510,7 +517,7 @@ class jkm_post():
                 # Monitor file system --- will also process any data inserted in the queue before this point!
                 log.debug(f"MONITORING DIRECTORY: {str(conf.basepath)}.")
                 # Start a filesystem watchdog thread watching for NEW .metadata files
-                event_handler = myFileEventHandler(self.filequeue, patterns=datafile_patterns) # HERE
+                event_handler = myFileEventHandler(self.URIqueue, patterns=datafile_patterns) # HERE
                 self.fsobserver = watchdog.observers.Observer() 
                 self.fsobserver.schedule(event_handler, str(conf.basepath), recursive=True)
                 self.fsobserver.start()
@@ -519,7 +526,7 @@ class jkm_post():
                 try: 
                     while True:
                         time.sleep(1)
-                        log.debug(f"Queue size is currently {self.filequeue.qsize()}" )
+                        log.debug(f"Queue size is currently {self.URIqueue.qsize()}" )
                 except KeyboardInterrupt:
                     pass # Fall through to the end of the script
         # Check for fatal error states:
@@ -549,7 +556,7 @@ class jkm_post():
         if self.threadpool:
             end_of_life_signal = None # Standard for queue.Queue()        
             for i in range(self.threadpool.activethreadcount):
-                self.filequeue.put( end_of_life_signal )
+                self.URIqueue.put( end_of_life_signal )
             # Wait for each worker thread to end properly
             self.threadpool.join()
             self.threadpool= None

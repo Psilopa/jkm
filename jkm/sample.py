@@ -5,11 +5,10 @@ import logging,  os
 #import  pickle
 import cv2
 import jsonpickle
-import jkm.samplemetadata
-import jkm.ocr
-import jkm.tools
+import jkm.samplemetadata, jkm.ocr, jkm.tools, jkm.errors
 from jkm.digitisation_properties import DigipropFile
-import jkm.errors
+import numpy as np
+from urllib.request import urlopen
 
 log = logging.getLogger() # Overwrite from calling script for fancier logging
 deg2rotcode = {90: cv2.ROTATE_90_CLOCKWISE,
@@ -43,20 +42,6 @@ class SampleBase(abc.ABC):
     def fromJSONfile(fn):
         with open(fn) as f:
             return  jsonpickle.decode(f.read())
-    @staticmethod
-    # Override in child classes if needed!
-    def find_samples(dirname,datafile_patterns):
-        "Returns a list of matching file names"
-        log.debug(f"Finding '{datafile_patterns}' files to process in {dirname}" )
-        d = Path(dirname) 
-        result = []
-        for pat in datafile_patterns:
-            tempr = d.rglob(pat)
-            log.debug(f"Looking for pattern {pat} in {dirname}")
-            tempr = [x for x in tempr if ( str(x).find("textarea") == -1 )] # Skip files with "textarea" in their name
-            result.extend( tempr )
-        # Delete duplicate files (hard links to the same file)
-        return jkm.tools.unique(result)
 
 class Results():  # Partial overlap with metadata ... think about this later
     """Sample analysis results."""
@@ -153,7 +138,29 @@ class SampleEvent(SampleBase,  abc.ABC):
     def write_postprocessor_report(self, conf, properties_filename = None):
         # By default, do nothing
         return # 
-#------------------------------------------------------------------------------------------------------    
+    @staticmethod
+    # Override in child classes if needed!
+    def find_samples(dirname,datafile_patterns = "*.*"):
+        """Returns a list of URIs pointing to a source that can be used to build an Sample. Child classes can replace this.
+
+        Arguments of the default version:
+        dirname - string or Path: path to the direcotry holding items
+        datafile_patterns - string: glob pattern for recognizing the file(s)
+        """
+        
+        log.debug(f"Finding '{datafile_patterns}' files to process in {dirname}" )
+        d = Path(dirname) 
+        result = []
+        for pat in datafile_patterns:
+            filepath = d.rglob(pat)
+            log.debug(f"Looking for pattern {pat} in {dirname}")
+            filepath = [Path(x).as_uri() for x in filepath if ( str(x).find("textarea") == -1 )] # Skip files with "textarea" in their name
+            # tempr found be a 
+            result.extend( filepath )
+        # Delete duplicate files (hard links to the same file)
+        return jkm.tools.unique(result)
+
+#-----------------------------IMAGE CONTAINERS---------------------------------------------------------------    
 class SampleImage(SampleBase): 
     "One image plus metadata"
     #Class properties
@@ -231,17 +238,15 @@ class SampleImage(SampleBase):
         if angle:
             img = self.readImage()
             rotcode = deg2rotcode[angle]
-            self._img = cv2.rotate(img, rotateCode = rotcode)
-        
-#------------------------------------------------------------------------------------------------------    
+            self._img = cv2.rotate(img, rotateCode = rotcode)        
+
 class SpecimenImage(SampleImage):
     #Class properties
     has_specimens = True # Property
     has_labels = False # Property
     def __init__(self,  label,  fn = None): 
         super().__init__(label,  fn)
-#    def specimenCrop(self): pass
-#------------------------------------------------------------------------------------------------------    
+
 class LabelImage(SampleImage):
         #Class properties
     has_specimens = False # Property
@@ -292,8 +297,7 @@ class CombinedImage(SpecimenImage, LabelImage): # Note: potential problems with 
     has_labels = True # Property
     def __init__(self,  label,  fn = None): 
         super().__init__(label,  fn)
-
-#------------------------------------------------------------------------------------------------------    
+#---------------------------------------------------------------------------------------------------    
 class SingleImageSample(SampleEvent): 
     """A single image based minimal sample event"""
     supports_rename_files = True    
@@ -322,6 +326,51 @@ class SingleImageSample(SampleEvent):
     def _shortenidentifier(self, x): # Overrides base class
         separator = r'/'
         return x.split(separator)[-1] # Last element
+#------------------------------------------------------------------------------------------------------    
+class URI_list_Sample(SingleImageSample): 
+    def __init__(self,  time = None):
+        super().__init__(time)
+    @staticmethod
+    def find_samples(path_file_URIlist, dummy_argument = None):
+        """Returns a list of URIs pointing to a source that can be used to build an Sample. Child classes can replace this.
+
+        Arguments of the default version:
+        path_file_URIlist - a file containing file names or 
+        """
+        log.debug(f"Reading '{path_file_URIlist}' to find resources")        
+        path_file_URIlist = Path(path_file_URIlist)
+        try:
+            result = []
+            with path_file_URIlist.open("r") as f:
+                lines = f.readlines()
+            for line in lines:
+                # Check URI validity
+                # tempr found be a 
+                result.append( line.strip() )
+            print("Rerturning", result)
+            # Delete duplicate files (hard links to the same file)
+            return jkm.tools.unique(result)
+        except IOError as msg:
+            raise jkm.errors.FileLoadingError(f"Resource access error {msg}.")
+        # return the image
+        return image
+    @staticmethod
+    def from_URI(myURI, conf):
+        # TODO: THIS IS VERY INELEGANT. WE SHOULD REALLY CHANGE ALL IMAGE CLASSES TO HANDLE either PATHS OR URIs BY DEFAULT
+        # BUT THEN WE CANNOT RELY ON FILES HAVING A CREATION TIME ETC?
+        assert False, "Loading images from URIs is not yet implemented."
+        image = _url_to_image(myURI)
+        # TODO: NEXT STEPS:
+        # SAVE IMAGE LOCALLY
+        return SingleImageSample.from_image_file(imgfile, conf, label="generic_camera")
+
+def _url_to_image(url, readFlag=cv2.IMREAD_COLOR):
+    # download the image, convert it to a NumPy array, and then read
+    # it into OpenCV format
+    resp = urlopen(url)
+    image = np.asarray(bytearray(resp.read()), dtype="uint8")
+    image = cv2.imdecode(image, readFlag)
+    
 #------------------------------------------------------------------------------------------------------    
 class LuomusLineSample(SampleEvent): 
     supports_rename_files = True    
@@ -485,6 +534,3 @@ class ImageDirectorySample(LuomusLineSample):
             s.addImage( CombinedImage(ofn, fn = ofp)  )
         return s             
 #------------------------------------------------------------------------------------------------------    
-#if __name__ == '__main__': #SImple testing
-#    si = SampleEvent()
-#    print(si.toJSON())
