@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
-import time,  logging,  ast,  math,  re,  io,  shutil, os 
+import time, logging, math, re, io, shutil
+import validators
 from pathlib import Path
 import numpy as np
 import cv2
 from jkm.errors import FileLoadingError
+from urllib.parse import urlparse
 
 log = logging.getLogger() # Overwrite if needed
-LOG_FILE_ENCODING = "utf8"
 
 def is_existing_path(url): 
     "Verify that this url, if a local file url, corresponds to an accessible path"
@@ -27,75 +28,22 @@ def list2printvalues(mylist):
     return "\n".join(out)
     
 def json2printdict(json):
-    if type(json) == str: json = jsonmodule.loads(json)
+    if isinstance(json, str): json = jsonmodule.loads(json)
     # Reformat a JSON reply to for Table output
     rv = {}
     for key in json.keys():
-        if type(json[key]) == list:
+        if isintance(json[key], list):
             rv[key] = list2printvalues(json[key])
         else: rv[key] = json[key]
     return rv    
-        
-class ColorFormatter(logging.Formatter):
-    grey = "\x1b[38;20m"
-    white = "\x1b[0m"
-    yellow = "\x1b[33;20m"
-    red = "\x1b[31;20m"
-    bold_red = "\x1b[31;1m"
-    reset = "\x1b[0m"
-    def __init__(self, formatstr):
-#        formatstr = "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)" 
-        self.FORMATS = {
-            logging.DEBUG: self.grey + formatstr + self.reset,
-            logging.INFO: self.white + formatstr + self.reset,
-            logging.WARNING: self.yellow + formatstr + self.reset,
-            logging.ERROR: self.red + formatstr + self.reset,
-            logging.CRITICAL: self.bold_red + formatstr + self.reset,
-        }
-    def format(self, record):
-        log_fmt = self.FORMATS.get(record.levelno)
-        formatter = logging.Formatter(log_fmt)
-        return formatter.format(record)
-            
-# Send log data to an external reader via an event
-class ExtHandler(logging.Handler):
-    def __init__(self, ext):
-        super().__init__()
-        self.ext = ext
-    def emit(self,record): self.ext.event_log(record)
 
-def setup_logging(name,
-                  logging_level_file = logging.INFO,
-                  logging_level_stream = logging.INFO,
-                  ext = None):
-    """Set up logging services"""
-    STREAMLOGFORMAT = '[%(asctime)s] %(message)s'
-#    STREAMLOGFORMAT = '%(message)s'
-    FILELOGFORMAT = '%(levelname)s: %(message)s [%(asctime)s]'
-    #TODO: Call needed on windows only!
-    os.system('color')  # Ask system console to display color if available
-    # Default logger: should do nothing as we add our own handlers, but set just in case
-    log = logging.getLogger(name)
-    log.setLevel(logging_level_file)
-    # To console
-    consolelog = logging.StreamHandler( )
-    consolelog.setFormatter(ColorFormatter(STREAMLOGFORMAT))
-    consolelog.setLevel( logging_level_stream )
-    log.addHandler(consolelog)
-    # To log file
-    filelog = logging.FileHandler(f"{name}.log",  encoding=LOG_FILE_ENCODING)
-    filelog.setFormatter(ColorFormatter(FILELOGFORMAT))
-    filelog.setLevel( logging_level_file )
-    log.addHandler(filelog)
-    # To ext
-    if ext:
-        extlog =ExtHandler(ext)
-        # At least for now, default external logging to use the same settings as stream
-        extlog.setLevel( logging_level_stream ) 
-        extlog.setFormatter( logging.Formatter(fmt=FILELOGFORMAT) ) 
-        log.addHandler(extlog)
-    log.info(f"Console logging set to level { logging.getLevelName(logging_level_stream) }.")
-    return log
+def logtime(f,*a,**k):
+    """monitor spent time in slow/heavy processes, output on debug level only"""
+    t1 = time.time()
+    r = f(*a,**k)    
+    t2 = time.time()
+    log.debug("\t\tTime spent in %s was %f" % (f.__name__,t2-t1))
+    return r    
 
 def monitor_disk_space(dir_name,limit,levels=[1,0.1,0.01]):
     """Monitor free disk space in given directory, warning at level[0], error at level[1], critical at level[2]"""
@@ -107,17 +55,6 @@ def monitor_disk_space(dir_name,limit,levels=[1,0.1,0.01]):
         log.error("Disk space very low (free space %.0f MB (%.1f GB)" % feespace)
     elif freeb < levels[2]*limit:
         log.critical("Disk space critical (free space %.0f MB (%.1f GB)" % feespace)
-
-def logtime(f,*a,**k):
-    """monitor spent time in slow/heavy processes, output on debug level only"""
-    t1 = time.time()
-    r = f(*a,**k)    
-    t2 = time.time()
-    log.debug("\t\tTime spent in %s was %f" % (f.__name__,t2-t1))
-    return r    
-
-def string2list(instr):
-    return ast.literal_eval(instr.strip())
 
 def gammacorrect(img, gamma):
     lookUpTable = np.empty((1,256), np.uint8)
@@ -135,15 +72,42 @@ def save_img(fn,image): # Better error handling than the raw cv2 imwrite
     try: cv2.imwrite(fn,image)
     except SystemError as err: raise err
 
-def load_img(image): #Loads image from image object or file
-    # Todo: add better Error handling (catch SystemError from and convert from FileError or like)
-    if isinstance(image,str)or isinstance(image,Path):
-        fnp = Path(image)
+def img_from_file(imagestr):
+        fnp = Path(imagestr)
         if not fnp.exists(): raise FileLoadingError("File %s does not exist" % fnp)
         if not fnp.is_file(): raise FileLoadingError("%s is not a file" % fnp)
         if fnp.is_reserved(): raise FileLoadingError("File %s is reserved" % fnp)
-        img = cv2.imread(str(fnp),cv2.IMREAD_UNCHANGED)
-    elif isinstance(image, io.IOBase):
+        return cv2.imread(str(fnp),cv2.IMREAD_UNCHANGED)
+    
+def img_from_url(url):
+    parsed_url = urlparse(url)
+    if parsed_url.scheme == 'file':
+        print("FOUND PATH", parsed_url.path)
+        return img_from_file(parsed_url.path)
+    # If this is a file
+    parsed_url
+    return "FOOOO"
+    
+def load_img(image): #Loads image from image object or file
+    """Loads an image (as a cv2 image) from a variety of sources.
+
+    Accept
+    - a Path
+    - a IOBase stream (which is treated as an opened file with image data
+    - 
+    an image type
+    """
+    print("load_img called with", image)
+    # Todo: add better Error handling (catch SystemError from and convert from FileError or like)
+    if isinstance(image, Path): return img_from_file(image)
+    elif isinstance(image, str): # Can be a path or a uri
+        try:
+            if Path(image).exists(): img_from_file(image) 
+        except FileLoadingError: pass # Continue on failure to read as path
+        imgstr = image.strip()
+        if validators.url( imgstr ):  # Should be a valid URL as-is
+            return img_from_url( imgstr )
+    elif isinstance(image,io.IOBase):
         img = cv2.imdecode(image.read(),cv2.IMREAD_UNCHANGED)
     else:
         img = image # This is hopefully already a Image-type object ... test for numpy.ndarray ?    
@@ -194,11 +158,17 @@ Returns the short form only! Assumes 0-1 matches!"""
     return reslist
     
     
-def backup_file(orig_path,  copy_path):
+def safecopy(orig_path, target_path, overwrite = True):
+    "Copy a file sort of safely."
+    orig_path = Path(orig_path)
+    target_path = Path(orig_path)
     log.debug(f"Trying to back up file from {orig_path} to {copy_path}")
-    if  orig_path.exists() and orig_path.is_file():  
-        shutil.copy(orig_path,  copy_path)
-    return True
+    if  orig_path.exists() and orig_path.is_file():
+        if not overwrite and target_path.exists():
+            return False
+        shutil.copy(orig_path, target_path)
+        return True
+    return False
 
 def unique(s) :return tuple(set(s))
 

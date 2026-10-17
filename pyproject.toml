@@ -13,7 +13,7 @@ authors = [ {name = "Jere Kahanpää"} ]
 readme = "README.md"
 #license = "LicenseRef-My-Custom-License"
 #license-files = ["LICEN[CS]E*", "vendored/licenses/*.txt", "AUTHORS.md"]
-requires-python = ">= 3.8" # Verify the minimum version
+requires-python = ">= 3.11" # Uses Path.copy !
 # These should also be listed in requirements.txt !
 dependencies = [   
 "jsonpickle==4.1.2",

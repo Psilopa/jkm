@@ -70,7 +70,8 @@ def extractbarcodedata(image, qrpackage, increasecontast=False,
     global QReader, pyzbar
     if qrpackage not in (CONST_QREADER, CONST_PYZBAR):
         raise BarcodeError(f"Unknown barcode reader tool '{qrpackage}'")
-    img = tools.load_img(image)
+#    img = tools.load_img(image)
+    img = image
     greyimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     if increasecontast:
         greyimg = tools.increaseTopContrast(greyimg,greyrange)

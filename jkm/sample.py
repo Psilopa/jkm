@@ -9,7 +9,7 @@ import jkm.samplemetadata, jkm.ocr, jkm.tools, jkm.errors
 from jkm.digitisation_properties import DigipropFile
 import numpy as np
 #from urllib.request import urlopen
-from urllib.parse import urlparse, urlsplit, urlunsplit
+from urllib.parse import urlparse, urlunparse
 
 log = logging.getLogger() # Overwrite from calling script for fancier logging
 deg2rotcode = {90: cv2.ROTATE_90_CLOCKWISE,
@@ -257,10 +257,10 @@ class SampleImageBase(SampleBase,  abc.ABC):
         if not self.supports_rename_files:
             raise jkm.errors.FileLoadingError("Cannot rename resources that are not local.")
         # Create new URL from the old one, replacing the file path
-        comps = urlsplit(self.url)
+        comps = urlparse(self.url)
         comps._replace( path=str(newpath) )
         self.path.rename(newpath)
-        self.url = urlunsplit(comps) # Also resets self._parsed_url
+        self.url = urlunparse(comps) # Also resets self._parsed_url
 
 class SampleImage(SampleImageBase): 
     "One image plus metadata"
@@ -276,7 +276,8 @@ class SampleImage(SampleImageBase):
             self.bitmap = jkm.tools.load_img(self.url)
         except SystemError as msg:
             log.warning(f"Reading file {str(filename)} failed" )
-            raise jkm.errors.FileLoadingError(msg)
+            self.bitmap = None # Reset after failure just in case
+            raise jkm.errors.FileLoadingError(msg)        
 #    def writeImage(filename): pass
 
 class SpecimenImage(SampleImage):
@@ -355,8 +356,8 @@ class SingleImageSample(SampleEvent):
 	# Create a CombinedImage to hold image data 
         image = CombinedImage(label, url)
         try:
-            imgpath = Path.from_uri(str(url))            
-            filecreated = getFileCreationDateTime(imgpath)        
+            imgpath = Path.from_uri(str(url))
+            filecreated = getFileCreationDateTime(imgpath)
         except ValueError: # THis is not a local file URI
             imgpath = None
             filecreated = datetime.now()
@@ -541,7 +542,7 @@ class SubDirectorySample(LuomusLineSample):
             s.addImage(img)
         return s             
 #------------------------------------------------------------------------------------------------------    
-class FileLineSample(SingleImageSample): 
+class FileRowSample(SingleImageSample): 
     def __init__(self,  time = None):
         super().__init__(time)
     @staticmethod
@@ -577,7 +578,6 @@ class FileLineSample(SingleImageSample):
         # return the image
         return image
     @staticmethod
-    def from_url(myurl, conf):
-        
+    def from_url(myurl, conf):        
         return SingleImageSample.from_url(myurl, conf, label="generic_camera")
 #------------------------------------------------------------------------------------------------------    

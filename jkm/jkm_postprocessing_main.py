@@ -7,22 +7,22 @@ import logging
 log = logging.getLogger() # Overwrite if needed
 
 # Standard python modules
-import time,  logging,  threading, sys, configparser, queue
-from math import inf
+import time, threading, sys, queue
+#from math import inf
 from datetime import datetime
 from pathlib import Path
 # non-stdlib modules
 import watchdog.events, watchdog.observers
 # app-specific modules
-import jkm.configfile,  jkm.sample,  jkm.tools
-import jkm.spreadsheet,  jkm.ai
-import jkm.meta, jkm.errors,  jkm.barcodes
+import jkm.configfile, jkm.sample,  jkm.tools
+import jkm.spreadsheet, jkm.ai, jkm.log
+import jkm.meta, jkm.errors, jkm.barcodes
 import jkm.external as ext
 # import jkm.ocr_analysis
 
 # CONSTANTS
 _BACKUP_DATATABLE = True
-_num_worker_threads = 3 # BETTER KEEP THIS AT 1: AI PROCESSES DO NOT SEEM TO LIKE CONCURRENT CALLS
+_num_worker_threads = 1 # BETTER KEEP THIS AT 1: AI PROCESSES DO NOT SEEM TO LIKE CONCURRENT CALLS
 _AI_AUTH_TYPES = ("APIKEY", "CLOUD_OAUTH", "LOCAL_OAUTH")
 class processor:
     SUCCESS = 0
@@ -51,7 +51,7 @@ def get_sample_class(sample_format_str):
         "mzh_plantline":  jkm.sample.LuomusPlantLineSample,
         "dir_content":  jkm.sample.SingleImageSample,
         "subdirectories":  jkm.sample.SubDirectorySample, # For each directory, all images = a sample
-        "resourcefile":  jkm.sample.FileLineSample,
+        "resourcefile":  jkm.sample.FileRowSample,
         }
     try:
         return str2class[ sample_format_str.lower() ]
@@ -255,7 +255,7 @@ class jkm_post():
     # ----------------- Initialize state  -----------------------------
     def init_logging(self,logging_level_file, logging_level_stream):
         global log  # !!!!
-        log = jkm.tools.setup_logging(jkm.meta.name, logging_level_file, logging_level_stream, ext = self.ext)
+        log = jkm.log.setup_logging(jkm.meta.name, logging_level_file, logging_level_stream, ext = self.ext)
         jkm.configfile.log = log    
         jkm.tools.log = log
         jkm.ocr.log = log  # IF OCR
@@ -270,8 +270,9 @@ class jkm_post():
             spreadsheetpath = Path( conf.get("spreadsheet","filename") ) 
             if  _BACKUP_DATATABLE:  
                 timestr = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
-                backup_path = spreadsheetpath.with_stem( spreadsheetpath.stem + "_" + timestr ) 
-                jkm.tools.backup_file(spreadsheetpath,  backup_path) # TODO: check return 
+                backup_path = spreadsheetpath.with_stem( spreadsheetpath.stem + "_" + timestr )
+                # TODO: check return 
+                successQ = jkm.tools.safecopy(spreadsheetpath, backup_path) 
             sheetformat = conf.get("spreadsheet","format") 
             if sheetformat.lower() != "csv": 
                 log.warning("Unknown ") 
@@ -335,7 +336,7 @@ class jkm_post():
                 jkm.tools.is_existing_path( sourceurl ) 
                 sample = sample_class.from_directory(sourceurl, conf)
             elif sample_class in (jkm.sample.SingleImageSample,
-                                  jkm.sample.FileLineSample):
+                                  jkm.sample.FileRowSample):
                 sample = sample_class.from_url(sourceurl, conf)
             elif sample_class in (jkm.sample.url_list_Sample,  ):
                 sample = sample_class.from_url(sourceurl, conf)
