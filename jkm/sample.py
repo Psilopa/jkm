@@ -127,7 +127,9 @@ class SampleEvent(SampleBase,  abc.ABC):
 #    def loadPickle(cls,fn): 
 #        with open(fn, "rb") as f: return pickle.load(f)  
     def rename_all_files(self, prefix,  prefix_separator= "_"):
-        """Rename source file"""
+        """Rename sample file(s).
+
+        NOTE: Currently only renames *image* files."""
         if not self.identifier: raise jkm.errors.JKError("No known sample identifier, cannot rename files")
         for image in self.imagelist:
             try: 
@@ -150,8 +152,10 @@ class SampleEvent(SampleBase,  abc.ABC):
     def find_samples(dirname,datafile_patterns = "*.*"):
         """Returns a list of urls pointing to a source that can be used to build an Sample. Child classes can replace this.
 
-        Arguments of the default version:
+        Arguments:
         dirname - string or Path: path to the direcotry holding items
+
+        Keywords:
         datafile_patterns - string: glob pattern for recognizing the file(s)
         """
         
@@ -178,7 +182,7 @@ class SampleImageBase(SampleBase,  abc.ABC):
         self._bitmap = None  # Full image data loaded to memory (set to None if not yet loaded)
         self._loaded = False
         self.url = url # Also sets self._parsed_url
-        self.name = url # For images, the image source is a good name
+        self.name = f"{type(self).__name__} ({url})" # For images, the image source is a good name
         self.label = label
         self.meta = jkm.samplemetadata.ImageMetadata(self.label)  #Image-level metadata
         self.confsection = None
@@ -239,18 +243,6 @@ class SampleImageBase(SampleBase,  abc.ABC):
             self._loadImage()
             rotcode = deg2rotcode[angle]
             self.bitmap = cv2.rotate(self.bitmap, rotateCode = rotcode)        
-
-class SampleImage(SampleImageBase): 
-    "One image plus metadata"
-    def __init__(self,  label,  url,  time = None): 
-        super().__init__(label, url,  time)
-        assert self.url, "SampleImage.url accessed while is was None."
-        print("self.url = ", self.url)
-     # ONLY POSSIBLE FOR LOCAL FILES
-    @property
-    def path(self):
-        assert self._parsed_url.scheme == "file" # Should be accessed only for files
-        return Path(self._parsed_url.path)
     def rename(self,newpath):
         """Rename the corresponding file on the file system.
 
@@ -261,9 +253,18 @@ class SampleImage(SampleImageBase):
         # Create new URL from the old one, replacing the file path
         comps = urlsplit(self.url)
         comps._replace( path=str(newpath) )
-        # FOR TESTING; COPY RATHER THAN RENAME
-        self.path.copy(newpath)
+        self.path.rename(newpath)
         self.url = urlunsplit(comps)
+
+class SampleImage(SampleImageBase): 
+    "One image plus metadata"
+    def __init__(self,  label,  url,  time = None): 
+        super().__init__(label, url,  time)
+     # ONLY POSSIBLE FOR LOCAL FILES
+    @property
+    def path(self):
+        assert self._parsed_url.scheme == "file" # Should be accessed only for files
+        return Path(self._parsed_url.path)
     def _loadImage(self, colourspace = cv2.IMREAD_COLOR): 
         """Returns image as a cv2/numpy array. 
         
@@ -271,7 +272,6 @@ class SampleImage(SampleImageBase):
         Raises jkm.errors.FileLoadingError is datais not accessible"""
         if (self.bitmap is not None): return self.bitmap 
         try:
-            print("LOADING FROM PATH", self.path)
             self.bitmap = jkm.tools.load_img(self.path)
         except SystemError as msg:
             log.warning(f"Reading file {str(filename)} failed" )
@@ -361,6 +361,7 @@ class SingleImageSample(SampleEvent):
         s.copyMetadatafFomConf(conf,  no_new_directiories=True)
         s.datapath = imgpath.parent # Use the directory holding the file as the Sample 'home'
         s.prefix = imgpath.stem # default naming scheme for sample-related objects
+        s.name = f"{type(s).__name__} ({url})" # For images, the image source is a good name
         s.addImage(image)
         return s        
     def _shortenidentifier(self, x): # Overrides base class
@@ -535,30 +536,34 @@ class LuomusInsectLineSample(LuomusLineSample):
             s.addImage( SpecimenImage(fname, fpath.as_uri())  )
         return s             
 #------------------------------------------------------------------------------------------------------    
-_DEFAULT_IMGDIR_FILE_FORMAT = "*.jpg"
-class ImageDirectorySample(LuomusLineSample): 
-    supports_rename_files = True    
+class SubDirectorySample(LuomusLineSample): 
+    supports_rename_files = True # Should really check the Image objects
     supports_rename_directories = True    
-    # Read from the SETUP file
-    # trigger_pattern = ".identier"
-    def __init__(self,  time=None,  imagefilepattern = _DEFAULT_IMGDIR_FILE_FORMAT):
+    def __init__(self,  time=None):
         super().__init__(time)
-        self. imagefilepattern = imagefilepattern
     @staticmethod
-    def from_directory(dirpath, conf, imagefilepattern=  _DEFAULT_IMGDIR_FILE_FORMAT): 
+    def from_directory(url, conf):
+        "Create a ImageDirectorySample from a url pointing to a directory name."
         log.debug("Creating sample data from directory with images and jkm config file metadata.") 
-        # Extract creating time from JPG and use it as the Sample event time        
+        # Use directory as default name for this Sample
+        dirpath = Path.from_uri(url)
+        # Extract creating time from directory name 
         itime = getFileCreationDateTime(dirpath)
-        s = ImageDirectorySample( time = itime,  imagefilepattern = imagefilepattern )
-#        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
+        s = SubDirectorySample( time = itime )
+        s.name = f"{type(s).__name__} ({url})" 
         s.datapath = dirpath
-        s.name = f"{dirpath}"        
         s.prefix = dirpath
-        #Load all images found, treating them as combined label/specimen images
-        objectfilepaths = [Path(dirpath) for x in dirpath.glob(s.imagefilepattern)]
-        objectfileurls = [x.as_uri() for x in objectfilepaths]
-        object_titles = [f"Image file {p}" for p in objectfileurls]        
+#        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
+        # Load all images found, treating them as combined label/specimen images
+        objectfilepaths = []
+        for pattern in conf.getlist("data","image_name_pattern"):
+            foundpaths = [Path(x) for x in dirpath.glob(pattern)]
+            objectfilepaths.extend( foundpaths)
+        print("objectfilepaths =", objectfilepaths)
+        objectfileurls = [path.as_uri() for path in objectfilepaths]
+        object_titles = [f"Image file {url}" for url in objectfileurls]
+        # We do not know if these are sample or label images 
         for fileurl, filename in zip(objectfileurls, object_titles):
-            s.addImage( SpecimenImage(filename, fileurl)  )
+            s.addImage( CombinedImage(filename, fileurl)  )
         return s             
 #------------------------------------------------------------------------------------------------------    

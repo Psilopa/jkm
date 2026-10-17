@@ -49,14 +49,14 @@ def get_sample_class(sample_format_str):
     str2class = {
         "mzh_insectline" : jkm.sample.LuomusInsectLineSample,
         "mzh_plantline":  jkm.sample.LuomusPlantLineSample,
-        "singlefile":  jkm.sample.SingleImageSample,
-#        "imagedir":  jkm.sample.ImageDirectorySample, # For each directory, all images = a sample
+        "dir_content":  jkm.sample.SingleImageSample,
+        "subdirectories":  jkm.sample.SubDirectorySample, # For each directory, all images = a sample
         "resourcelist":  jkm.sample.url_list_Sample,
         }
     try:
         return str2class[ sample_format_str.lower() ]
     except KeyError:
-        raise jkm.errors.FileLoadingError(f"Unknown sample file/directory format {sample_format}, skippping to next.")
+        raise jkm.errors.FileLoadingError(f"Unknown sample file/directory format '{sample_format_str.upper()}'.")
     
 class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
     _lastinsert = None
@@ -70,7 +70,7 @@ class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
 
 def find_existing_events(conf):
     "Returns a tuple of urls pointing to a resource that can be used to build an event."
-    datafile_patterns = conf.getlist("data", "recognize_by_filename_pattern")        
+    datafile_patterns = conf.getlist("data", "sample_pattern")        
     # Find list of file names matching a pattern and put them into the queue
     sample_format = conf.get("data", "datatype_to_load")        
     sample_class = get_sample_class( sample_format.lower() )
@@ -240,7 +240,7 @@ class jkm_post():
             conf.verify( must_have = ["postprocessor", "task", "data","meta","spreadsheet",
                                       ["data","main_data_directory"],
                                       ["data","datatype_to_load"],
-                                      ["data","recognize_by_filename_pattern"],
+                                      ["data","sample_pattern"],
                                       ["postprocessor","monitor"],
                                       ["postprocessor","process_existing"],
                                       ["postprocessor","sleep_after_new_sample_detected"],
@@ -330,7 +330,7 @@ class jkm_post():
             jkm.tools.is_existing_path( sourceurl ) 
             if sample_class in (jkm.sample.LuomusInsectLineSample,
                                 jkm.sample.LuomusPlantLineSample,
-                                jkm.sample.ImageDirectorySample,
+                                jkm.sample.SubDirectorySample,
                                 ): 
                 sample = sample_class.from_directory(sourceurl, conf)
             elif sample_class in (jkm.sample.SingleImageSample,  ):
@@ -478,7 +478,7 @@ class jkm_post():
         try: 
             conf = jkm.configfile.load(jkm.meta.name)
             self.verify_conf(conf) # Check that config has basic data needed to run
-            datafile_patterns = conf.getlist("data", "recognize_by_filename_pattern")
+            datafile_patterns = conf.getlist("data", "sample_pattern")
 
             if conf.getb("postprocessor", "process_existing"):            
                 for fn in find_existing_events(conf):
