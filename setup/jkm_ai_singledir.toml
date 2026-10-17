@@ -31,7 +31,7 @@ ocr = false
 ocr_analysis = false                     
 # LABEL DATA EXTRACTION TASKS
 ai_label_text_extraction = false          
-labeldata_to_CSV = false
+labeldata_to_CSV = true
 # OTHER DATA
 save_JSON = false                        
 write_postprocessor_report_file = false

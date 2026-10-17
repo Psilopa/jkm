@@ -25,21 +25,21 @@ class tomlConfig(): # TOML-based replacement
             raise FileNotFoundError("File not found")
         with fp.open("rb") as f: 
             self._d = tomllib.load(f) # CAN FAIL
-    def get(self, *args:list, default=_NODEFAULT):
+    def get(self, *args, func=lambda x:x, default=_NODEFAULT):
         try:
-            return _recursedict(self._d, args) 
+            return func( _recursedict(self._d, args) )
         except KeyError as error:
             if default != _NODEFAULT: return default
             else: raise error
-    def getstr(self,*args, **kwargs) -> str: return str(self.get(*args, **kwargs) )
-    def getb(self,*args, **kwargs) -> bool: return bool(self.get(*args, **kwargs) ) 
-    def geti(self,*args, **kwargs) -> int : return int(self.get(*args, **kwargs)  )
-    def getf(self,*args, **kwargs)-> float: return float(self.get(*args, **kwargs) )
-    def getpath(self,*args, **kwargs) -> Path: return Path(self.getstr(*args, **kwargs) )
-    def getdict(self,*args, **kwargs) -> dict: return dict( self.get(*args, **kwargs) ) 
-    def getlist(self,*args, **kwargs) -> tuple: return tuple( self.get(*args, **kwargs)  )
-    def has_section(self, key:str): return key in self.sections()
-    def sections(self) -> tuple: return tuple(self._d.keys())
+    def getstr(self,*args, **kwargs): return str(self.get(*args, **kwargs) )
+    def getb(self,*args, **kwargs): return bool(self.get(*args, **kwargs, func=bool) ) 
+    def geti(self,*args, **kwargs): return int(self.get(*args, **kwargs, func=int)  )
+    def getf(self,*args, **kwargs): return self.get(*args, **kwargs, func=float)
+    def getpath(self,*args, **kwargs): return Path(self.get(*args, **kwargs, func=str) )
+    def getdict(self,*args, **kwargs): return self.get(*args, **kwargs, func=dict) 
+    def getlist(self,*args, **kwargs): return self.get(*args, **kwargs, func=list) 
+    def has_section(self, key:str) -> bool: return key in self.sections()
+    def sections(self) -> dict_keys: return self._d.keys()
     @property
     def basepath(self) -> Path:
         return Path(self.getstr("data","main_data_directory") )  # TODO: Should we create if not_exists()    
@@ -91,8 +91,8 @@ def load(programname:str):
     """Returns a config class instance with loaded data. Exits on failure as config data must be available."""
     conf_fn = ""
     try:
-        cmdargs: argparse.Namespace = parse_args(programname)
-        conf_fn= cmdargs.config_file
+        cmdargs:argparse.Namespace  = parse_args(programname)
+        conf_fn = cmdargs.config_file
         log.info(f"Reading configuration file {conf_fn}")
         return tomlConfig(conf_fn)
     except Exception as err:
