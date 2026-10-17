@@ -163,22 +163,24 @@ class SampleEvent(SampleBase,  abc.ABC):
         d = Path(dirname) 
         result = []
         for pat in datafile_patterns:
-            filepath = d.rglob(pat)
+            filepaths = d.rglob(pat)
             log.debug(f"Looking for pattern {pat} in {dirname}")
-            filepath = [Path(x).as_uri() for x in filepath if ( str(x).find("textarea") == -1 )] # Skip files with "textarea" in their name
-            # tempr found be a 
-            result.extend( filepath )
-        # Delete duplicate files (hard links to the same file)
+            filepaths = [Path(x).as_uri() for x in filepaths if ( str(x).find("textarea") == -1 )] # Skip files with "textarea" in their name
+            result.extend( filepaths )
+        # Delete duplicate files (hard links to the same file)        
         return jkm.tools.unique(result)
 
 #-----------------------------IMAGE CONTAINERS---------------------------------------------------------------    
 class SampleImageBase(SampleBase,  abc.ABC): 
     "One image plus metadata"
     #Class properties
+    supports_rename_files = False
+    supports_rename_directories = False    
     has_specimens = False # Property
     has_labels = False # Property
-    def __init__(self,  label,  uri = None):
-        super().__init__()
+    def __init__(self,  label,  uri, time= None):
+        super().__init__(time)
+        self.name = uri # For images, the image source is a good name
         self.label= label
         self.meta = jkm.samplemetadata.ImageMetadata(self.label)  #Image-level metadata
         self.confsection= None
@@ -186,6 +188,18 @@ class SampleImageBase(SampleBase,  abc.ABC):
         self._bitmap = None  # Full image data loaded to memory (set to None if not yet loaded)
         self._uri = uri
         self._loaded = False
+        # Set supports* based on uri, if given
+    @abc.abstractmethod
+    def _loadImage(self, colourspace = cv2.IMREAD_COLOR): pass
+    @property
+    def islocal (self):
+        """True is this is a local resource, false otherwise.
+
+        Local resources are (for now) assumed to be editable!"""
+        parsed_uri = urlparse(self.uri)
+        if parsed_uri.scheme == "file": return True        
+        else: return fale
+        
     @property
     def bitmap(self):
         # TODO: Try to load if unloaded!
@@ -236,22 +250,19 @@ class SampleImageBase(SampleBase,  abc.ABC):
             self._loadImage()
             rotcode = deg2rotcode[angle]
             self.bitmap = cv2.rotate(self.bitmap, rotateCode = rotcode)        
-    @abc.abstractmethod
-    def _loadImage(self, colourspace = cv2.IMREAD_COLOR): pass
 
 class SampleImage(SampleImageBase): 
     "One image plus metadata"
-    def __init__(self,  label,  fn = None): 
-        super().__init__(label)
-        self.uri = fn.as_uri() # NOTE: DEPRECATED
+    def __init__(self,  label,  uri,  time = None): 
+        super().__init__(label, uri,  time)
+        assert self.uri, "SampleImage.uri accessed while is was None."
+        print("self.uri = ", self.uri)
+        self.parsed_uri = urlparse(self.uri)
      # ONLY POSSIBLE FOR LOCAL FILES
     @property
     def path(self):
-        assert self.uri, "SampleImage.uri accessed while is was None."
-        parsed_uri = urlparse(self.uri)
-        assert parsed_uri.scheme == "file" # Should be verified at input
-        return Path(parsed_uri.path) # Assumes this is a valid Path ! 
-
+        assert self.parsed_uri.scheme == "file" # Should be verified at input
+        return self.parsed_uri.path
     def rename(self,uri):
         "Rename the corresponding file on the file system"
         #TODO: needs error state handling and documentation
@@ -276,16 +287,16 @@ class SpecimenImage(SampleImage):
     #Class properties
     has_specimens = True # Property
     has_labels = False # Property
-    def __init__(self,  label,  fn = None): 
-        super().__init__(label,  fn)
+    def __init__(self,  label,  uri,  time = None):
+        super().__init__(label,  uri,  time)
 
 class LabelImage(SampleImage):
         #Class properties
     has_specimens = False # Property
     has_labels = True # Property
-    def __init__(self,  label,  fn = None): 
-        super().__init__(label, fn)
-        self._textareas = None
+    def __init__(self,  label,  uri,  time = None):
+        super().__init__(label,  uri,  time)
+        self._textareas = []
     @property
     def textareas(self):  
         "Access textareas once they have been identified using findtextareas()"
@@ -324,11 +335,13 @@ class LabelImage(SampleImage):
 #    def readMetadata(self): pass
 #    def writeMetadata(self): pass    
 
-class CombinedImage(SpecimenImage, LabelImage): # Note: potential problems with inheritance, resolve!
-    has_specimens = True # Property
-    has_labels = True # Property
-    def __init__(self,  label,  fn = None): 
-        super().__init__(label,  fn)
+class CombinedImage(SpecimenImage, LabelImage): 
+    def __init__(self,  label,  uri,  time = None):
+        # Note: potential problems with inheritance, resolve!
+        super().__init__(label,  uri,  time)
+        # Set these after constructors to make sure we get them right
+        self.has_specimens = True # Property
+        self.has_labels = True # Property
 #---------------------------------------------------------------------------------------------------    
 class SingleImageSample(SampleEvent): 
     """A single image based minimal sample event"""
@@ -347,7 +360,7 @@ class SingleImageSample(SampleEvent):
         imgfile = Path(imgfile)
 	# Create a CombinedImage to hold image data 
 	# As this is a single image sample, we assume the image can hold both specimen and label data and use CombinedImage
-        image = CombinedImage(label, fn = imgfile)
+        image = CombinedImage(label, imgfile.as_uri())
 	# Create a new SingleImageSample instance and return it 
         s = SingleImageSample( time = filecreated )
         s.copyMetadatafFomConf(conf,  no_new_directiories=True)
@@ -510,7 +523,7 @@ arguments:
         s.prefix = dirpath
         # Load image (just one on plant line)
         title = conf.get("data", "label_title")
-        image = CombinedImage(title, fn = filepath)
+        image = CombinedImage(title, filepath)
         s.addImage(image)
         return s           
 #------------------------------------------------------------------------------------------------------            
@@ -537,8 +550,8 @@ class LuomusInsectLineSample(LuomusLineSample):
         objectfiles = conf.getlist("data", "object_files")
         object_titles = conf.getlist("data", "object_titles")
         objectfilepaths= [dirpath / Path(x) for x in objectfiles]
-        for ofp, ofn in zip(objectfilepaths, object_titles):
-            s.addImage( SpecimenImage(ofn, fn = ofp)  )
+        for fpath, fname in zip(objectfilepaths, object_titles):
+            s.addImage( SpecimenImage(fname, fpath.as_uri())  )
         return s             
 #------------------------------------------------------------------------------------------------------    
 _DEFAULT_IMGDIR_FILE_FORMAT = "*.jpg"
@@ -561,9 +574,10 @@ class ImageDirectorySample(LuomusLineSample):
         s.name = f"{dirpath}"        
         s.prefix = dirpath
         #Load all images found, treating them as combined label/specimen images
-        objectfilepaths = [Path(dirpath,  x) for x in dirpath.glob(s.imagefilepattern)]
-        object_titles = [f"Image file {p}" for p in objectfilepaths]        
-        for ofp, ofn in zip(objectfilepaths, object_titles):
-            s.addImage( CombinedImage(ofn, fn = ofp)  )
+        objectfilepaths = [Path(dirpath) for x in dirpath.glob(s.imagefilepattern)]
+        objectfileuris = [x.as_uri() for x in objectfilepaths]
+        object_titles = [f"Image file {p}" for p in objectfileuris]        
+        for fileuri, filename in zip(objectfileuris, object_titles):
+            s.addImage( SpecimenImage(filename, fileuri)  )
         return s             
 #------------------------------------------------------------------------------------------------------    
