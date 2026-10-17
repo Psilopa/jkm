@@ -6,7 +6,7 @@ import numpy as np
 import cv2
 from jkm.downloader import defaultdownloader
 from jkm.errors import FileLoadingError
-from urllib.parse import urlparse
+from urllib.parse import urlparse, ParseResult
 #import urllib.request # For web downloads
 # Typing
 from collections.abc import Callable
@@ -25,26 +25,26 @@ def is_existing_path(url: str) -> None:
     if not filepath.exists():
         raise FileLoadingError(f"Could not find file {filepath}.")
 
-def list2printvalues(mylist: list[dict[str,str]])-> str:
+def list2printvalues(mylist: list[str, object])-> str:
     "Prettyprints the values from a list of dictionaries."
     out: list = []
     for valuedict in mylist:
         out +=  valuedict.values()
     return "\n".join(out)
     
-def json2printdict(json: str | dict[str,str|list|dict]) -> dict:
+def json2printdict(jsondata: str | dict[str,object] ) -> dict[str,object]:
     "Converts a string with JSON data or a corresponding dictionary with prettyprinted content."
     # TODO: this is not pasticularly good
-    if isinstance(json, str):  json = json.loads(json) 
+    if isinstance(jsondata, str):  jsondata = json.loads(jsondata) 
     # Reformat a JSON reply to for Table output
-    rv: dict = {}
-    for key in json.keys():
-        if isintance(json[key], list):
-            rv[key] = list2printvalues( json[key] )
-        else: rv[key] = json[key]
-    return rv    
+    rv: dict[str,str] = {}
+    for key in jsondata.keys():
+        if isinstance(jsondata[key], list):
+            rv[key] = list2printvalues( jsondata[key] )
+        else: rv[key] = jsondata[key]
+    return rv
 
-def logtime(func: Callable, *args: list, **kwargs: dictionary):
+def logtime(func: Callable, *args: list, **kwargs: dict):
     """Logs the time spent ina function, output on debug level only.
 
     Arguments:
@@ -55,15 +55,15 @@ def logtime(func: Callable, *args: list, **kwargs: dictionary):
     Return value:
     The return value for calling function with the given arguments.
     """
-    t1: int = time.time()
+    t1: float = time.time()
     r = func(*args,**kwargs)    
-    t2: int = time.time()
-    log.debug("\t\tTime spent in %s was %f" % (f.__name__,t2-t1))
+    t2: float = time.time()
+    log.debug("\t\tTime spent in %s was %f" % (func.__name__,t2-t1))
     return r    
 
 def monitor_disk_space(dir_name: str | Path,
-                       limit: int ,
-                       levels: list[float,float,float] = [1, 0.1, 0.01]) -> None:
+                       limit: int,
+                       levels: list[float] = [1, 0.1, 0.01] ) -> None:
     """Monitor free disk space in given directory, warning at level[0], error at level[1], critical at level[2].
 
     Arguments:
@@ -71,11 +71,11 @@ def monitor_disk_space(dir_name: str | Path,
     limit: int - lower acceptable limit
     levels: list or 3 ints
     """
-    dir_name: str = str(dir_name)
+    dir_name = str(dir_name)
     # shutil.disk_usage returns free space in bytes
     freeb: int = shutil.disk_usage(dir_name).free
     # This should probably convert to float!
-    feespace: int = (freeb/(1024**2), freeb/(1024**3)) # Free space in MB, GB
+    feespace: tuple[float,float] = (freeb/(1024**2), freeb/(1024**3)) # Free space in MB, GB
     if freeb < levels[0]*limit:        
         log.warning("Disk space low (free space %.0f MB (%.1f GB)" % feespace)
     elif freeb < levels[1]*limit:
@@ -100,7 +100,7 @@ def save_img(fn: str|Path, image: imagetype) -> None:
     try: cv2.imwrite(fn,image)
     except SystemError as err: raise err
 
-def img_from_file(imagestr: str|Path) -> imagetype:
+def img_from_file(imagestr: str|Path) -> imagetype | None:
         fnp = Path(imagestr)
         if not fnp.exists(): raise FileLoadingError("File %s does not exist" % fnp)
         if not fnp.is_file(): raise FileLoadingError("%s is not a file" % fnp)
@@ -108,29 +108,29 @@ def img_from_file(imagestr: str|Path) -> imagetype:
         return cv2.imread(str(fnp),cv2.IMREAD_UNCHANGED)
     
 def img_from_url(url: str,
-                 downloader: Callable[float,imagetype] = defaultdownloader,
-                 dlargs:list = [], dlkwords:dict = {}) -> imagetype:
+                 downloader: Callable[[str,int|None,int|None],bytes|None] = defaultdownloader,
+                 dlargs:list = [], dlkwords:dict = {}) -> imagetype | None:
     """Tries to return an image from a URI.
 
     If the needs to be downloaded, calls the optional downloader function
     like this downloader(url, *dlargs, **dlkwords). This allows for custom
     downloaders for various data sources.
     """
-    parsed_url = urlparse(url)
+    parsed_url: ParseResult = urlparse(url)
     if parsed_url.scheme == 'file':
         return img_from_file(parsed_url.path)
     # OK, this is not a local file...
     if not downloader:
         raise FileLoadingError(f"Resource {url} is not local and we have no provided way to download it.")
     # Try to use the provided downloader
-    content = downloader(uri) # Should return a raw byte array
+    content = downloader(url) # Should return a raw byte array
     if content is None: 
         raise FileLoadingError(f"Could not download file {url}.")
     arr = np.asarray(bytearray(content), dtype=np.uint8)
     return cv2.imdecode(arr, -1) # 'Load it as it is'
 
     
-def load_img(image: str|Path|io.IOBase) -> imagetype: 
+def load_img(image: str|Path|io.IOBase) -> imagetype | None: 
     """Loads an image (as a cv2 image) from a variety of sources.
 
     Accept
@@ -149,10 +149,9 @@ def load_img(image: str|Path|io.IOBase) -> imagetype:
         if validators.url( imgstr ):  # Should be a valid URL as-is
             return img_from_url( imgstr )
     elif isinstance(image,io.IOBase):
-        img = cv2.imdecode(image.read(),cv2.IMREAD_UNCHANGED)
+        return cv2.imdecode(image.read(),cv2.IMREAD_UNCHANGED)
     else:
-        img = image # This is hopefully already a Image-type object ... test for numpy.ndarray ?    
-    return img
+        return image # This is hopefully already a Image-type object ... test for numpy.ndarray ?    
 
 def increaseTopContrast(image: imagetype, greyrange: int) -> imagetype:
     """Increase contast in the bright parts of the image.
@@ -198,8 +197,8 @@ def shortid_from_text(text: str) -> list[str]:
 def safecopy(orig_path: Path, target_path: Path, overwrite:bool = True) -> bool:
     "Copy a file sort of safely."
     orig_path = Path(orig_path)
-    target_path = Path(orig_path)
-    log.debug(f"Trying to back up file from {orig_path} to {copy_path}")
+    target_path = Path(target_path)
+    log.debug(f"Trying to back up file from {orig_path} to {target_path}")
     if  orig_path.exists() and orig_path.is_file():
         if not overwrite and target_path.exists():
             return False
@@ -209,14 +208,8 @@ def safecopy(orig_path: Path, target_path: Path, overwrite:bool = True) -> bool:
 
 def unique(s: list|tuple) ->tuple :return tuple(set(s))
 
-def quit_if_not_exists(pathname: Path) -> None:
-    if not pathname.exists():
-        log.critical(f"Path {pathname} not found. Quitting.")
-        sys.exit()
-
-
-#  ---------------- URI to Path conversions ------------------
-def path2uri(fpath: Path) -> str:
+#  ---------------- URL to Path conversions ------------------
+def path2url(fpath: Path) -> str:
     return fpath.as_uri() # THIS IS DEPRECATED
 #    return urllib.request.pathname2url( str(fpath) ) 
 

@@ -6,35 +6,43 @@ from jkm.errors import ConfigError, ConfigWarning
 import tomllib
 log = logging.getLogger() # Overwrite if needed
 
-def _recursedict(d, args):
+# TODO: DOES NOT HANDLE DEFAULT ARGUMENTS RIGHT?
+def _recursedict(d:dict, args:list|tuple):
     key = args[0]
+    val = d[key]
     if len(args) == 1: #This was the last element
         return d[key]
-    else: return  _recursedict( d[key], args[1:] )
+    else: return  _recursedict(val, args[1:])
 
+_NODEFAULT = 219826382
 class tomlConfig(): # TOML-based replacement
-    def __init__(self, fn=None):
-        self._d = None # Should be a dictionary-like object    
+    def __init__(self, fn:str|Path|None=None) -> None:
+        self._d:dict = {} # Should be a dictionary-like object    
         if fn: self.loadfile(fn)
-    def loadfile(self,fn, encoding="utf8"):
+    def loadfile(self,fn:str|Path, encoding:str="utf8") -> None:
         fp = Path(fn)
         if not fp.exists() or not fp.is_file():
             raise FileNotFoundError("File not found")
         with fp.open("rb") as f: 
             self._d = tomllib.load(f) # CAN FAIL
-    def get(self, *args, func=str, default=None):
-        return func( _recursedict(self._d, args) )
-    def getstr(self,*args, **kwargs): return self.get(*args, **kwargs, func=str)
-    def getb(self,*args, **kwargs): return self.get(*args, **kwargs, func=bool) 
-    def geti(self,*args, **kwargs): return self.get(*args, **kwargs, func=int) 
-    def getf(self,*args, **kwargs): return self.get(*args, **kwargs, func=float) 
-    def getpath(self,*args, **kwargs): return Path(self.get(*args, **kwargs, func=str) )
-    def getdict(self,*args, **kwargs): return self.get(*args, **kwargs, func=dict) 
-    def getlist(self,*args, **kwargs): return self.get(*args, **kwargs, func=list) 
-    def has_section(self, key): return key in self.sections()
-    def sections(self): return self._d.keys()
+    def get(self, *args:list, default=_NODEFAULT):
+        try:
+            return _recursedict(self._d, args) 
+        except KeyError as error:
+            if default != _NODEFAULT: return default
+            else: raise error
+    def getstr(self,*args, **kwargs) -> str: return str(self.get(*args, **kwargs) )
+    def getb(self,*args, **kwargs) -> bool: return bool(self.get(*args, **kwargs) ) 
+    def geti(self,*args, **kwargs) -> int : return int(self.get(*args, **kwargs)  )
+    def getf(self,*args, **kwargs)-> float: return float(self.get(*args, **kwargs) )
+    def getpath(self,*args, **kwargs) -> Path: return Path(self.getstr(*args, **kwargs) )
+    def getdict(self,*args, **kwargs) -> dict: return dict( self.get(*args, **kwargs) ) 
+    def getlist(self,*args, **kwargs) -> tuple: return tuple( self.get(*args, **kwargs)  )
+    def has_section(self, key:str): return key in self.sections()
+    def sections(self) -> tuple: return tuple(self._d.keys())
     @property
-    def basepath(self): return Path(self.get("data","main_data_directory"))  # TODO: Should we create if not_exists()    
+    def basepath(self) -> Path:
+        return Path(self.getstr("data","main_data_directory") )  # TODO: Should we create if not_exists()    
     # CONF VERIFICATION
     def on_error(self, list_tree):
         raise ConfigError(
@@ -69,7 +77,7 @@ class tomlConfig(): # TOML-based replacement
         self._verify_list(should_have, self._d, self.on_warning)
             
 # --- parse command-line arguments ---
-def parse_args(programname): # 
+def parse_args(programname:str) -> argparse.Namespace:
     """Get command-line arguments using argparse.ArgumentParser."""
     parser = argparse.ArgumentParser(description = programname)
     parser.add_argument('-c', '--config_file',          
@@ -79,11 +87,12 @@ def parse_args(programname): #
             )
     return parser.parse_args()
 
-def load(programname):
-    """Returns a config class instance with loaded data. Exits on failure as config data must be available."""    
+def load(programname:str):
+    """Returns a config class instance with loaded data. Exits on failure as config data must be available."""
+    conf_fn = ""
     try:
-        cmdargs  = parse_args(programname)
-        conf_fn = cmdargs.config_file
+        cmdargs: argparse.Namespace = parse_args(programname)
+        conf_fn= cmdargs.config_file
         log.info(f"Reading configuration file {conf_fn}")
         return tomlConfig(conf_fn)
     except Exception as err:

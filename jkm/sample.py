@@ -11,14 +11,17 @@ import numpy as np
 #from urllib.request import urlopen
 from urllib.parse import urlparse, urlunparse
 
+type imagetype = np.ndarray
+type urltype = str # Alias, maybe we enforce this later
+
 log = logging.getLogger() # Overwrite from calling script for fancier logging
 deg2rotcode = {90: cv2.ROTATE_90_CLOCKWISE,
                180: cv2.ROTATE_180,
                270: cv2.ROTATE_90_COUNTERCLOCKWISE}
 
-def getFileCreationDateTime(fn):
+def getFileCreationDateTime(fn:str|Path) -> datetime:
     # Does not work well on POSIX systems, which return the last modified date for getctime
-    timestamp =  os.path.getctime(fn)
+    timestamp =  os.path.getctime(str(fn))
     return datetime.fromtimestamp(timestamp)
 
 class Results():  # Partial overlap with metadata ... think about this later
@@ -30,58 +33,44 @@ class Results():  # Partial overlap with metadata ... think about this later
 class SampleBase(abc.ABC):
     supports_rename_files = False
     supports_rename_directories = False    
-    def __init__(self, time = None): 
-        if not time: self._time = datetime.now()
+    def __init__(self, time:datetime|None = None): 
+        if time is None: self._time = datetime.now()
         else: self._time = time
         self.name = str(self) # TODO: replace with better names in subclasses, should use timestamp or camera name
     @property
-    def time(self):  return self._time
-    def encodeJSON(self):
+    def time(self) -> datetime:  return self._time
+    def encodeJSON(self) -> dict:
         jsonpickle.set_preferred_backend('json')
         jsonpickle.set_encoder_options("json", ensure_ascii=False,  indent=2)        
         return jsonpickle.encode(self)
     @staticmethod
-    def fromJSONfile(fn):
+    def fromJSONfile(fn:str) -> None:
         with open(fn) as f:
             return  jsonpickle.decode(f.read())
 
 #------------------------------------------------------------------------------------------------------
 class SampleEvent(SampleBase,  abc.ABC):
     "Container for 0+ photos of an sample and event-level metadata."
-    def __init__(self,  time = None):
+    def __init__(self,  time: datetime|None = None):
         super().__init__(time)
         self._imagelist = [] # List of SamplePhoto subclass instances
-        self.prefix  = "" # Common file name prefix (often/ALWAYS same as self.datapath?)
-        self.datapath = "" # Data directory for this record 
+        self.prefix: str|Path = "" # Common file name prefix (often/ALWAYS same as self.datapath?)
+        self.datapath: Path = Path() # SHOULD THIS BE None?
         self.meta = jkm.samplemetadata.EventMetadata() # Event-level metadata
-        self._identifier = None
-        self._shortidentifier = None
+        self._identifier: str|None = None
+        self._shortidentifier: str|None = None
         self.results = Results()
     @property
-    def identifier(self):  return self._identifier
+    def identifier(self) -> str|None:  return self._identifier
     @identifier.setter
-    def identifier(self, x):  
+    def identifier(self, x: str):  
         self._identifier = x    
         self._shortidentifier = self._shortenidentifier(x)
         self.name = x
     @property
-    def shortidentifier(self):  return self._shortidentifier
-
-    # TODO STUFF: ALL THIS MUST CHANGE IF WE SUPPORT ONLINE IMAGES
-    @property
-    def supports_rename_files(self):
-        # DERIVE FROM IMAGE TYPES
-        return True    
-    @property
-    def supports_rename_directories(self):
-        # DERIVE FROM IMAGE TYPES
-        return False
-    @property
-    def is_directory(self):  return self._is_directory
-    @property
-    def feature_metadata(self):  return self._has_metadatafile
+    def shortidentifier(self) -> str|None:  return self._shortidentifier
     @property 
-    def imagelist(self, labels=[]):  # Can a propery have an alternative keyword approach?
+    def imagelist(self, labels:list[str]=[]) -> list:  # Can a propery have an alternative keyword approach?
         if not labels: 
             return self._imagelist
         else: 
@@ -93,16 +82,16 @@ class SampleEvent(SampleBase,  abc.ABC):
 #        filelist = [Path(x.filename) for x in self._imagelist]
 #        return tuple(filelist) 
     @abc.abstractmethod
-    def _shortenidentifier(self, x): 
+    def _shortenidentifier(self, x: str) -> str: 
         return x
-    def writeMetaJSON(self,  extension = ".json"): 
+    def writeMetaJSON(self,  extension:str = ".json") -> None: 
         "Save SampleEvent metadata to a file"
         for img in self._imagelist: img.unloadImageData()
-        metafn = self.datapath / "".join((self.prefix,extension))
+        metafn = self.datapath / "".join( (str(self.prefix),extension) )
         log.info(f"Writing metadata to file {metafn}")
         with metafn.open("w",encoding="utf8") as metaf:
-            metaf.write(self.encodeJSON())
-    def copyMetadatafFomConf(self, configobject,  no_new_directiories=False):
+            metaf.write(str(self.encodeJSON()))
+    def copyMetadatafFomConf(self, configobject, no_new_directiories:bool=False) -> None:
         cf = configobject
         self.meta.add("Data owner", cf.get("meta","copyright_owner") )
         self.meta.add("Operator", cf.get("meta","operator") )
@@ -115,7 +104,7 @@ class SampleEvent(SampleBase,  abc.ABC):
             self.datapath = Path(cf.basepath) / self.prefix
             log.info(f"Creating new directory for data: {self.datapath}" )
             self.datapath.mkdir() # Create subdirectory (unlikely to exist, but TODO: verify)
-    def addImage(self,  imageobject): 
+    def addImage(self,  imageobject) -> None: 
         self._imagelist.append(imageobject)
     # Binary representation storage in a file using the Python Pickle protocol
 #    def dumpPickle(self,  extension = ".pck"):
@@ -124,7 +113,7 @@ class SampleEvent(SampleBase,  abc.ABC):
 #    @classmethod
 #    def loadPickle(cls,fn): 
 #        with open(fn, "rb") as f: return pickle.load(f)  
-    def rename_all_files(self, prefix,  prefix_separator= "_"):
+    def rename_all_files(self, prefix:str,  prefix_separator:str= "_") -> None:
         """Rename sample file(s).
 
         NOTE: Currently only renames *image* files."""
@@ -134,24 +123,27 @@ class SampleEvent(SampleBase,  abc.ABC):
                 log.debug(f"Renaming files based on barcode content: prefix {prefix}, oldname {image.path}")
                 oldpath = image.path
                 newpath = oldpath # Default new name = old name
-                new_filename = prefix + prefix_separator + oldpath.name
-                newpath = image.path.parent / new_filename
-                log.debug(f"New name for {image.path} is {newpath}")            
-                image.rename(newpath)
+                filename = prefix + prefix_separator + oldpath.name
+                newpath = image.path.parent / filename
+                log.debug(f"New name for {image.path} is {newpath}")
+                if newpath != oldpath:
+                    image.rename(newpath)
             except PermissionError as msg:
                 log.warning("Renaming file failed with error message: %s" % msg)
             except FileExistsError as msg:
                 log.warning("Target file name already exists, skipping: %s" % msg)
-    def write_postprocessor_report(self, conf, properties_filename = None):
+    def write_postprocessor_report(self, conf, properties_filename:str|Path|None = None):
         # By default, do nothing
         return # 
     @staticmethod
     # Override in child classes if needed!
-    def find_samples(dirname,datafile_patterns):
+    def find_samples(dirname: str|Path,
+                     datafile_patterns: list[str]
+                     ) -> tuple[urltype]:
         """Returns a list of urls pointing to a source that can be used to build an Sample. Child classes can replace this.
 
         Arguments:
-        dirname - string or Path: path to the direcotry holding items
+##        dirname - string or Path: path to the direcotry holding items
 
         Keywords:
         datafile_patterns - string: glob pattern for recognizing the file(s)
@@ -163,12 +155,12 @@ class SampleEvent(SampleBase,  abc.ABC):
         for pat in datafile_patterns:
             filepaths = d.rglob(pat)
             log.debug(f"Looking for pattern {pat} in {dirname}")
-            filepaths = [jkm.tools.path2uri(x) for x in filepaths if ( str(x).find("textarea") == -1 )] # Skip files with "textarea" in their name
+            filepaths = [jkm.tools.path2url(x) for x in filepaths if ( str(x).find("textarea") == -1 )] # Skip files with "textarea" in their name
             result.extend( filepaths )
         # Delete duplicate files (hard links to the same file)        
         return jkm.tools.unique(result)
-    def rename_directories(self, config,prefix,ignore_domain=True):
-        raise jkm.jkError("Trying to rename directories in an object that does not support it.")
+    def rename_directories(self, config, prefix:str, ignore_domain:bool =True) -> None:
+        raise jkm.errors.JKError("Trying to rename directories in an object that does not support it.")
 #-----------------------------IMAGE CONTAINERS---------------------------------------------------------------    
 class SampleImageBase(SampleBase,  abc.ABC): 
     "One image plus metadata"
@@ -176,80 +168,81 @@ class SampleImageBase(SampleBase,  abc.ABC):
     supports_rename_directories = False    
     has_specimens = False # Property
     has_labels = False # Property
-    def __init__(self,  label,  url, time= None):
+    def __init__(self,  label:str,  url:urltype, time: datetime|None= None):
         super().__init__(time)
-        self._bitmap = None  # Full image data loaded to memory (set to None if not yet loaded)
-        self._loaded = False
-        self.url = url # Also sets self._parsed_url
-        self.name = f"{type(self).__name__} ({url})" # For images, the image source is a good name
-        self.label = label
+        self._bitmap:imagetype|None = None  # Full image data loaded to memory (set to None if not yet loaded)
+        self._loaded:bool = False
+        self.url:urltype = url # Also sets self._parsed_url
+        self.name:str = f"{type(self).__name__} ({url})" # For images, the image source is a good name
+        self.label:str = label
         self.meta = jkm.samplemetadata.ImageMetadata(self.label)  #Image-level metadata
-        self.confsection = None
+        self.confsection:dict|None = None
         # Data about the actual image: can we surrpot renaming
         if self._parsed_url.scheme in ("file",):
-            self.supports_rename_files = True # We can rename local resources
+            self.supports_rename_files:bool = True # We can rename local resources
     # abstract function
     @abc.abstractmethod
-    def _loadImage(self, colourspace = cv2.IMREAD_COLOR): pass
+    def _loadImage(self, colourspace:int = cv2.IMREAD_COLOR) -> None: return
     # properties
     @property
-    def url(self): return self._url
+    def url(self) -> urltype: return self._url
     @url.setter
-    def url(self, value):
+    def url(self, value:urltype):
         self._url = value
         self._parsed_url = urlparse(self.url)
     @property
-    def bitmap(self):
+    def bitmap(self) -> imagetype|None:
         # TODO: Try to load if unloaded!
 #        assert self._bitmap, "Trying to access bitmap data before loading it."
         return self._bitmap
     @bitmap.setter
-    def bitmap(self, newbitmap):
+    def bitmap(self, newbitmap:imagetype|None) -> None:
         self._bitmap = newbitmap
         if self._bitmap is None: self._loaded = False # Set to None
         else: self._loaded = True        
     @property
-    def path(self):
+    def path(self) -> Path:
         assert self._parsed_url.scheme == "file" # Should be accessed only for files
         return Path(self._parsed_url.path)
     # Functions
-    def encodeJSON(self):
+    def encodeJSON(self) -> dict:
         "Return a JSON serializable representation."
         # TODO: ADD FULL STRUCTURE HERE
         # TODO: IMPLEMENT IN CHILD CLASSES
-        d = {}
+        d:dict = {}
         d[f"__{type(self).__name__}__"] = True
         d['label'] = self.label
-        d['confsection'] = self.confsection
+        d['confsection'] = str(self.confsection)
         d['_url'] = self.url
         d['meta'] = self.meta.encodeJSON()
         return d
-    def unloadImageData(self): 
+    def unloadImageData(self) -> None: 
         self.bitmap = None  # Delete in-memory copy of image data
-    def copyMetadatafFomConf(self, configobject):
+    def copyMetadatafFomConf(self, configobject) -> None:
         cf = configobject
 #        self.addMeta("Free text", cf.get(self.confsection,"freetextline", fallback=""))
         self.addMeta("Image timing", self.time)
-    def addMeta(self,title,content=""):
+    def addMeta(self,title:str,content="") -> None:
         self.meta.add(title,  content)
-    def addlogMeta(self,title,content="",lvl=logging.INFO):
+    def addlogMeta(self,title:str,content:str="",lvl:int=logging.INFO) -> None:
         self.meta.addlog(title,  content, lvl=lvl)
-    def getsubimage(self,  rect):
+    def getsubimage(self,  rect=tuple[int]|list[int]) -> imagetype|None:
         "Rect to [x1,y1,x2,y2,rot] from upper left corner"
         x1,y1,x2,y2,rot = rect
         self._loadImage()
-        return self.bitmap[y1:y2, x1:x2] 
-    def readbarcodes(self, qrpackage):
+        if self.bitmap: return self.bitmap[y1:y2, x1:x2]
+        else: return None # Nothing to rotate
+    def readbarcodes(self, qrpackage) -> list[str]:
         self._loadImage()
         bkdata = jkm.barcodes.extractbarcodedata(self.bitmap, qrpackage, encoding='ascii')
         return bkdata        
-    def rotate(self, angle): # angle = 0,90,180,270
+    def rotate(self, angle: int) -> None: # angle = 0,90,180,270
         angle = int(angle)
         if angle:
             self._loadImage()
             rotcode = deg2rotcode[angle]
-            self.bitmap = cv2.rotate(self.bitmap, rotateCode = rotcode)        
-    def rename(self,newpath):
+            if self.bitmap: self.bitmap = cv2.rotate(self.bitmap, rotateCode = rotcode)        
+    def rename(self,newpath: Path) -> None:
         """Rename the corresponding file on the file system.
 
         Raises a jkm.errors.FileLoadingError if called for non-local file resources.
@@ -264,18 +257,20 @@ class SampleImageBase(SampleBase,  abc.ABC):
 
 class SampleImage(SampleImageBase): 
     "One image plus metadata"
-    def __init__(self,  label,  url,  time = None): 
+    def __init__(self,  label:str,  url:urltype,  time:datetime|None = None) -> None: 
         super().__init__(label, url,  time)
-    def _loadImage(self, colourspace = cv2.IMREAD_COLOR): 
+    def _loadImage(self, colourspace:int = cv2.IMREAD_COLOR) -> None: 
         """Returns image as a cv2/numpy array. 
         
         Loads data from disk if it has not already been loaded. Reloading can be forced using the force_reload flag. 
         Raises jkm.errors.FileLoadingError is datais not accessible"""
-        if (self.bitmap is not None): return self.bitmap 
+        if (self.bitmap is not None): return # We are already set
         try:
-            self.bitmap = jkm.tools.load_img(self.url)
+            if self.url is not None:
+                self.bitmap = jkm.tools.load_img(self.url)
+            else: raise jkm.errors.FileLoadingError(f"No file URL set.") 
         except SystemError as msg:
-            log.warning(f"Reading file {str(filename)} failed" )
+            log.warning(f"Reading file {str(self.url)} failed" )
             self.bitmap = None # Reset after failure just in case
             raise jkm.errors.FileLoadingError(msg)        
 #    def writeImage(filename): pass
@@ -284,38 +279,38 @@ class SpecimenImage(SampleImage):
     #Class properties
     has_specimens = True # Property
     has_labels = False # Property
-    def __init__(self,  label,  url,  time = None):
+    def __init__(self,  label:str,  url:urltype,  time:datetime|None = None) -> None:
         super().__init__(label,  url,  time)
 
 class LabelImage(SampleImage):
         #Class properties
     has_specimens = False # Property
     has_labels = True # Property
-    def __init__(self,  label,  url,  time = None):
+    def __init__(self,  label:str,  url:urltype,  time:datetime|None = None) -> None:
         super().__init__(label,  url,  time)
         self._textareas = []
     @property
-    def textareas(self):  
+    def textareas(self) -> list:  
         "Access textareas once they have been identified using findtextareas()"
         return self._textareas
-    def findtextareas(self,  nnfn):
+    def findtextareas(self,  nnfn:str) -> list|tuple:
         "Find areas with text using EAST text detector"
         img = self._loadImage()
         log.debug("Find areas with text using EAST text detector")
         self._textareas = jkm.ocr.find_text_rects(img,nnfn)
         return self._textareas
-    def savetextareas(self, namehdr):
+    def savetextareas(self, namehdr:str) -> None:
         x = 1
         try:
             for rect in self._textareas:
-                imgx = self.getsubimage(rect) # Get subimage            
-                imgname = self.filename.stem
-                fullfn = self.filename.with_name(f"{imgname}{namehdr}{x}.jpg")
+                imgx:imagetype|None = self.getsubimage(rect) # Get subimage            
+                imgname = self.path.stem
+                fullfn = self.path.with_name(f"{imgname}{namehdr}{x}.jpg")
                 log.debug(f"Storing individual label image: {fullfn}")
-                jkm.tools.save_img(fullfn,imgx)
+                if imgx: jkm.tools.save_img(fullfn,imgx)
                 x += 1
         except IOError: pass
-    def ocr(self, ocrcommand, force_all_image_ocr = False): 
+    def ocr(self, ocrcommand:str, force_all_image_ocr:bool = False) -> str: 
         # If not all_image_ocr, examine only text areas previously found
         txt = ""
         if not self._textareas or force_all_image_ocr:
@@ -333,7 +328,7 @@ class LabelImage(SampleImage):
 #    def writeMetadata(self): pass    
 
 class CombinedImage(SpecimenImage, LabelImage): 
-    def __init__(self,  label,  url,  time = None):
+    def __init__(self,  label:str,  url:urltype,  time:datetime|None = None) -> None:
         # Note: potential problems with inheritance, resolve!
         super().__init__(label,  url,  time)
         # Set these after constructors to make sure we get them right
@@ -344,12 +339,10 @@ class SingleImageSample(SampleEvent):
     """A single image based minimal sample event"""
     supports_rename_files = True    
     supports_rename_directories = False    
-    def __init__(self,  time = None):
-#        self._has_metadatafile = False
-#        self._is_directory = False
+    def __init__(self,  time:datetime|None = None) -> None:
         super().__init__(time)
     @staticmethod
-    def from_url(url, conf, label="generic_camera"): 
+    def from_url(url:urltype, conf, label:str="generic_camera")-> SingleImageSample: 
         # Assumes jpg file name is metadata file name
         log.debug("Creating sample data from JPEG image and config file metadata")
         # Extract creating time from JPG and to be used as the Sample event creationtime
@@ -370,7 +363,7 @@ class SingleImageSample(SampleEvent):
             s.prefix = imgpath.stem # default naming scheme for sample-related objects
         s.addImage(image)
         return s        
-    def _shortenidentifier(self, x): # Overrides base class
+    def _shortenidentifier(self, x:str) -> str: # Overrides base class
         separator = r'/'
         return x.split(separator)[-1] # Last element
 #------------------------------------------------------------------------------------------------------    
@@ -378,34 +371,32 @@ class LuomusLineSample(SampleEvent):
     supports_rename_files = True    
     supports_rename_directories = True    
     allowed_url_domains = ["http://tun.fi/", "http://id.luomus.fi/",""]
-    def __init__(self,  time=None):
+    def __init__(self,  time:datetime|None=None) -> None:
         super().__init__(time)
-#        self._has_metadatafile = True
-#        self._is_directory = True
         self.digipropfile = DigipropFile() 
-    def _grab_identifier_prefix(self, ident): # everything up to the last /
-        if not "/" in ident:
-            return None
+    def _grab_identifier_prefix(self, ident:str|None) -> str|None:
+        # everything up to the last. Inelefant
+        if (not ident) or (not "/" in ident): return ""
         else:
             parts = ident.split("/")
-            noend = "/".join(parts[:-1]) + "/"
-            return noend        
-    def verify_identifier(self):  # Check if thosed identifier is a valid Luomus identifier
+            return "/".join(parts[:-1]) + "/"        
+    def verify_identifier(self) -> bool:  # Check if thosed identifier is a valid Luomus identifier
         # SIMPLISTIC IMPLEMENTATION
+        # As Luomus identifiers are URIs, could actually use formal parsing here
         pref = self._grab_identifier_prefix(self.identifier)
         if pref is None: return True  # No url to test
-        for urlok in self.allowed_url_domains:
-            if urlok in self.identifier: return True
+        for url_ok in self.allowed_url_domains:
+            if url_ok == self.identifier: return True
         return False # No matching url pattern found    
-    def _shortenidentifier(self, x): # Overrides base class
+    def _shortenidentifier(self, x:str) -> str: # Overrides base class
         separator = r'/'
         return x.split(separator)[-1] 
-    def original_timestamp(self): #helper function for insect line processing
+    def original_timestamp(self) -> str: #helper function for insect line processing
         marker = "dc1."
         x = str(self.datapath.name).split(marker) # Look for marker in last element of directory name
         if len(x) != 2: return ""
         else: return x[-1] # Last element
-    def rename_directories(self, config,prefix,ignore_domain=True):
+    def rename_directories(self, config, prefix:str, ignore_domain:bool=True) -> None:
         """Rename files/dirs if sample ID data is available (from QR code parsing or other source)
 
         id0: a single (long or short)
@@ -432,7 +423,7 @@ class LuomusLineSample(SampleEvent):
         log.debug(f"Renaming {self.datapath} to {newpath}")        
         self.datapath.rename(newpath) 
         self.datapath= newpath # Set datapath to the new value only if everything preceding was successful
-    def write_postprocessor_report(self, conf, properties_filename = None):
+    def write_postprocessor_report(self, conf, properties_filename = None) -> None:
         """Write postprocessor.properties file. Uses the same format as the Luomus degitizing line .properties file"""
         if (properties_filename is None) or (not properties_filename):
             properties_filename  = Path(r"postprocessor.properties")
@@ -451,16 +442,16 @@ class LuomusLineSample(SampleEvent):
             self.digipropfile.update("Q-color", "" )
             self.digipropfile.save( self.datapath / properties_filename )
         except OSError as msg:
-            assert(propfilepath) # Should exist if this exception was triggered
+            assert(properties_filename) # Should exist if this exception was triggered
             log.warning( f"Saving a properties file failed with error message: {msg}" )
 
 #------------------------------------------------------------------------------------------------------    
 class LuomusPlantLineSample(LuomusLineSample): 
 # Inherits the specific rename function. Might want to reimplement it here more generally
-    def __init__(self,  time=None):
+    def __init__(self,  time:datetime|None=None) -> None:
         super().__init__(time)
     @staticmethod    
-    def from_directory(dirpath, conf): 
+    def from_directory(dirpath: Path, conf) -> LuomusPlantLineSample: 
         """Create a Sample object from a directory path with files like those created by the Luomus Plant Imaging Line.
     
 arguments: 
@@ -473,51 +464,51 @@ arguments:
         filepath = dirpath / Path(conf.get("sampleformat", "label_file"))
         # Extract creating time from JPG and use it as the Sample event time        
         itime = getFileCreationDateTime(filepath)
-        s = LuomusLineSample( time = itime )
+        s = LuomusPlantLineSample( time = itime )
         s.copyMetadatafFomConf(conf, no_new_directiories=True)
         s.datapath = dirpath
         s.name = f"{dirpath.name}"        
         s.prefix = dirpath
         # Load image (just one on plant line)
         title = conf.get("data", "label_title")
-        image = CombinedImage(title, filepath)
+        image = CombinedImage(title, jkm.tools.path2url(filepath))
         s.addImage(image)
         return s           
 #------------------------------------------------------------------------------------------------------            
 class LuomusInsectLineSample(LuomusLineSample): 
-    def __init__(self,  time=None):
+    def __init__(self,  time:datetime|None=None):
         super().__init__(time)
     @staticmethod
-    def from_directory(dirpath, conf): 
+    def from_directory(dirpath:Path, conf) -> LuomusInsectLineSample: 
         log.debug("Creating sample data from JPEG image and jkm config file metadata") 
         # Does not currently read digitization.propersies or the XML file
         labelpath = dirpath / Path(conf.get("data", "label_file"))
         # Extract creating time from JPG and use it as the Sample event time        
         itime = getFileCreationDateTime(labelpath)
-        s = LuomusLineSample( time = itime )
+        s = LuomusInsectLineSample( time = itime )
         s.copyMetadatafFomConf(conf,  no_new_directiories=True)
         s.datapath = dirpath
         s.name = f"{dirpath.name}"        
         s.prefix = dirpath
         #Load label image
         label_title = conf.get("data", "label_title")
-        labelimage = LabelImage(label_title, fn = labelpath)
+        labelimage = LabelImage(label_title, url = jkm.tools.path2url(labelpath))
         s.addImage(labelimage)
         #Load object (insect/plant) images
         objectfiles = conf.getlist("data", "object_files")
         object_titles = conf.getlist("data", "object_titles")
         objectfilepaths= [dirpath / Path(x) for x in objectfiles]
         for fpath, fname in zip(objectfilepaths, object_titles):
-            s.addImage( SpecimenImage(fname, jkm.tools.path2uri(fpath)  ) )
+            s.addImage( SpecimenImage(fname, jkm.tools.path2url(fpath)  ) )
         return s             
 #------------------------------------------------------------------------------------------------------    
 class SubDirectorySample(LuomusLineSample): 
     supports_rename_files = True # Should really check the Image objects
     supports_rename_directories = True    
-    def __init__(self,  time=None):
+    def __init__(self,  time:datetime|None=None):
         super().__init__(time)
     @staticmethod
-    def from_directory(url, conf):
+    def from_directory(url:urltype, conf):
         "Create a ImageDirectorySample from a url pointing to a directory name."
         log.debug("Creating sample data from directory with images and jkm config file metadata.") 
         # Use directory as default name for this Sample
@@ -534,7 +525,7 @@ class SubDirectorySample(LuomusLineSample):
         for pattern in conf.getlist("data","image_name_pattern"):
             foundpaths = [Path(x) for x in dirpath.glob(pattern)]
             objectfilepaths.extend( foundpaths)
-        objectfileurls = [jkm.tools.path2uri(path) for path in objectfilepaths]
+        objectfileurls = [jkm.tools.path2url(path) for path in objectfilepaths]
         object_titles = [f"Image file {url}" for url in objectfileurls]
         # We do not know if these are sample or label images 
         for fileurl, filename in zip(objectfileurls, object_titles):
@@ -543,10 +534,12 @@ class SubDirectorySample(LuomusLineSample):
         return s             
 #------------------------------------------------------------------------------------------------------    
 class FileRowSample(SingleImageSample): 
-    def __init__(self,  time = None):
+    def __init__(self,  time:datetime|None = None):
         super().__init__(time)
     @staticmethod
-    def find_samples(dirname,datafile_patterns):
+    def find_samples(dirname: str|Path,
+                     datafile_patterns: list[str]
+                     ) -> tuple[urltype]:
         """Returns a list of urls pointing to a source that can be used to build an Sample. Child classes can replace this.
 
         Arguments of the default version:
@@ -566,7 +559,7 @@ class FileRowSample(SingleImageSample):
                 if line[0] == '#': continue
                 # Check line format: could be URL's or file paths
                 linepath = Path(line.strip())
-                if linepath.exists(): line = jkm.tools.path2uri(linepath) # This is a path to an existing local file
+                if linepath.exists(): line = jkm.tools.path2url(linepath) # This is a path to an existing local file
                 elif validators.url(line): pass # Should be a valid URL as-is
                 else:
                     raise jkm.errors.FileLoadingError(f"Could not recognize the format of line {line} in {filepath}.")
@@ -578,6 +571,6 @@ class FileRowSample(SingleImageSample):
         # return the image
         return image
     @staticmethod
-    def from_url(myurl, conf):        
-        return SingleImageSample.from_url(myurl, conf, label="generic_camera")
+    def from_url(url:urltype, conf, label:str="generic_camera") -> SingleImageSample:  
+        return SingleImageSample.from_url(url, conf, label="generic_camera")
 #------------------------------------------------------------------------------------------------------    

@@ -8,7 +8,7 @@ IMAGE_REQUEST_HEADERS = {
         "Chrome/120.0.0.0 Safari/537.36"
     )
 }
-def defaultdownloader(url: str, sleeptime:int = 0, timeout: int = 1) -> bytes | None: 
+def defaultdownloader(url: str, sleeptime:int|None = 0, timeout: int|None = 1) -> bytes | None: 
     """Extract output filename from image URL path."""
     # Based on Mikko Heikkinen's read_specimens.py from MocoDigi
     try:
