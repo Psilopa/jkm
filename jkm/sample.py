@@ -9,7 +9,7 @@ import jkm.samplemetadata, jkm.ocr, jkm.tools, jkm.errors
 from jkm.digitisation_properties import DigipropFile
 import numpy as np
 #from urllib.request import urlopen
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit, urlunsplit
 
 log = logging.getLogger() # Overwrite from calling script for fancier logging
 deg2rotcode = {90: cv2.ROTATE_90_CLOCKWISE,
@@ -21,10 +21,11 @@ def getFileCreationDateTime(fn):
     timestamp =  os.path.getctime(fn)
     return datetime.fromtimestamp(timestamp)
 
-#def create_new_image(imgtype): 
-#    "Create a new SampleImage subclass instance based on the requested type"
-#    if imgtype.lower().strip() == 'label': return LabelImage()
-#    if imgtype.lower().strip() == 'specimen': return SpecimenImage()
+class Results():  # Partial overlap with metadata ... think about this later
+    """Sample analysis results."""
+    ocrtext = None
+    labeltext_ai1 = None
+    barcodes = None
 #------------------------------------------------------------------------------------------------------    
 class SampleBase(abc.ABC):
     supports_rename_files = False
@@ -43,14 +44,8 @@ class SampleBase(abc.ABC):
     def fromJSONfile(fn):
         with open(fn) as f:
             return  jsonpickle.decode(f.read())
-    
 
-class Results():  # Partial overlap with metadata ... think about this later
-    """Sample analysis results."""
-    ocrtext = None
-    labeltext_ai1 = None
-    barcodes = None
-#------------------------------------------------------------------------------------------------------    
+#------------------------------------------------------------------------------------------------------
 class SampleEvent(SampleBase,  abc.ABC):
     "Container for 0+ photos of an sample and event-level metadata."
     def __init__(self,  time = None):
@@ -137,9 +132,10 @@ class SampleEvent(SampleBase,  abc.ABC):
         for image in self.imagelist:
             try: 
                 log.debug(f"Renaming files based on barcode content: prefix {prefix}, oldname {image.path}")
-                newpath = image.path # Default new name = old name
-                new_filename = prefix + prefix_separator + image.path.name
-                newpath= image.path.parent / Path(new_filename)
+                oldpath = image.path
+                newpath = oldpath # Default new name = old name
+                new_filename = prefix + prefix_separator + oldpath.name
+                newpath = image.path.parent / new_filename
                 log.debug(f"New name for {image.path} is {newpath}")            
                 image.rename(newpath)
             except PermissionError as msg:
@@ -152,7 +148,7 @@ class SampleEvent(SampleBase,  abc.ABC):
     @staticmethod
     # Override in child classes if needed!
     def find_samples(dirname,datafile_patterns = "*.*"):
-        """Returns a list of URIs pointing to a source that can be used to build an Sample. Child classes can replace this.
+        """Returns a list of urls pointing to a source that can be used to build an Sample. Child classes can replace this.
 
         Arguments of the default version:
         dirname - string or Path: path to the direcotry holding items
@@ -174,32 +170,29 @@ class SampleEvent(SampleBase,  abc.ABC):
 class SampleImageBase(SampleBase,  abc.ABC): 
     "One image plus metadata"
     #Class properties
-    supports_rename_files = False
     supports_rename_directories = False    
     has_specimens = False # Property
     has_labels = False # Property
-    def __init__(self,  label,  uri, time= None):
+    def __init__(self,  label,  url, time= None):
         super().__init__(time)
-        self.name = uri # For images, the image source is a good name
-        self.label= label
-        self.meta = jkm.samplemetadata.ImageMetadata(self.label)  #Image-level metadata
-        self.confsection= None
-        # Data about the actual image
         self._bitmap = None  # Full image data loaded to memory (set to None if not yet loaded)
-        self._uri = uri
         self._loaded = False
-        # Set supports* based on uri, if given
+        self.url = url # Also sets self._parsed_url
+        self.name = url # For images, the image source is a good name
+        self.label = label
+        self.meta = jkm.samplemetadata.ImageMetadata(self.label)  #Image-level metadata
+        self.confsection = None
+        # Data about the actual image: can we surrpot renaming
+        if self._parsed_url.scheme in ("file",):
+            self.supports_rename_files = True # We can rename local resources
     @abc.abstractmethod
     def _loadImage(self, colourspace = cv2.IMREAD_COLOR): pass
     @property
-    def islocal (self):
-        """True is this is a local resource, false otherwise.
-
-        Local resources are (for now) assumed to be editable!"""
-        parsed_uri = urlparse(self.uri)
-        if parsed_uri.scheme == "file": return True        
-        else: return fale
-        
+    def url(self): return self._url
+    @url.setter
+    def url(self, value):
+        self._url = value
+        self._parsed_url = urlparse(self.url)
     @property
     def bitmap(self):
         # TODO: Try to load if unloaded!
@@ -209,11 +202,7 @@ class SampleImageBase(SampleBase,  abc.ABC):
     def bitmap(self, newbitmap):
         self._bitmap = newbitmap
         if self._bitmap is None: self._loaded = False # Set to None
-        else: self._loaded = True
-    @property
-    def uri(self): return self._uri
-    @uri.setter
-    def uri(self, value): self._uri = value
+        else: self._loaded = True        
     def encodeJSON(self):
         "Return a JSON serializable representation."
         # TODO: ADD FULL STRUCTURE HERE
@@ -222,7 +211,7 @@ class SampleImageBase(SampleBase,  abc.ABC):
         d[f"__{type(self).__name__}__"] = True
         d['label'] = self.label
         d['confsection'] = self.confsection
-        d['_uri'] = self.uri
+        d['_url'] = self.url
         d['meta'] = self.meta.encodeJSON()
         return d
     def unloadImageData(self): 
@@ -253,22 +242,28 @@ class SampleImageBase(SampleBase,  abc.ABC):
 
 class SampleImage(SampleImageBase): 
     "One image plus metadata"
-    def __init__(self,  label,  uri,  time = None): 
-        super().__init__(label, uri,  time)
-        assert self.uri, "SampleImage.uri accessed while is was None."
-        print("self.uri = ", self.uri)
-        self.parsed_uri = urlparse(self.uri)
+    def __init__(self,  label,  url,  time = None): 
+        super().__init__(label, url,  time)
+        assert self.url, "SampleImage.url accessed while is was None."
+        print("self.url = ", self.url)
      # ONLY POSSIBLE FOR LOCAL FILES
     @property
     def path(self):
-        assert self.parsed_uri.scheme == "file" # Should be verified at input
-        return self.parsed_uri.path
-    def rename(self,uri):
-        "Rename the corresponding file on the file system"
-        #TODO: needs error state handling and documentation
-        assert False, "Needs reimplementing"
-#        self.path.rename(newpath)
-#        self.uri = newpath
+        assert self._parsed_url.scheme == "file" # Should be accessed only for files
+        return Path(self._parsed_url.path)
+    def rename(self,newpath):
+        """Rename the corresponding file on the file system.
+
+        Raises a jkm.errors.FileLoadingError if called for non-local file resources.
+        """
+        if not self.supports_rename_files:
+            raise jkm.errors.FileLoadingError("Cannot rename resources that are not local.")
+        # Create new URL from the old one, replacing the file path
+        comps = urlsplit(self.url)
+        comps._replace( path=str(newpath) )
+        # FOR TESTING; COPY RATHER THAN RENAME
+        self.path.copy(newpath)
+        self.url = urlunsplit(comps)
     def _loadImage(self, colourspace = cv2.IMREAD_COLOR): 
         """Returns image as a cv2/numpy array. 
         
@@ -287,15 +282,15 @@ class SpecimenImage(SampleImage):
     #Class properties
     has_specimens = True # Property
     has_labels = False # Property
-    def __init__(self,  label,  uri,  time = None):
-        super().__init__(label,  uri,  time)
+    def __init__(self,  label,  url,  time = None):
+        super().__init__(label,  url,  time)
 
 class LabelImage(SampleImage):
         #Class properties
     has_specimens = False # Property
     has_labels = True # Property
-    def __init__(self,  label,  uri,  time = None):
-        super().__init__(label,  uri,  time)
+    def __init__(self,  label,  url,  time = None):
+        super().__init__(label,  url,  time)
         self._textareas = []
     @property
     def textareas(self):  
@@ -336,9 +331,9 @@ class LabelImage(SampleImage):
 #    def writeMetadata(self): pass    
 
 class CombinedImage(SpecimenImage, LabelImage): 
-    def __init__(self,  label,  uri,  time = None):
+    def __init__(self,  label,  url,  time = None):
         # Note: potential problems with inheritance, resolve!
-        super().__init__(label,  uri,  time)
+        super().__init__(label,  url,  time)
         # Set these after constructors to make sure we get them right
         self.has_specimens = True # Property
         self.has_labels = True # Property
@@ -352,44 +347,44 @@ class SingleImageSample(SampleEvent):
 #        self._is_directory = False
         super().__init__(time)
     @staticmethod
-    def from_image_file(imgfile, conf, label="generic_camera"): 
+    def from_url(url, conf, label="generic_camera"): 
         # Assumes jpg file name is metadata file name
         log.debug("Creating sample data from JPEG image and config file metadata")
         # Extract creating time from JPG and to be used as the Sample event creationtime        
-        filecreated = getFileCreationDateTime(imgfile)
-        imgfile = Path(imgfile)
+        imgpath = Path.from_uri(str(url))
+        filecreated = getFileCreationDateTime(imgpath)
 	# Create a CombinedImage to hold image data 
 	# As this is a single image sample, we assume the image can hold both specimen and label data and use CombinedImage
-        image = CombinedImage(label, imgfile.as_uri())
+        image = CombinedImage(label, url)
 	# Create a new SingleImageSample instance and return it 
         s = SingleImageSample( time = filecreated )
         s.copyMetadatafFomConf(conf,  no_new_directiories=True)
-        s.datapath = imgfile.parent # Use the directory holding the file as the Sample 'home'
-        s.prefix = imgfile.stem # default naming scheme for sample-related objects
+        s.datapath = imgpath.parent # Use the directory holding the file as the Sample 'home'
+        s.prefix = imgpath.stem # default naming scheme for sample-related objects
         s.addImage(image)
         return s        
     def _shortenidentifier(self, x): # Overrides base class
         separator = r'/'
         return x.split(separator)[-1] # Last element
 #------------------------------------------------------------------------------------------------------    
-class URI_list_Sample(SingleImageSample): 
+class url_list_Sample(SingleImageSample): 
     def __init__(self,  time = None):
         super().__init__(time)
     @staticmethod
-    def find_samples(path_file_URIlist, dummy_argument = None):
-        """Returns a list of URIs pointing to a source that can be used to build an Sample. Child classes can replace this.
+    def find_samples(path_file_urllist, dummy_argument = None):
+        """Returns a list of urls pointing to a source that can be used to build an Sample. Child classes can replace this.
 
         Arguments of the default version:
-        path_file_URIlist - a file containing file names or 
+        path_file_urllist - a file containing file names or 
         """
-        log.debug(f"Reading '{path_file_URIlist}' to find resources")        
-        path_file_URIlist = Path(path_file_URIlist)
+        log.debug(f"Reading '{path_file_urllist}' to find resources")        
+        path_file_urllist = Path(path_file_urllist)
         try:
             result = []
-            with path_file_URIlist.open("r") as f:
+            with path_file_urllist.open("r") as f:
                 lines = f.readlines()
             for line in lines:
-                # Check URI validity
+                # Check url validity
                 # tempr found be a 
                 result.append( line.strip() )
             print("Rerturning", result)
@@ -400,28 +395,14 @@ class URI_list_Sample(SingleImageSample):
         # return the image
         return image
     @staticmethod
-    def from_URI(myURI, conf):
-        # TODO: THIS IS VERY INELEGANT. WE SHOULD REALLY CHANGE ALL IMAGE CLASSES TO HANDLE either PATHS OR URIs BY DEFAULT
-        # BUT THEN WE CANNOT RELY ON FILES HAVING A CREATION TIME ETC?
-        assert False, "Loading images from URIs is not yet implemented."
-        image = _url_to_image(myURI)
-        # TODO: NEXT STEPS:
-        # SAVE IMAGE LOCALLY
-        return SingleImageSample.from_image_file(imgfile, conf, label="generic_camera")
+    def from_url(myurl, conf):
+        return SingleImageSample.from_url(myurl, conf, label="generic_camera")
 
-def _url_to_image(url, readFlag=cv2.IMREAD_COLOR):
-    # download the image, convert it to a NumPy array, and then read
-    # it into OpenCV format
-    assert False, "Not yet implemented"
-#    resp = urlopen(url)
-#    image = np.asarray(bytearray(resp.read()), dtype="uint8")
-#    image = cv2.imdecode(image, readFlag)
-    
 #------------------------------------------------------------------------------------------------------    
 class LuomusLineSample(SampleEvent): 
     supports_rename_files = True    
     supports_rename_directories = True    
-    allowed_URI_domains = ["http://tun.fi/", "http://id.luomus.fi/",""]
+    allowed_url_domains = ["http://tun.fi/", "http://id.luomus.fi/",""]
     def __init__(self,  time=None):
         super().__init__(time)
 #        self._has_metadatafile = True
@@ -437,10 +418,10 @@ class LuomusLineSample(SampleEvent):
     def verify_identifier(self):  # Check if thosed identifier is a valid Luomus identifier
         # SIMPLISTIC IMPLEMENTATION
         pref = self._grab_identifier_prefix(self.identifier)
-        if pref is None: return True  # No URI to test
-        for uriok in self.allowed_URI_domains:
-            if uriok in self.identifier: return True
-        return False # No matching URI pattern found    
+        if pref is None: return True  # No url to test
+        for urlok in self.allowed_url_domains:
+            if urlok in self.identifier: return True
+        return False # No matching url pattern found    
     def _shortenidentifier(self, x): # Overrides base class
         separator = r'/'
         return x.split(separator)[-1] 
@@ -490,7 +471,7 @@ class LuomusLineSample(SampleEvent):
                 id_OK = self.verify_identifier() # This should probably be done way earlier elsewhere
                 if not id_OK: 
                     log.critical(f"{self.name}: *******\n\n\n\nMALFORMED IDENTIFIER {self.identifier}*******\n\n\n\n")
-                self.digipropfile.update("URI_format_OK", str(id_OK) )
+                self.digipropfile.update("url_format_OK", str(id_OK) )
             self.digipropfile.update("Q-sharp", "" )
             self.digipropfile.update("Q-color", "" )
             self.digipropfile.save( self.datapath / properties_filename )
@@ -575,9 +556,9 @@ class ImageDirectorySample(LuomusLineSample):
         s.prefix = dirpath
         #Load all images found, treating them as combined label/specimen images
         objectfilepaths = [Path(dirpath) for x in dirpath.glob(s.imagefilepattern)]
-        objectfileuris = [x.as_uri() for x in objectfilepaths]
-        object_titles = [f"Image file {p}" for p in objectfileuris]        
-        for fileuri, filename in zip(objectfileuris, object_titles):
-            s.addImage( SpecimenImage(filename, fileuri)  )
+        objectfileurls = [x.as_uri() for x in objectfilepaths]
+        object_titles = [f"Image file {p}" for p in objectfileurls]        
+        for fileurl, filename in zip(objectfileurls, object_titles):
+            s.addImage( SpecimenImage(filename, fileurl)  )
         return s             
 #------------------------------------------------------------------------------------------------------    

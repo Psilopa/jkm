@@ -8,6 +8,17 @@ from jkm.errors import FileLoadingError
 log = logging.getLogger() # Overwrite if needed
 LOG_FILE_ENCODING = "utf8"
 
+def is_existing_path(url): 
+    "Verify that this url, if a local file url, corresponds to an accessible path"
+    filepath = Path.from_uri(str(url)) # DEPRECATED ?
+    dirpath= filepath.parent
+    # Catch some error states
+    if not dirpath.is_dir():                
+        raise jkm.errors.FileLoadingError(f"Cannot find directory {filepath},  skipping to next sample.")
+    if not filepath.exists():
+        raise jkm.errors.FileLoadingError(f"Could not find file {filepath}, skipping.")
+    return url
+
 def list2printvalues(mylist):
     out = []
     for valuedict in mylist:

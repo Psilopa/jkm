@@ -18,10 +18,10 @@ object_titles = ["habitus1"] # Written into metadata only
 # FILE AND DIRECTORY NAMING AND MOVING TASKS
 # All are true of false
 create_directories = false               
-files_rename_by_barcode_id = false       
+files_rename_by_barcode_id = false
 directories_rename_by_barcode_id = false 
 ### IMAGE EDITING TASKS
-image_editing_tasks = true              
+image_editing_tasks = false              
 # DATA EXTRACTION TASKS
 read_barcodes = true               
 # Find areas with text using cv2 computer vision
@@ -31,7 +31,7 @@ ocr = false
 ocr_analysis = false                     
 # LABEL DATA EXTRACTION TASKS
 ai_label_text_extraction = true          
-labeldata_to_CSV = true                  
+labeldata_to_CSV = false
 # OTHER DATA
 save_JSON = false                        
 write_postprocessor_report_file = false
