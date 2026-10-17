@@ -8,7 +8,8 @@ import jsonpickle
 import jkm.samplemetadata, jkm.ocr, jkm.tools, jkm.errors
 from jkm.digitisation_properties import DigipropFile
 import numpy as np
-from urllib.request import urlopen
+#from urllib.request import urlopen
+from urllib.parse import urlparse
 
 log = logging.getLogger() # Overwrite from calling script for fancier logging
 deg2rotcode = {90: cv2.ROTATE_90_CLOCKWISE,
@@ -42,6 +43,7 @@ class SampleBase(abc.ABC):
     def fromJSONfile(fn):
         with open(fn) as f:
             return  jsonpickle.decode(f.read())
+    
 
 class Results():  # Partial overlap with metadata ... think about this later
     """Sample analysis results."""
@@ -51,9 +53,6 @@ class Results():  # Partial overlap with metadata ... think about this later
 #------------------------------------------------------------------------------------------------------    
 class SampleEvent(SampleBase,  abc.ABC):
     "Container for 0+ photos of an sample and event-level metadata."
-    supports_rename_files = True    
-    supports_rename_directories = False    
-    
     def __init__(self,  time = None):
         super().__init__(time)
         self._imagelist = [] # List of SamplePhoto subclass instances
@@ -72,8 +71,20 @@ class SampleEvent(SampleBase,  abc.ABC):
         self.name = x
     @property
     def shortidentifier(self):  return self._shortidentifier
+
+    # TODO STUFF: ALL THIS MUST CHANGE IF WE SUPPORT ONLINE IMAGES
+    @property
+    def supports_rename_files(self):
+        # DERIVE FROM IMAGE TYPES
+        return True    
+    @property
+    def supports_rename_directories(self):
+        # DERIVE FROM IMAGE TYPES
+        return False
     @property
     def is_directory(self):  return self._is_directory
+    
+
     @property
     def feature_metadata(self):  return self._has_metadatafile
     @property 
@@ -161,61 +172,47 @@ class SampleEvent(SampleBase,  abc.ABC):
         return jkm.tools.unique(result)
 
 #-----------------------------IMAGE CONTAINERS---------------------------------------------------------------    
-class SampleImage(SampleBase): 
+class SampleImageBase(SampleBase,  abc.ABC): 
     "One image plus metadata"
     #Class properties
     has_specimens = False # Property
     has_labels = False # Property
-    def __init__(self,  label,  fn = None): 
+    def __init__(self,  label,  uri = None):
         super().__init__()
         self.label= label
         self.meta = jkm.samplemetadata.ImageMetadata(self.label)  #Image-level metadata
         self.confsection= None
-        self._img = None  # Full image data loaded to memory (set to None if not yet loaded)
-        self._fn = fn
-
-        # Record colorspace!
+        # Data about the actual image
+        self._bitmap = None  # Full image data loaded to memory (set to None if not yet loaded)
+        self._uri = uri
+        self._loaded = False
     @property
-    def filename(self):  return self._fn
+    def bitmap(self):
+        # TODO: Try to load if unloaded!
+#        assert self._bitmap, "Trying to access bitmap data before loading it."
+        return self._bitmap
+    @bitmap.setter
+    def bitmap(self, newbitmap):
+        self._bitmap = newbitmap
+        if self._bitmap is None: self._loaded = False # Set to None
+        else: self._loaded = True
     @property
-    def path(self):  # Note: fails is _self._fn is still set to None
-        return Path(self._fn)
-    def samefile(self,fn):
-        "returns true is this image is a link to filename fn"
-        return self.path.samefile(Path(fn))
-    def rename(self,newpath):
-        "Rename the corresponding file on the file system"
-        #TODO: needs error state handling and documentation
-        self.path.rename(newpath)
-        self._fn = newpath
-    def unloadImageData(self): 
-        self._img = None  # Delete in-memory copy of image data 
+    def uri(self): return self._uri
+    @uri.setter
+    def uri(self, value): self._uri = value
     def encodeJSON(self):
         "Return a JSON serializable representation."
-        self._img = None # Do not serialise in-memory copy of image
+        # TODO: ADD FULL STRUCTURE HERE
+        # TODO: IMPLEMENT IN CHILD CLASSES
         d = {}
         d[f"__{type(self).__name__}__"] = True
         d['label'] = self.label
         d['confsection'] = self.confsection
-        d['_fn'] = self._fn
+        d['_uri'] = self.uri
         d['meta'] = self.meta.encodeJSON()
         return d
-    def readImage(self,filename = None, colourspace = cv2.IMREAD_COLOR,  force_reload=False): 
-        """Returns image as a cv2/numpy array. 
-        
-        Loads data from disk if it has not already been loaded. Reloading can be forced using the force_reload flag. 
-        Raises jkm.errors.FileLoadingError is datais not accessible"""
-        if (self._img is not None) and (not force_reload) and (filename == None): return self._img 
-        try:
-            fn = filename or self._fn  # Use filename from mothod call, if any
-            # HACK:
-            self._fn = Path(fn)
-            self._img = jkm.tools.load_img(fn)
-            return self._img
-        except SystemError as msg:
-            log.warning(f"Reading file {str(filename)} failed" )
-            raise jkm.errors.FileLoadingError(msg)
-#    def writeImage(filename): pass
+    def unloadImageData(self): 
+        self.bitmap = None  # Delete in-memory copy of image data
     def copyMetadatafFomConf(self, configobject):
         cf = configobject
 #        self.addMeta("Free text", cf.get(self.confsection,"freetextline", fallback=""))
@@ -227,18 +224,53 @@ class SampleImage(SampleBase):
     def getsubimage(self,  rect):
         "Rect to [x1,y1,x2,y2,rot] from upper left corner"
         x1,y1,x2,y2,rot = rect
-        img = self.readImage()
-        return img[y1:y2, x1:x2] 
+        self._loadImage()
+        return self.bitmap[y1:y2, x1:x2] 
     def readbarcodes(self, qrpackage):
-        img = self.readImage()
-        bkdata = jkm.barcodes.extractbarcodedata(img, qrpackage, encoding='ascii')
+        self._loadImage()
+        bkdata = jkm.barcodes.extractbarcodedata(self.bitmap, qrpackage, encoding='ascii')
         return bkdata        
     def rotate(self, angle): # angle = 0,90,180,270
         angle = int(angle)
         if angle:
-            img = self.readImage()
+            self._loadImage()
             rotcode = deg2rotcode[angle]
-            self._img = cv2.rotate(img, rotateCode = rotcode)        
+            self.bitmap = cv2.rotate(self.bitmap, rotateCode = rotcode)        
+    @abc.abstractmethod
+    def _loadImage(self, colourspace = cv2.IMREAD_COLOR): pass
+
+class SampleImage(SampleImageBase): 
+    "One image plus metadata"
+    def __init__(self,  label,  fn = None): 
+        super().__init__(label)
+        self.uri = fn.as_uri() # NOTE: DEPRECATED
+     # ONLY POSSIBLE FOR LOCAL FILES
+    @property
+    def path(self):
+        assert self.uri, "SampleImage.uri accessed while is was None."
+        parsed_uri = urlparse(self.uri)
+        assert parsed_uri.scheme == "file" # Should be verified at input
+        return Path(parsed_uri.path) # Assumes this is a valid Path ! 
+
+    def rename(self,uri):
+        "Rename the corresponding file on the file system"
+        #TODO: needs error state handling and documentation
+        assert False, "Needs reimplementing"
+#        self.path.rename(newpath)
+#        self.uri = newpath
+    def _loadImage(self, colourspace = cv2.IMREAD_COLOR): 
+        """Returns image as a cv2/numpy array. 
+        
+        Loads data from disk if it has not already been loaded. Reloading can be forced using the force_reload flag. 
+        Raises jkm.errors.FileLoadingError is datais not accessible"""
+        if (self.bitmap is not None): return self.bitmap 
+        try:
+            print("LOADING FROM PATH", self.path)
+            self.bitmap = jkm.tools.load_img(self.path)
+        except SystemError as msg:
+            log.warning(f"Reading file {str(filename)} failed" )
+            raise jkm.errors.FileLoadingError(msg)
+#    def writeImage(filename): pass
 
 class SpecimenImage(SampleImage):
     #Class properties
@@ -260,7 +292,7 @@ class LabelImage(SampleImage):
         return self._textareas
     def findtextareas(self,  nnfn):
         "Find areas with text using EAST text detector"
-        img = self.readImage()
+        img = self._loadImage()
         log.debug("Find areas with text using EAST text detector")
         self._textareas = jkm.ocr.find_text_rects(img,nnfn)
         return self._textareas
@@ -280,7 +312,7 @@ class LabelImage(SampleImage):
         txt = ""
         if not self._textareas or force_all_image_ocr:
             log.debug(f"OCR call for {self.label}, full frame")
-            img = self.readImage()
+            img = self._loadImage()
             txt = jkm.ocr.ocr(img,ocrcommand)
         else:  # OCR recognised text areas one at a time
             x = 1
@@ -367,9 +399,10 @@ class URI_list_Sample(SingleImageSample):
 def _url_to_image(url, readFlag=cv2.IMREAD_COLOR):
     # download the image, convert it to a NumPy array, and then read
     # it into OpenCV format
-    resp = urlopen(url)
-    image = np.asarray(bytearray(resp.read()), dtype="uint8")
-    image = cv2.imdecode(image, readFlag)
+    assert False, "Not yet implemented"
+#    resp = urlopen(url)
+#    image = np.asarray(bytearray(resp.read()), dtype="uint8")
+#    image = cv2.imdecode(image, readFlag)
     
 #------------------------------------------------------------------------------------------------------    
 class LuomusLineSample(SampleEvent): 

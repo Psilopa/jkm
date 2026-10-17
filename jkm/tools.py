@@ -190,11 +190,6 @@ def backup_file(orig_path,  copy_path):
 
 def unique(s) :return tuple(set(s))
 
-#def path_in_list(p,pathlist):
-#    for p2 in pathlist: 
-#        if p.samefile(p2): return True
-#    return False		
-
 def quit_if_not_exists(pathname):
     if not pathname.exists():
         log.critical(f"Path {pathname} not found. Quitting.")
