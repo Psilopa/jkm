@@ -4,22 +4,24 @@ import validators
 from pathlib import Path
 import numpy as np
 import cv2
+from jkm.downloader import defaultdownloader
 from jkm.errors import FileLoadingError
 from urllib.parse import urlparse
+import urllib.request, ssl # For web downloads
 
 log = logging.getLogger() # Overwrite if needed
 
 def is_existing_path(url): 
     "Verify that this url, if a local file url, corresponds to an accessible path"
     try:
-        filepath = Path.from_uri(str(url)) # DEPRECATED ?
+        filepath = uri2path( url )
     except ValueError: return # Can't validate this
     dirpath= filepath.parent
     # Catch some error states
     if not dirpath.is_dir():                
-        raise jkm.errors.FileLoadingError(f"Cannot find directory {filepath},  skipping to next sample.")
+        raise FileLoadingError(f"Cannot find directory {filepath},  skipping to next sample.")
     if not filepath.exists():
-        raise jkm.errors.FileLoadingError(f"Could not find file {filepath}, skipping.")
+        raise FileLoadingError(f"Could not find file {filepath}, skipping.")
 
 def list2printvalues(mylist):
     out = []
@@ -79,14 +81,28 @@ def img_from_file(imagestr):
         if fnp.is_reserved(): raise FileLoadingError("File %s is reserved" % fnp)
         return cv2.imread(str(fnp),cv2.IMREAD_UNCHANGED)
     
-def img_from_url(url):
+defcont = ssl.create_default_context()
+defcont.check_hostname = False
+defcont.verify_mode = ssl.CERT_NONE
+def img_from_url(url, downloader = defaultdownloader, dlargs = [], dlkwords = {}):
+    """Tries to return an image from a URI.
+
+    If the needs to be downloaded, calls the optional downloader function
+    like this downloader(url, *dlargs, **dlkwords). This allows for custom
+    downloaders for various data sources.
+    """
     parsed_url = urlparse(url)
     if parsed_url.scheme == 'file':
-        print("FOUND PATH", parsed_url.path)
         return img_from_file(parsed_url.path)
-    # If this is a file
-    parsed_url
-    return "FOOOO"
+    # OK, this is not a local file...
+    if not downloader:
+        raise FileLoadingError(f"Resource {url} is not local and we have no provided way to download it")
+    # Try to use the provided downloader
+    content = downloader(uri) # Should return a raw byte array
+    print("type(content) = ", type(content) )
+    arr = np.asarray(bytearray(content), dtype=np.uint8)
+    return cv2.imdecode(arr, -1) # 'Load it as it is'
+
     
 def load_img(image): #Loads image from image object or file
     """Loads an image (as a cv2 image) from a variety of sources.
@@ -97,7 +113,6 @@ def load_img(image): #Loads image from image object or file
     - 
     an image type
     """
-    print("load_img called with", image)
     # Todo: add better Error handling (catch SystemError from and convert from FileError or like)
     if isinstance(image, Path): return img_from_file(image)
     elif isinstance(image, str): # Can be a path or a uri
@@ -111,7 +126,6 @@ def load_img(image): #Loads image from image object or file
         img = cv2.imdecode(image.read(),cv2.IMREAD_UNCHANGED)
     else:
         img = image # This is hopefully already a Image-type object ... test for numpy.ndarray ?    
-    if img is None: raise FileLoadingError("Loading file %s failed, reason not known" % image) 
     return img
 
 def increaseTopContrast(image,greyrange):
@@ -146,7 +160,6 @@ def shortid_from_text(text):
 
 Returns the short form only! Assumes 0-1 matches!"""
     #text = re.sub("[\t\n\r\f\v]","",text)
-#    print(text)
     reslist = []
     for reg in regs:
         for res in reg.finditer(text):
@@ -176,3 +189,13 @@ def quit_if_not_exists(pathname):
     if not pathname.exists():
         log.critical(f"Path {pathname} not found. Quitting.")
         sys.exit()
+
+
+#  ---------------- URI to Path conversions ------------------
+def path2uri(fpath):
+    return fpath.as_uri() # THIS IS DEPRECATED
+#    return urllib.request.pathname2url( str(fpath) ) 
+
+def uri2path(url):
+    return Path.from_uri(url) # Added in version 3.13.
+#    return Path( urllib.request.url2pathname(url) )

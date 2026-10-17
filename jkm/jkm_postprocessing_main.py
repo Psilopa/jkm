@@ -455,8 +455,8 @@ class jkm_post():
             time.sleep(sleep_s) # Wait for all data to arrive
             successQ = self.processSingleEvent( next_input, conf, self.spreadsheet )        
             if successQ is processor.FAIL_RETRY: queue.put( next_input ) # retry from start
-            elif successQ is processor.FAIL_IGNORE: queue.done() 
-            elif successQ is processor.SUCCESS: pass # Do nothing
+            elif successQ is processor.FAIL_IGNORE: pass 
+            elif successQ is processor.SUCCESS: pass 
 #            if self.ext: self.ext.event_sample_done(sample, processor.SUCCESS) # ... but we do NOT know the sample here, at it is not returned. TODO
             log.info(f"Sample events in process queue: {queue.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
 

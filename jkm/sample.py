@@ -163,7 +163,7 @@ class SampleEvent(SampleBase,  abc.ABC):
         for pat in datafile_patterns:
             filepaths = d.rglob(pat)
             log.debug(f"Looking for pattern {pat} in {dirname}")
-            filepaths = [Path(x).as_uri() for x in filepaths if ( str(x).find("textarea") == -1 )] # Skip files with "textarea" in their name
+            filepaths = [jkm.tools.path2uri(x) for x in filepaths if ( str(x).find("textarea") == -1 )] # Skip files with "textarea" in their name
             result.extend( filepaths )
         # Delete duplicate files (hard links to the same file)        
         return jkm.tools.unique(result)
@@ -356,7 +356,7 @@ class SingleImageSample(SampleEvent):
 	# Create a CombinedImage to hold image data 
         image = CombinedImage(label, url)
         try:
-            imgpath = Path.from_uri(str(url))
+            imgpath = jkm.tools.uri2path( url )
             filecreated = getFileCreationDateTime(imgpath)
         except ValueError: # THis is not a local file URI
             imgpath = None
@@ -508,7 +508,7 @@ class LuomusInsectLineSample(LuomusLineSample):
         object_titles = conf.getlist("data", "object_titles")
         objectfilepaths= [dirpath / Path(x) for x in objectfiles]
         for fpath, fname in zip(objectfilepaths, object_titles):
-            s.addImage( SpecimenImage(fname, fpath.as_uri())  )
+            s.addImage( SpecimenImage(fname, jkm.tools.path2uri(fpath)  ) )
         return s             
 #------------------------------------------------------------------------------------------------------    
 class SubDirectorySample(LuomusLineSample): 
@@ -521,7 +521,7 @@ class SubDirectorySample(LuomusLineSample):
         "Create a ImageDirectorySample from a url pointing to a directory name."
         log.debug("Creating sample data from directory with images and jkm config file metadata.") 
         # Use directory as default name for this Sample
-        dirpath = Path.from_uri(url)
+        dirpath = jkm.tools.uri2path( url )
         # Extract creating time from directory name 
         itime = getFileCreationDateTime(dirpath)
         s = SubDirectorySample( time = itime )
@@ -534,7 +534,7 @@ class SubDirectorySample(LuomusLineSample):
         for pattern in conf.getlist("data","image_name_pattern"):
             foundpaths = [Path(x) for x in dirpath.glob(pattern)]
             objectfilepaths.extend( foundpaths)
-        objectfileurls = [path.as_uri() for path in objectfilepaths]
+        objectfileurls = [jkm.tools.path2uri(path) for path in objectfilepaths]
         object_titles = [f"Image file {url}" for url in objectfileurls]
         # We do not know if these are sample or label images 
         for fileurl, filename in zip(objectfileurls, object_titles):
@@ -566,7 +566,7 @@ class FileRowSample(SingleImageSample):
                 if line[0] == '#': continue
                 # Check line format: could be URL's or file paths
                 linepath = Path(line.strip())
-                if linepath.exists(): line = linepath.as_uri() # This is a path to an existing local file
+                if linepath.exists(): line = jkm.tools.path2uri(linepath) # This is a path to an existing local file
                 elif validators.url(line): pass # Should be a valid URL as-is
                 else:
                     raise jkm.errors.FileLoadingError(f"Could not recognize the format of line {line} in {filepath}.")
