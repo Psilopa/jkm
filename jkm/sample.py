@@ -78,8 +78,6 @@ class SampleEvent(SampleBase,  abc.ABC):
         return False
     @property
     def is_directory(self):  return self._is_directory
-    
-
     @property
     def feature_metadata(self):  return self._has_metadatafile
     @property 
@@ -169,7 +167,8 @@ class SampleEvent(SampleBase,  abc.ABC):
             result.extend( filepaths )
         # Delete duplicate files (hard links to the same file)        
         return jkm.tools.unique(result)
-
+    def rename_directories(self, config,prefix,ignore_domain=True):
+        raise jkm.jkError("Trying to rename directories in an object that does not support it.")
 #-----------------------------IMAGE CONTAINERS---------------------------------------------------------------    
 class SampleImageBase(SampleBase,  abc.ABC): 
     "One image plus metadata"
@@ -449,7 +448,7 @@ class LuomusLineSample(SampleEvent):
         else: id0 = self.identifier
         if not id0: raise jkm.errors.JKError("No identifier known, cannot rename directory")
         newprefix = "_".join([id0 , prefix])            
-        if config.getb("tasks","create_directories"): # if a subdirectory was created for data
+        if config.getb("task","create_directories"): # if a subdirectory was created for data
              newbase = basepath / id0 # example [basebath]/GX.38276
              newpath = newbase / newprefix # example [basebath]/GX.38276/GX.38276_timestamp
              if not newbase.exists(): newbase.mkdir() 
@@ -559,11 +558,11 @@ class SubDirectorySample(LuomusLineSample):
         for pattern in conf.getlist("data","image_name_pattern"):
             foundpaths = [Path(x) for x in dirpath.glob(pattern)]
             objectfilepaths.extend( foundpaths)
-        print("objectfilepaths =", objectfilepaths)
         objectfileurls = [path.as_uri() for path in objectfilepaths]
         object_titles = [f"Image file {url}" for url in objectfileurls]
         # We do not know if these are sample or label images 
         for fileurl, filename in zip(objectfileurls, object_titles):
-            s.addImage( CombinedImage(filename, fileurl)  )
+            img = CombinedImage(filename, fileurl)
+            s.addImage(img)
         return s             
 #------------------------------------------------------------------------------------------------------    

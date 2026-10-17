@@ -11,8 +11,8 @@ main_data_directory = "/home/kahanpaa/projects/_videostill/"
 # DIR_CONTENT = read a directory, treat each image matching recognize_by_filename_pattern as a new sample
 # SUBDIRECTORIES = read a directory, treat subdirectory (with 0+ images) as a new sample
 # MZH* = FInnish Museum of Natural History -specific modes
-datatype_to_load = "DIR_CONTENT" 
-sample_pattern = ["*.jpg"] # List - Trigger pattern(s) that leads to a sample processing event
+datatype_to_load = "SUBDIRECTORIES" 
+sample_pattern = ["sample*"] # List - Trigger pattern(s) that leads to a sample processing event
 image_name_pattern = ["*.jpg"] # For Sample types where several images can be loaded
 label_file = "Preview002.jpg" # Files with this name pattern are treated as files with labels
 object_files = ["Preview001.jpg"] # Files with this name pattern are treated as files with specimens (if both match, treated as combined)
@@ -24,7 +24,7 @@ object_titles = ["habitus1"] # Written into metadata only
 # All are true of false
 create_directories = false               
 files_rename_by_barcode_id = false
-directories_rename_by_barcode_id = false 
+directories_rename_by_barcode_id = true 
 ### IMAGE EDITING TASKS
 image_editing_tasks = false              
 # DATA EXTRACTION TASKS
