@@ -8,7 +8,7 @@ IMAGE_REQUEST_HEADERS = {
         "Chrome/120.0.0.0 Safari/537.36"
     )
 }
-def defaultdownloader(url: str, sleeptime:int = 0, timeout: int = 1) -> bytes: 
+def defaultdownloader(url: str, sleeptime:int = 0, timeout: int = 1) -> bytes | None: 
     """Extract output filename from image URL path."""
     # Based on Mikko Heikkinen's read_specimens.py from MocoDigi
     try:
@@ -25,5 +25,5 @@ def defaultdownloader(url: str, sleeptime:int = 0, timeout: int = 1) -> bytes:
         return None
 
 if __name__ == "__main__":
-    downloader("https://inaturalist-open-data.s3.amazonaws.com/photos/751707193/original.jpg")
+    downloader("https://picsum.photos/200/300", 0, 1)
 

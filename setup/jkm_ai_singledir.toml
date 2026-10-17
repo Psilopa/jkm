@@ -6,14 +6,13 @@ write_raw_output  = true
 
 [data] # Which file type identifies a record?
 main_data_directory = "/home/kahanpaa/projects/_videostill/"
-#main_data_directory = "Z:/juhis_previews_set2_TEST/"
-# CURRENTLY AVAILABLE OPTIONS 
+# Currently available value for the Datatype to load
 # DIR_CONTENT = read a directory, treat each image matching recognize_by_filename_pattern as a new sample
 # SUBDIRECTORIES = read a directory, treat subdirectory (with 0+ images) as a new sample
-# MZH* = FInnish Museum of Natural History -specific modes
 # RESOURCEFILE = Read a list of URIs or paths from a file
-datatype_to_load = "RESOURCEFILE" 
-sample_pattern = ["filetest.txt"] # List - Trigger pattern(s) that leads to a sample processing event
+# MZH* = FInnish Museum of Natural History -specific modes
+datatype_to_load = "DIR_CONTENT" 
+sample_pattern = ["*.jpg"] # List - Trigger pattern(s) that leads to a sample processing event
 image_name_pattern = ["*.jpg"] # For Sample types where several images can be loaded
 label_file = "Preview002.jpg" # Files with this name pattern are treated as files with labels
 object_files = ["Preview001.jpg"] # Files with this name pattern are treated as files with specimens (if both match, treated as combined)

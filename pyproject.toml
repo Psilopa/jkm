@@ -35,6 +35,12 @@ Repository = "https://github.com/Psilopa/jkm"
 [tool.setuptools.packages.find]
 where = ["."]
 
+[tool.pyrefly]
+project-includes = [
+    "**/*.py*",
+    "**/*.ipynb",
+]
+
 # Dynamic versioning, currently not used
 #[tool.setuptools_scm]
 #version_scheme = 'no-guess-dev'
