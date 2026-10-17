@@ -51,7 +51,7 @@ def get_sample_class(sample_format_str):
         "mzh_plantline":  jkm.sample.LuomusPlantLineSample,
         "dir_content":  jkm.sample.SingleImageSample,
         "subdirectories":  jkm.sample.SubDirectorySample, # For each directory, all images = a sample
-        "resourcelist":  jkm.sample.url_list_Sample,
+        "resourcefile":  jkm.sample.FileLineSample,
         }
     try:
         return str2class[ sample_format_str.lower() ]
@@ -323,17 +323,19 @@ class jkm_post():
         # Variables to hold extracted data
         allbarcodes = []
         try:
+            # If local, checks that it the path exists
+            jkm.tools.is_existing_path( sourceurl ) 
             # Try to recognise input file/directory format
             sample_format = conf.get("data", "datatype_to_load")        
             sample_class = get_sample_class( sample_format.lower() )
-            # If local, checks that it the path exists
-            jkm.tools.is_existing_path( sourceurl ) 
             if sample_class in (jkm.sample.LuomusInsectLineSample,
                                 jkm.sample.LuomusPlantLineSample,
                                 jkm.sample.SubDirectorySample,
                                 ): 
+                jkm.tools.is_existing_path( sourceurl ) 
                 sample = sample_class.from_directory(sourceurl, conf)
-            elif sample_class in (jkm.sample.SingleImageSample,  ):
+            elif sample_class in (jkm.sample.SingleImageSample,
+                                  jkm.sample.FileLineSample):
                 sample = sample_class.from_url(sourceurl, conf)
             elif sample_class in (jkm.sample.url_list_Sample,  ):
                 sample = sample_class.from_url(sourceurl, conf)

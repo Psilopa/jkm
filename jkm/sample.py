@@ -1,7 +1,7 @@
 import abc
 from pathlib import Path
 from datetime import datetime
-import logging,  os
+import logging,  os, validators
 #import  pickle
 import cv2
 import jsonpickle
@@ -147,7 +147,7 @@ class SampleEvent(SampleBase,  abc.ABC):
         return # 
     @staticmethod
     # Override in child classes if needed!
-    def find_samples(dirname,datafile_patterns = "*.*"):
+    def find_samples(dirname,datafile_patterns):
         """Returns a list of urls pointing to a source that can be used to build an Sample. Child classes can replace this.
 
         Arguments:
@@ -188,8 +188,10 @@ class SampleImageBase(SampleBase,  abc.ABC):
         # Data about the actual image: can we surrpot renaming
         if self._parsed_url.scheme in ("file",):
             self.supports_rename_files = True # We can rename local resources
+    # abstract function
     @abc.abstractmethod
     def _loadImage(self, colourspace = cv2.IMREAD_COLOR): pass
+    # properties
     @property
     def url(self): return self._url
     @url.setter
@@ -206,6 +208,11 @@ class SampleImageBase(SampleBase,  abc.ABC):
         self._bitmap = newbitmap
         if self._bitmap is None: self._loaded = False # Set to None
         else: self._loaded = True        
+    @property
+    def path(self):
+        assert self._parsed_url.scheme == "file" # Should be accessed only for files
+        return Path(self._parsed_url.path)
+    # Functions
     def encodeJSON(self):
         "Return a JSON serializable representation."
         # TODO: ADD FULL STRUCTURE HERE
@@ -253,17 +260,12 @@ class SampleImageBase(SampleBase,  abc.ABC):
         comps = urlsplit(self.url)
         comps._replace( path=str(newpath) )
         self.path.rename(newpath)
-        self.url = urlunsplit(comps)
+        self.url = urlunsplit(comps) # Also resets self._parsed_url
 
 class SampleImage(SampleImageBase): 
     "One image plus metadata"
     def __init__(self,  label,  url,  time = None): 
         super().__init__(label, url,  time)
-     # ONLY POSSIBLE FOR LOCAL FILES
-    @property
-    def path(self):
-        assert self._parsed_url.scheme == "file" # Should be accessed only for files
-        return Path(self._parsed_url.path)
     def _loadImage(self, colourspace = cv2.IMREAD_COLOR): 
         """Returns image as a cv2/numpy array. 
         
@@ -271,7 +273,7 @@ class SampleImage(SampleImageBase):
         Raises jkm.errors.FileLoadingError is datais not accessible"""
         if (self.bitmap is not None): return self.bitmap 
         try:
-            self.bitmap = jkm.tools.load_img(self.path)
+            self.bitmap = jkm.tools.load_img(self.url)
         except SystemError as msg:
             log.warning(f"Reading file {str(filename)} failed" )
             raise jkm.errors.FileLoadingError(msg)
@@ -349,55 +351,27 @@ class SingleImageSample(SampleEvent):
     def from_url(url, conf, label="generic_camera"): 
         # Assumes jpg file name is metadata file name
         log.debug("Creating sample data from JPEG image and config file metadata")
-        # Extract creating time from JPG and to be used as the Sample event creationtime        
-        imgpath = Path.from_uri(str(url))
-        filecreated = getFileCreationDateTime(imgpath)
+        # Extract creating time from JPG and to be used as the Sample event creationtime
 	# Create a CombinedImage to hold image data 
-	# As this is a single image sample, we assume the image can hold both specimen and label data and use CombinedImage
         image = CombinedImage(label, url)
+        try:
+            imgpath = Path.from_uri(str(url))            
+            filecreated = getFileCreationDateTime(imgpath)        
+        except ValueError: # THis is not a local file URI
+            imgpath = None
+            filecreated = datetime.now()
 	# Create a new SingleImageSample instance and return it 
         s = SingleImageSample( time = filecreated )
-        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
-        s.datapath = imgpath.parent # Use the directory holding the file as the Sample 'home'
-        s.prefix = imgpath.stem # default naming scheme for sample-related objects
         s.name = f"{type(s).__name__} ({url})" # For images, the image source is a good name
+        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
+        if imgpath: # These make sense only to local files
+            s.datapath = imgpath.parent # Use the directory holding the file as the Sample 'home'
+            s.prefix = imgpath.stem # default naming scheme for sample-related objects
         s.addImage(image)
         return s        
     def _shortenidentifier(self, x): # Overrides base class
         separator = r'/'
         return x.split(separator)[-1] # Last element
-#------------------------------------------------------------------------------------------------------    
-class url_list_Sample(SingleImageSample): 
-    def __init__(self,  time = None):
-        super().__init__(time)
-    @staticmethod
-    def find_samples(path_file_urllist, dummy_argument = None):
-        """Returns a list of urls pointing to a source that can be used to build an Sample. Child classes can replace this.
-
-        Arguments of the default version:
-        path_file_urllist - a file containing file names or 
-        """
-        log.debug(f"Reading '{path_file_urllist}' to find resources")        
-        path_file_urllist = Path(path_file_urllist)
-        try:
-            result = []
-            with path_file_urllist.open("r") as f:
-                lines = f.readlines()
-            for line in lines:
-                # Check url validity
-                # tempr found be a 
-                result.append( line.strip() )
-            print("Rerturning", result)
-            # Delete duplicate files (hard links to the same file)
-            return jkm.tools.unique(result)
-        except IOError as msg:
-            raise jkm.errors.FileLoadingError(f"Resource access error {msg}.")
-        # return the image
-        return image
-    @staticmethod
-    def from_url(myurl, conf):
-        return SingleImageSample.from_url(myurl, conf, label="generic_camera")
-
 #------------------------------------------------------------------------------------------------------    
 class LuomusLineSample(SampleEvent): 
     supports_rename_files = True    
@@ -481,6 +455,7 @@ class LuomusLineSample(SampleEvent):
 
 #------------------------------------------------------------------------------------------------------    
 class LuomusPlantLineSample(LuomusLineSample): 
+# Inherits the specific rename function. Might want to reimplement it here more generally
     def __init__(self,  time=None):
         super().__init__(time)
     @staticmethod    
@@ -565,4 +540,44 @@ class SubDirectorySample(LuomusLineSample):
             img = CombinedImage(filename, fileurl)
             s.addImage(img)
         return s             
+#------------------------------------------------------------------------------------------------------    
+class FileLineSample(SingleImageSample): 
+    def __init__(self,  time = None):
+        super().__init__(time)
+    @staticmethod
+    def find_samples(dirname,datafile_patterns):
+        """Returns a list of urls pointing to a source that can be used to build an Sample. Child classes can replace this.
+
+        Arguments of the default version:
+        dirname - directory of the target file(s)
+        datafile_patterns - file name glob patterns
+        """
+        # While testing
+        assert len(datafile_patterns) == 1
+        filepath = Path(dirname) / datafile_patterns[0]
+        log.debug(f"Reading '{filepath}' to find resources")
+        try:
+            result = []
+            with filepath.open("r") as f:
+                lines = f.readlines()
+            for line in lines:
+                line = line.strip()
+                if line[0] == '#': continue
+                # Check line format: could be URL's or file paths
+                linepath = Path(line.strip())
+                if linepath.exists(): line = linepath.as_uri() # This is a path to an existing local file
+                elif validators.url(line): pass # Should be a valid URL as-is
+                else:
+                    raise jkm.errors.FileLoadingError(f"Could not recognize the format of line {line} in {filepath}.")
+                result.append( line.strip() )
+            # Delete duplicate files (hard links to the same file)
+            return jkm.tools.unique(result)
+        except IOError as msg:
+            raise jkm.errors.FileLoadingError(msg)
+        # return the image
+        return image
+    @staticmethod
+    def from_url(myurl, conf):
+        
+        return SingleImageSample.from_url(myurl, conf, label="generic_camera")
 #------------------------------------------------------------------------------------------------------    

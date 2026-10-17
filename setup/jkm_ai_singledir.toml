@@ -7,12 +7,13 @@ write_raw_output  = true
 [data] # Which file type identifies a record?
 main_data_directory = "/home/kahanpaa/projects/_videostill/"
 #main_data_directory = "Z:/juhis_previews_set2_TEST/"
-# CURRENTLY AVAILABLE OPTIONS = MZH_INSECTLINE, MZH_PLANTLINE, DIR_CONTENT, SUBDIRECTORIES
+# CURRENTLY AVAILABLE OPTIONS 
 # DIR_CONTENT = read a directory, treat each image matching recognize_by_filename_pattern as a new sample
 # SUBDIRECTORIES = read a directory, treat subdirectory (with 0+ images) as a new sample
 # MZH* = FInnish Museum of Natural History -specific modes
-datatype_to_load = "SUBDIRECTORIES" 
-sample_pattern = ["sample*"] # List - Trigger pattern(s) that leads to a sample processing event
+# RESOURCEFILE = Read a list of URIs or paths from a file
+datatype_to_load = "RESOURCEFILE" 
+sample_pattern = ["filetest.txt"] # List - Trigger pattern(s) that leads to a sample processing event
 image_name_pattern = ["*.jpg"] # For Sample types where several images can be loaded
 label_file = "Preview002.jpg" # Files with this name pattern are treated as files with labels
 object_files = ["Preview001.jpg"] # Files with this name pattern are treated as files with specimens (if both match, treated as combined)
@@ -20,11 +21,6 @@ label_title = "specimens_and_labels" # Written into metadata only
 object_titles = ["habitus1"] # Written into metadata only
 
 [task]
-# FILE AND DIRECTORY NAMING AND MOVING TASKS
-# All are true of false
-create_directories = false               
-files_rename_by_barcode_id = false
-directories_rename_by_barcode_id = true 
 ### IMAGE EDITING TASKS
 image_editing_tasks = false              
 # DATA EXTRACTION TASKS
@@ -35,11 +31,16 @@ save_text_area_images = false
 ocr = false                              
 ocr_analysis = false                     
 # LABEL DATA EXTRACTION TASKS
-ai_label_text_extraction = true          
+ai_label_text_extraction = false          
 labeldata_to_CSV = false
 # OTHER DATA
 save_JSON = false                        
 write_postprocessor_report_file = false
+# FILE AND DIRECTORY NAMING AND MOVING TASKS
+# All are true of false
+create_directories = false               
+files_rename_by_barcode_id = false
+directories_rename_by_barcode_id =  false
 
 # IMAGE CHANGE TASKS
 [task.image]
