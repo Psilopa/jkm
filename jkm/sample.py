@@ -557,7 +557,8 @@ class FileRowSample(SingleImageSample):
                 lines = f.readlines()
             for line in lines:
                 line = line.strip()
-                if line[0] == '#': continue
+                # Skip empty and comment lines
+                if not line or line[0] == '#': continue                
                 # Check line format: could be URL's or file paths
                 linepath = Path(line.strip())
                 if linepath.exists(): line = jkm.tools.path2url(linepath) # This is a path to an existing local file

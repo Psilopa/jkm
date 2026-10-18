@@ -79,29 +79,7 @@ secondary_from_ocr = false # false or true - Attempt reading specimen ID from th
 barcodepackage = "pyzbar" # qreader or pyzbar - Python qr package used
 # TODO: barcode type list
 
-# Setting for the OCR tool
-#[ocr]
-# OCR engine program location
-#ocr_command = "C:/Program Files/Tesseract-OCR/tesseract.exe"
-# Known data items file. Should be UTF-8 encoded
-#known_data_items_files = ["testdata/east_fenn_person_patterns.csv", "testdata/east_fenn_place_patterns.csv"]
-#excluded_strings_file = "testdata/excluded_strings.csv"
-#EASTfile = "C:/Insect_APPs/EAST/frozen_east_text_detection.pb" ## path to the neural net file used for Text area detection
-#tesseract_timeout = 5 # integer - timeout (in seconds) for the main OCR process
-#lang = "eng" ## Language(s), multiple languages can be given like thi = eng+swe. For the supported range see documentation of Tesseract. Defaults to eng.
+[internal]
+n_threads = 1		# Number of parallel threads. If using AI, bertter keep this at 1. For fast turnaround, a few would be ideal
+bypass_AI = false	# true or false. It true, uses internal test output, faking the AI output for testing speed and resource use.
 
-
-#[DEFAULT]
-## Default values can be overridden in individual camera sections!
-#autocrop = false # false or true
-#barcode_exctract = false # false or true
-#ocr = false # false or true
-#intepret_ocr = false # false or true
-#keywords = "specimen, primary"
-## --- AUTOMATIC CROPPING DEFAULTS = all values can be override per camera ---
-#verify_crop_visually = false # false or true
-#edge_value = 220 # Value at the edge of the area (typically 0-255)
-#min_area = 1 # Minimum area of object in percent of whole image area
-#m_width = 400 # integer - width of image used in processing (smaller = faster, but less accurate)
-#search_for_dark = true # false or true - Search for dark objects (False for light objects)
-#crop_padding_factor = 1.3 # Float number - ## NOT IMPLEMENTED - Check
