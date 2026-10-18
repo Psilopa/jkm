@@ -101,7 +101,7 @@ barcodepackage = "pyzbar" # qreader or pyzbar - Python qr package used
 
 [internal]
 n_threads = 1		# Number of parallel threads. If using AI, bertter keep this at 1. For fast turnaround, a few would be ideal
-bypass_AI = true	# true or false. It true, uses internal test output, faking the AI output for testing speed and resource use.
+bypass_AI = false	# true or false. It true, uses internal test output, faking the AI output for testing speed and resource use.
 
 # Setting for the OCR tool
 #[ocr]
