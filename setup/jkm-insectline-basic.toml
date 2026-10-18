@@ -6,8 +6,13 @@ filename = "C:/Insect_APPs/labeldata/ai_labeldata.csv"
 [data] # Which file type identifies a record?
 #main_data_directory = "/home/kahanpaa/projects/_videostill/"
 main_data_directory = "C:/Insect_APPs/data"
-datatype_to_load = "MZH_INSECTLINE" # CURRENTLY AVAILABLE OPTIONS = MZH_INSECTLINE, MZH_PLANTLINE, SINGLEFILE
-recognize_by_filename_pattern = ["Preview002.jpg"] # List - Trigger file filename pattern(s) that leads to a sample processing event
+# CURRENTLY AVAILABLE OPTIONS = MZH_INSECTLINE, MZH_PLANTLINE, DIR_CONTENT, SUBDIRECTORIES
+# DIR_CONTENT = read a directory, treat each image matching recognize_by_filename_pattern as a new sample
+# SUBDIRECTORIES = read a directory, treat subdirectory (with 0+ images) as a new sample
+# MZH* = FInnish Museum of Natural History -specific modes
+datatype_to_load = "DIR_CONTENT" 
+sample_pattern = ["*.jpg"] # List - Trigger pattern(s) that leads to a sample processing event
+image_name_pattern = ["*.jpg"] # For Sample types where several images can be loaded
 label_file = "Preview002.jpg" # Files with this name pattern are treated as files with labels
 object_files = ["Preview001.jpg"] # Files with this name pattern are treated as files with specimens (if both match, treated as combined)
 label_title = "specimens_and_labels" # Written into metadata only

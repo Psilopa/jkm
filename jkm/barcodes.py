@@ -1,4 +1,5 @@
-import importlib
+import importlib, logging
+log = logging.getLogger() # Overwrite if needed
 # non-std common libraries
 import cv2
 # application-specific modules
@@ -8,8 +9,10 @@ from jkm.errors import BarcodeError
 CONST_QREADER = "qreader"
 CONST_PYZBAR = "pyzbar"
 pyzbar = QReader = None
+# For typing
+from jkm.typing import *
 
-def _extract_pyzbar(greyimg, encoding=None):
+def _extract_pyzbar(greyimg:type_image, encoding:str|None=None) -> list[str]:
     """Extract barcode data using PyZBar.
     
     Returns a list of found (nonempty) values. It nay contain duplicates.
@@ -34,7 +37,7 @@ def _extract_pyzbar(greyimg, encoding=None):
         d.append(bkd)
     return [x for x in d if x] # Make sure the result is a list of non-empty string
 
-def _extract_qreader(greyimg):
+def _extract_qreader(greyimg:type_image) -> list[str]:
     """Extract barcode data using QReader. Returns a list of found (nonempty) values. It may contain duplicates.
         
     Arguments:
@@ -50,12 +53,15 @@ def _extract_qreader(greyimg):
         d = [x for x in decoded_text if x] # Make sure the result is a list of non-empty string
     except ModuleNotFoundError as msg:
         # Some qreader installs fail due to a missing ultralytics.yolo package
-        log.error(msg + " Could not search for barcodes.")
+        log.error(str(msg) + " Could not search for barcodes.")
         d = []
     return d
     
-def extractbarcodedata(image, qrpackage, increasecontast=False,
-                       greyrange=50,  encoding=None):
+def extractbarcodedata(image:type_image,
+                       qrpackage:str,
+                       increasecontast:bool=False,
+                       greyrange:int=50,
+                       encoding:str|None=None) -> list[str]:
     """Extract barcode data from an image. 
     
     Returns a list of found (nonempty) values. Can contain duplicates.
@@ -70,7 +76,8 @@ def extractbarcodedata(image, qrpackage, increasecontast=False,
     global QReader, pyzbar
     if qrpackage not in (CONST_QREADER, CONST_PYZBAR):
         raise BarcodeError(f"Unknown barcode reader tool '{qrpackage}'")
-    img = tools.load_img(image)
+#    img = tools.load_img(image)
+    img = image
     greyimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     if increasecontast:
         greyimg = tools.increaseTopContrast(greyimg,greyrange)
