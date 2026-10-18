@@ -1,24 +1,29 @@
 # -*- coding: utf-8 -*-
-
-import  logging,  json, os, base64,tempfile
+import  logging,  json, os, base64, tempfile
+import  mimetypes  # mime type based on file URL
 from pathlib import Path
-import jkm.errors, jkm.tools
+import jkm.tools
+from jkm.errors import AIError, AIWarning
 log = logging.getLogger() # Overwrite if needed
-#import imgtools
+# GOOGLE-SPECIFIC IMPORTS
 from google import genai
 from google.genai import types
 from google.genai import errors as gemini_errors
 from google.genai.types import HttpOptions
-import jkm.labeldata_model
+from google.genai._gaos.lib.compat_errors import APIConnectionError
+import jkm.labeldata_model as labeldata_model
 
 # For local OAUTH token management, used by local_oauth_geminiAI
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
+# For typing
+from jkm.typing import *
+
 # For testing, Google Free Key for small tests
-_TESTING_BYPASS_AI_CALL = False
-_TESTING_JSON_FROM_AI = """
+TESTING_BYPASS_AI_CALL:bool = False
+_TESTING_JSON_FROM_AI = r"""
 {
   "verbatim_all_text": [
     {
@@ -30,26 +35,40 @@ _TESTING_JSON_FROM_AI = """
     {
       "verbatim_text": "Rönnholm"
     }  ],
+  "verbatim_date": "17.7. 1939",
   "verbatim_locality": "Korpilahti",
   "verbatim_collector": "Rönnholm",
-  "verbatim_date": "17.7. 1939",
-  "verbatim_field_identifier": "",
-  "verbatim_coordinates": "",
+  "verbatim_coordinates": "664:28",
+  "verbatim_notebook_reference_code":"",
+  "notebook_reference_code_label_properties":"",
+  "verbatim_taxon": "Baccha elongata",
+  "verbatim_identified_by": "J. Kahanpää leg.",
   "notes": "There is a black streak/smudge partially obscuring the collector's name (Rönnholm)."
 }
 """
-_IMAGE_TRANSFER_UPLOAD = 1
-_IMAGE_TRANSFER_INLINE = 2
+_TESTING_RAW_JSON = r'{"status": "completed", "model": "gemini-3.5-flash-lite", "id": "v1_ChdaM3pLYXZqa05zdnk3TThQeHZ6VzRRTRIXWjN6S2F2amtOc3Z5N004UHh2elc0UU0", "created": "2026-10-10T17:56:56Z", "updated": "2026-10-10T17:56:56Z", "usage": {"total_input_tokens": 1133, "input_tokens_by_modality": [{"modality": "image", "tokens": 1100}, {"modality": "text", "tokens": 33}], "total_cached_tokens": 0, "total_output_tokens": 229, "total_tool_use_tokens": 0, "total_thought_tokens": 0, "total_tokens": 1362}, "service_tier": "standard", "steps": [{"type": "thought", "signature": "EmAKXgFpFH0TCBtbvirA2u6a+1v3JSS4CcgWyreyJdZ0OolgZ7FlhgZrxPNuT+UWDr9GIj2vDZs7nqlOlthrCskbaQep9nF2VUoq7B5zOFo/2bINWEN1eO8E1lHHj+p4jR0="}, {"type": "model_output", "content": [{"text": "{\n  \"verbatim_all_text\": [\n    {\n      \"verbatim_text\": \"ID: http://id.luomus.fi/GV.92671\"\n    },\n    {\n      \"verbatim_text\": \"Helsinki\"\n    },\n    {\n      \"verbatim_text\": \"8.VI. 1932\"\n    },\n    {\n      \"verbatim_text\": \"E. Kangas\"\n    },\n    {\n      \"verbatim_text\": \"GV92671\"\n    }\n  ],\n  \"verbatim_locality\": \"Helsinki\",\n  \"verbatim_collector\": \"E. Kangas\",\n  \"verbatim_date\": \"8.VI. 1932\",\n  \"verbatim_coordinates\": \"\",\n  \"verbatim_field_identifier\": \"\",\n  \"verbatim_taxon\": \"\",\n  \"verbatim_identified_by\": \"\",\n  \"notes\": \"\"\n}", "type": "text"}]}], "output_text": "{\n  \"verbatim_all_text\": [\n    {\n      \"verbatim_text\": \"ID: http://id.luomus.fi/GV.92671\"\n    },\n    {\n      \"verbatim_text\": \"Helsinki\"\n    },\n    {\n      \"verbatim_text\": \"8.VI. 1932\"\n    },\n    {\n      \"verbatim_text\": \"E. Kangas\"\n    },\n    {\n      \"verbatim_text\": \"GV92671\"\n    }\n  ],\n  \"verbatim_locality\": \"Helsinki\",\n  \"verbatim_collector\": \"E. Kangas\",\n  \"verbatim_date\": \"8.VI. 1932\",\n  \"verbatim_coordinates\": \"\",\n  \"verbatim_field_identifier\": \"\",\n  \"verbatim_taxon\": \"\",\n  \"verbatim_identified_by\": \"\",\n  \"notes\": \"\"\n}'
+_IMAGE_TRANSFER_UPLOAD:int = 1
+_IMAGE_TRANSFER_INLINE:int = 2
 _TEST_PROMPT = "There images are all of the same object. Find text in the images. Reply with JSON only, fitting the data into the following variables: collector, date, locality, identifier, and notes."
 AI_FAILURE_RETURN_VALUE = 'null'
-_AI_GEMINI_TIMEOUT = 10 * 1000 # 10 seconds
+_AI_GEMINI_TIMEOUT:int = 10 * 1000 # 10 seconds
 
-def load_apikey(fp):
-#    if not fp.exists(): return None # TODO: SHOULD REPORT ERROR TYPE
+def load_apikey(fp:Path):
+    "Read content from a file."
+    # TODO: convert errors to jk.errors.AIError
     with fp.open() as f: return f.read()
     
-def _parseAI_JSON(text):
-    """Cleanup and parse pseudo-JSON as returned from an AI."""
+def _parseAI_JSON(text:str, schema = None ) -> dict:
+    """Converts the AI returned JSON to a dictionary structure like that returned by json.loads().
+
+        Raises a jkm.errors.AIWarning on failure."""
+    if schema is not None: # Check if this is already valid JSON following a Schema
+        try:
+            data = schema.model_validate_json(text)
+            return data.model_dump() # Retrun as a json.loads() equivalent
+        except labeldata_model.ValidationError:
+            log.error(f"AI data model failed: returned invalid JSON data.")
+            # Fall through and try the simpler method below
     try: 
         # pre-parser clean up: remove everything outside the outermost {}
         first = text.find("{") 
@@ -60,80 +79,113 @@ def _parseAI_JSON(text):
         d = json.loads(text)
         return d
     except json.JSONDecodeError as msg:
-        # Strip everything outside first { and last }        
-        log.warning(f"AI-generated JSON parsing failed with error message {msg}. Returning empty result.")
-        return {}
+        # Strip everything outside first { and last }
+        raise AIWarning(f"AI-generated JSON parsing failed with error message {msg}.")
         
 # --- AI-related classes ---- 
 class AI_output:
+    # TODO: THIS IS LOGICAL MESS. We really should store the data in just 1 format
     """A class for storing AI output. 
     
     Can hold both unstructured and structured content. If either is missing, returns None. """
-    def __init__(self):
+    rawstr = "raw"
+    def __init__(self:Self):
         self._text = None
         self._dict = None
-    def to_dict(self):
-        return self._dict 
-    def from_dict(self, datadict):
-        self._text = str(datadict)
-        self._dict =  datadict
-        return True # Success
-    def from_text(self,  text):
+        self.raw = ""
+    def _pp_lines(self:Self,dictionary:dict, noraw:bool, insert:str="\t") -> list:
+        lines = []
+        for k,v in dictionary.items():
+            if noraw and (k == self.rawstr): continue # SUPPRESS 'raw' here
+            if type(v) == dict: lines += self._pp_lines(v, noraw)
+            elif k == "verbatim_all_text": # A bit of a hack
+                lines.append( f"{insert}{k}:\n{v}" )
+            else: lines.append(f"{insert}{k}:{v}")
+        return lines
+    def to_prettyprint(self:Self, newline:str = "\n", noraw:bool = True) -> str:
+        if self._dict is None: return ""
+        lines = self._pp_lines(self._dict, noraw)
+        return newline.join(lines)
+    def to_dict(self:Self) -> None:
+        assert(self._dict)
+        self._dict.update( {self.rawstr:self.raw} )
+        return self._dict
+    def from_text(self:Self,  text, schema = None) -> None:
+        """Tries to convert the AI returned JSON to other formats.
+
+        Raises a jkm.errors.AIWarning on failure."""
         self._text = text
-        self._dict = _parseAI_JSON(self._text)
-        return True # Success
-    def __str__(self): 
+        self._dict = _parseAI_JSON(self._text, schema) # Raises an AIWarning on failure
+        # Prettyprint the verbatim_all_text field
+        vatext = "verbatim_all_text"
+        self._dict[vatext] = jkm.tools.list2printvalues(self._dict[vatext])       
+    def __str__(self:Self) -> str: 
         if self._dict: return str(self._dict) 
         return str( self._text)
-    def to_json(self):
-        return json.dumps(self._dict)    
-        
+    def to_json(self:Self, suppress_raw:bool = False) -> str:
+        if not self._dict: return "{}"
+        if suppress_raw and (self.rawstr in self._dict):
+            newdict = self._dict.copy()
+            del newdict[self.rawstr]
+            return json.dumps(newdict)
+        else: return json.dumps(self._dict)
+
+# TODO: SPLIT THIS INTO GENERIC AND GEMINI-SPECIFIC CODE        
 class geminiAI(): # Make subclasses based on authentication method
-    def __init__(self):
+    def __init__(self:Self):
         self._promt = None
         self.client = None
         # Settings, should come from user setup is a production code
         self._MODEL = 'gemini-3.1-flash-lite' # Default model
-    def close(self):
+    def close(self:Self) -> None:
         if self.client: self.client.close() # Not necesary, but a good habit.
     # Getters, setters for properties
     @property
-    def prompt(self): return self._promt
+    def prompt(self:Self) -> str|None: return self._promt
     @prompt.setter
-    def prompt(self,  prompt): self._promt = prompt    
+    def prompt(self:Self,  prompt:str) -> None: self._promt = prompt    
     @property
-    def model(self): return self._MODEL 
+    def model(self:Self) -> str|None: return self._MODEL 
     @model.setter
-    def model(self,  model): self._MODEL  = model    
+    def model(self:Self,  model:str) -> None: self._MODEL  = model    
    # Sending a query
-    def _create_client(self, httpopts):
+    def _create_client(self:Self, httpopts: HttpOptions) -> genai.Client:
         assert False, "Child classes should replace this function."
-    def _execute_query(self,content):
+    def _execute_query(self:Self,content=Collection) -> tuple[ str,str|None ]:
         # Default query function. Uses the experimental Interactions API
         # May not work with older models
+        assert self.client, "_execute_query without self.client: _create_client should fail with an exception to prevent this if client creation fails"
         response_format={
             "type": "text",
             "mime_type": "application/json",
-            "schema": jkm.labeldata_model.LabelData.model_json_schema()
+            "schema": labeldata_model.LabelData.model_json_schema()
             }
         interaction  = self.client.interactions.create (
             model = self._MODEL,
             input = content,
             response_format= response_format,
             )
-        return interaction.output_text
+        # TODO: What happens if interaction.output_text  does not exist?
+        # Return raw_output, output_text
+        if not "output_text" in dir(interaction): 
+            return (interaction.json(), None)
+        else: 
+            return (interaction.json(), interaction.output_text )
     
-    def _upload_image(self,  filepath): 
+    def _upload_image(self:Self,filepath:Path): # TODO: return value type
         """"Upload an image to AI. 
         
         TODO: Needs Error handling!"""
         log.debug (f"Trying to upload {filepath},  of type {type(filepath)}") 
-        if  self.client is None: raise jkm.errors.AIError("Upload images requested before AI Client was created in code.")        
+        if  self.client is None: raise AIError("Upload images requested before AI Client was created in code.")        
         fileobj = self.client.files.upload(  file = filepath )
-        if not fileobj: jkm.errors.AIError(f"Uploading image failed, status {fileobj}")
+        if not fileobj: AIError(f"Uploading image failed, status {fileobj}")
         log.debug (f"OK upload {filepath}",  )   
         return fileobj
-    def query_images(self, pathlist, timeout = None, image_max_dim = 0):
+    def labeldata_from_images(self:Self,
+                     imageurls=Sequence[type_url],
+                     timeout:int|None = None,
+                     image_max_dim:int = 0) -> AI_output:
         """Get data from Gemini based on multiple images. 
         
         Parameters: 
@@ -142,102 +194,136 @@ class geminiAI(): # Make subclasses based on authentication method
         Returns: 
             an AI_output object
 	Exceptions: 
-	   jkm.errors.AIError 
+##	   AIError 
         """
         log.debug("Query_images started")
         # State checks
-        if not self.prompt: raise jkm.errors.AIError("No prompt for AI provided.")
+        if not self.prompt: raise AIError("No prompt for AI provided.")
 #        img_bytes = [self._file2bytes(x) for x in pathlist]
 #        sumsize = int(sum( [len(x) for x in img_bytes] )/1024)
-#        log.info( f"Images to bytes done, size {sumsize} kb" )
+#        log.debug( f"Images to bytes done, size {sumsize} kb" )
 
         # FAKE CALL FOR TESTING, NO ACTUAL AI CALL
-        if _TESTING_BYPASS_AI_CALL:
-            response = 'foo' #
-            text = _TESTING_JSON_FROM_AI            
+        if TESTING_BYPASS_AI_CALL:
+            text_output = _TESTING_JSON_FROM_AI            
+            raw = _TESTING_RAW_JSON 
         else:
             # Create AI client
             log.debug("Create client")
             if  timeout: httpopts = HttpOptions(timeout=timeout)      
             else: httpopts = HttpOptions()
             self.client = self._create_client(httpopts)
-            if not self.client: raise jkm.errors.AIError("Creating an AI client failed.")
+            if not self.client: raise AIError("Creating an AI client failed.")
             # log.debug("Create client done")
             content =  [ {"type": "text", "text": self.prompt} ]
-            content += self._add_images(pathlist, image_max_dim)
+            content += self._add_images(imageurls, image_max_dim)
             try: # Query the model
-                text = self._execute_query(content)
-            except gemini_errors.ServerError as msg:
-                raise jkm.errors.AIError(msg)
-            except gemini_errors.ClientError as msg:
-                raise jkm.errors.AIError(msg)
-            except gemini_errors.APIError as msg:
-                raise jkm.errors.AIError(msg)
-        log.debug( f'Response was "{text }"' )
-        output = AI_output()
-        if text == AI_FAILURE_RETURN_VALUE: return output        # Primitive error handling
-        output.from_text( text ) # Tries parsing the text as JSON
-        # TODO: Better handling of cases that already output JSON
-        return output
-    def _file2bytes(self,  filepath):        
+                rv = self._execute_query(content)
+                (raw, text_output) = self._execute_query(content)
+            except (gemini_errors.ServerError,
+                    gemini_errors.ClientError,
+                    gemini_errors.APIError,
+                    gemini_errors.ServerError,
+                    APIConnectionError) as msg:
+                raise AIError(msg)
+        log.debug( f'Response was "{text_output}"' )
+        log.debug( f'Raw was "{raw}"' )
+        aioutput = AI_output()
+        if text_output == AI_FAILURE_RETURN_VALUE: return aioutput        # Primitive error handling
+        # TODO: Handle errors here
+        aioutput.from_text( text_output,
+                                   schema = labeldata_model.LabelData ) # Tries parsing the text as JSON
+        aioutput.raw = raw
+        return aioutput
+    def _smallertempfile(self:Self, fpath:Path, image_max_dim:int, dir = None) :
+        "Returns a NamedTemporaryFile object or None."
+ #TODO -> None | tempfile.NamedTemporaryFile fails ... is there a typo in the typing of NamedTemporaryFile?
+        img = jkm.tools.load_img(fpath)
+        if img is None: return None # Nothing to do
+        small = jkm.tools.shrink_to_maxdim(img, image_max_dim)
+        # Save to temp directory
+        suffix = fpath.suffix
+        tmpf = tempfile.NamedTemporaryFile(delete_on_close=False, suffix = suffix)
+        tmpf.close() # Now it should be writeable by other processes
+        jkm.tools.save_img(tmpf.name, img)
+        log.debug(f"Resizing done, saved to {tmpf.name}.")
+        return tmpf
+    def _handle_nonlocal_file(self:Self, url:type_url, ctype:str="image") -> dict[str,str]:
+        """Returns a HTTP reqest fragment wrapping the url with resource type and mimertype."""
+        return {"type": ctype,
+            "uri": url,
+            "mime_type": mimetypes.guess_type(url),
+                }
+        return http_input_fragment
+    def _handle_local_file(self:Self, fpath:Path, max_dim:int = 0) -> dict[str,str]:
+        if max_dim == 0: 
+            log.debug("No image resizing requested before AI.")
+            return self._http_inline_image(fpath)
+        log.debug(f"Resizing requested to a maximum dimension of {max_dim}.")
+        smallerdir = None # We do not care where these images are temporarily stored
+        tmpf = self._smallertempfile(fpath, max_dim, dir = smallerdir)
+        if tmpf: # Should not rescale
+            tmpfilepath = Path(tmpf.name) 
+            return self._http_inline_image(tmpfilepath) 
+            del tmpf  # Delete temp file onced we are done
+        log.warning(f"Could not save a rescaled copy of {fpath}, using the original.")
+        return self._http_inline_image(fpath)
+    def _file2bytes(self:Self,  filepath:Path):
         with filepath.open('rb') as f:   return f.read()
-    def _urify_image(self,  filepath):        
+    def _http_inline_image(self:Self,  filepath:Path) -> dict[str,str]: 
         fbytes  = self._file2bytes(filepath)       
         return {
             "type": "image",
             "data": base64.b64encode(fbytes).decode('utf-8'),
             "mime_type": "image/jpeg",
             }
-    def _smallertempfile(self, fpath, image_max_dim, dir = None):
-                img = jkm.tools.load_img(fpath)
-                small = jkm.tools.shrink_to_maxdim(img, image_max_dim)
-                # Save to temp directory
-                suffix = fpath.suffix
-                tmpf = tempfile.NamedTemporaryFile(delete_on_close=False, suffix = suffix)
-                tmpf.close() # Now it should be writeable by other processes
-                jkm.tools.save_img(tmpf.name, img)
-                log.debug(f"Resizing done, saved to {tmpf.name}.")
-                return tmpf
-    def _add_images(self,filepaths, max_dim = 0): 
-        """Default _add_images() passes files as query parameters."""
-        assert max_dim >= 0
-        imgs = []
-        for fpath in filepaths:
-            if max_dim == 0:# No scaling
-                log.debug("No image resizing requested before AI.")
-                imgs.append( self._urify_image(fpath) )
-            else:
-                log.debug(f"Resizing requested to a maximum dimension of {max_dim}.")
-                smallerdir = None
-                tmpf = self._smallertempfile(fpath, max_dim, dir = smallerdir)
-                imgs.append( self._urify_image(Path(tmpf.name) ))
-                del(tmpf) # Delete temp file onced we are done
-        return imgs
-    
+    def _add_images(self:Self,
+                    imageurls:Sequence[type_url],
+                    max_dim:int = 0
+                    ) -> Sequence[dict[str,str]]: 
+        """Converts files to resources usable in HTTP queries
 
+        The return value is a list of dictionaries, with each dictionary describing a series of HTTP
+        call key: value pairs. For an example of how what a single item should look like,
+        see geminiAI._http_post_inline_image(),
+
+        Keywords:
+        max_dim: maximum dimension of a (local) image file. If >0: images that are larger than this will be downscaled.
+
+        """
+        assert max_dim >= 0
+        # img_blocks should contain dictionaries corresponding to JSON HTTP blocks
+        img_blocks = []
+        recognised = False
+        for url in imageurls:
+            log.debug(f"Trying to classify {url} as a local path or online resource.")
+            try: 
+                fpath = jkm.tools.url2path(url) 
+                if fpath.exists(): # This is a local file
+                    recognised = True
+                    img_blocks.append( self._handle_local_file(fpath, max_dim) )                    
+                    log.debug(f"\t a local resource.")
+            except ValueError: pass
+            # Local a local path .. try treating it as an online resource
+            log.debug(f"\t an online resource.")            
+            img_blocks.append( self._handle_nonlocal_file(url) ) 
+        return img_blocks
+    
 # APIKEY security solution.    
 class apikey_geminiAI(geminiAI):
-    def __init__(self,  apikey = None):
+    def __init__(self:Self,  apikey:str|None = None):
         self.apikey = apikey
         super().__init__()
-    def _create_client(self, httpopts):
+    def _create_client(self:Self, httpopts:HttpOptions) -> genai.Client:
         return genai.Client(api_key=self.apikey,  http_options = httpopts)
-#    def _add_images(self, filepaths, image_max_dim=0):
-#        results = []
-#        assert image_max_dim >= 0
-#        if 
-#        readiedfiles = [self._upload_image(fp) for fp in filepaths]
-#        for myfile in readiedfiles:
-#            results.append( {"type": "image", "uri": myfile.uri, "mime_type": myfile.mime_type} )
-#        return results
 
-# OAUTH2 VARANT BASE CLASS
+# OAUTH2 VARIANT BASE CLASS
 class oauth_geminiAI(geminiAI):
-    def __init__(self, projectID, location):
+    def __init__(self:Self, projectID:str, location:str):
         super().__init__()
         self.projectID = projectID 
         self.location = location # "global"
-    def _create_client(self, httpopts):
+    def _create_client(self:Self, httpopts:HttpOptions) -> genai.Client:
         return genai.Client(
                     http_options = httpopts, 
                     project=self.projectID,
@@ -246,20 +332,21 @@ class oauth_geminiAI(geminiAI):
                     enterprise=True,
                     )
 
-# Gcloud-based 
+# OAUTH2  with Google's gcloud command line tools available (see the AUTHENTICATION.md )
 class cloud_oauth_geminiAI(oauth_geminiAI):
-    def __init__(self,projectID, location):
+    def __init__(self:Self,projectID:str, location:str):
         log.debug("Using cloud_oauth_geminiAI()")
         super().__init__(projectID, location)
 
+# OAUTH2 without gcloud --- we keep manual track of credentials.
 class local_oauth_geminiAI(oauth_geminiAI):
-    def __init__(self, projectID, location, secretpath, tokenpath = None) :
+    def __init__(self:Self, projectID:str, location:str, secretpath:Path, tokenpath:Path|None = None) :
         log.debug("Using local_oauth_geminiAI()")
         super().__init__(projectID, location)
         self.secretpath = secretpath
         self.tokenpath = tokenpath
         self.creds = self.load_oauth2_creds()
-    def load_oauth2_creds(self):
+    def load_oauth2_creds(self:Self): #  -> Credentials|None
         """Converts `client_secret.json` to a credential object.
 
         This function caches the generated tokens to minimize the use of the
@@ -284,7 +371,7 @@ class local_oauth_geminiAI(oauth_geminiAI):
                 with self.tokenpath.open('w') as token:
                     token.write(creds.to_json())
         return creds
-    def _create_client(self, httpopts):
+    def _create_client(self:Self, httpopts:HttpOptions) -> genai.Client:
         return genai.Client(
             http_options = httpopts,
             vertexai = True,

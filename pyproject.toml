@@ -7,13 +7,13 @@ build-backend = 'setuptools.build_meta'
 [project]
 name = 'jkm'
 description = "A postprocessor program for image data, primarily for Natural History museum label processing."
-version = 'v1.8'
+version = 'v1.9'
 #dynamic = ['version']
 authors = [ {name = "Jere Kahanpää"} ]
 readme = "README.md"
 #license = "LicenseRef-My-Custom-License"
 #license-files = ["LICEN[CS]E*", "vendored/licenses/*.txt", "AUTHORS.md"]
-requires-python = ">= 3.8" # Verify the minimum version
+requires-python = ">= 3.12" # Uses Path.copy and the typing 'type' keyword
 # These should also be listed in requirements.txt !
 dependencies = [   
 "jsonpickle==4.1.2",
@@ -34,6 +34,21 @@ Repository = "https://github.com/Psilopa/jkm"
 
 [tool.setuptools.packages.find]
 where = ["."]
+
+[tool.pyrefly]
+project-includes = [
+    "**/*.py*",
+    "**/*.ipynb",
+]
+project-excludes = [
+    "**/legacy/*",
+    "**/typing.py",
+# For now, exclude the GUI and OCR as they are tricky
+    "*gui.py",
+    "**/barcodes.py",
+    "**/ocr.py",
+]
+
 
 # Dynamic versioning, currently not used
 #[tool.setuptools_scm]
