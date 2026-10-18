@@ -134,11 +134,11 @@ class geminiAI(): # Make subclasses based on authentication method
     @property
     def prompt(self:Self) -> str|None: return self._promt
     @prompt.setter
-    def prompt(self:Self,  prompt) -> None: self._promt = prompt    
+    def prompt(self:Self,  prompt:str) -> None: self._promt = prompt    
     @property
     def model(self:Self) -> str|None: return self._MODEL 
     @model.setter
-    def model(self:Self,  model) -> None: self._MODEL  = model    
+    def model(self:Self,  model:str) -> None: self._MODEL  = model    
    # Sending a query
     def _create_client(self:Self, httpopts: HttpOptions) -> genai.Client:
         assert False, "Child classes should replace this function."
@@ -163,7 +163,7 @@ class geminiAI(): # Make subclasses based on authentication method
         else: 
             return (interaction.json(), interaction.output_text )
     
-    def _upload_image(self:Self,  filepath:Path): # TODO: return value type
+    def _upload_image(self:Self,filepath:Path): # TODO: return value type
         """"Upload an image to AI. 
         
         TODO: Needs Error handling!"""
@@ -249,7 +249,7 @@ class geminiAI(): # Make subclasses based on authentication method
         log.debug(f"Resizing done, saved to {tmpf.name}.")
         return tmpf
     def _add_images(self:Self, imageurls:Sequence[type_url], max_dim:int = 0) -> Sequence[dict[str,str]]: 
-        """Default _add_images() passes files as query parameters."""
+        """Default _add_images(): passes files as query parameters."""
         assert max_dim >= 0
         imgs = []
         for url in imageurls:

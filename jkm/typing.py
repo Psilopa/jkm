@@ -1,10 +1,5 @@
 from collections.abc import Callable, Collection, Sequence
 from typing import Self, Any, Hashable
-#import jkm.configfile
-#import jkm.spreadsheet
-#import jkm.sample
-#import jkm.ai
-#import numpy 
 
 type type_conf = jkm.configfile.tomlConfig # Depends on Python 3.12+
 type type_url = str # Alias, maybe we enforce this later
