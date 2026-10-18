@@ -250,9 +250,9 @@ class geminiAI(): # Make subclasses based on authentication method
         return tmpf
     def _handle_nonlocal_file(self:Self, url:type_url, ctype:str="image") -> dict[str,str]:
         """Returns a HTTP reqest fragment wrapping the url with resource type and mimertype."""
-        return {"type": ctype,
-            "uri": url,
-            "mime_type": mimetypes.guess_type(url),
+        return {"type": str(ctype),
+            "uri": str(url),
+            "mime_type": str(mimetypes.guess_type(url)),
                 }
         return http_input_fragment
     def _handle_local_file(self:Self, fpath:Path, max_dim:int = 0) -> dict[str,str]:
