@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-import  logging,  json, os, base64,tempfile
+import  logging,  json, os, base64, tempfile
+import  mimetypes  # mime type based on file URL
 from pathlib import Path
 import jkm.tools
 from jkm.errors import AIError, AIWarning
@@ -34,11 +35,12 @@ _TESTING_JSON_FROM_AI = r"""
     {
       "verbatim_text": "Rönnholm"
     }  ],
+  "verbatim_date": "17.7. 1939",
   "verbatim_locality": "Korpilahti",
   "verbatim_collector": "Rönnholm",
-  "verbatim_date": "17.7. 1939",
-  "verbatim_field_identifier": "",
-  "verbatim_coordinates": "",
+  "verbatim_coordinates": "664:28",
+  "verbatim_notebook_reference_code":"",
+  "notebook_reference_code_label_properties":"",
   "verbatim_taxon": "Baccha elongata",
   "verbatim_identified_by": "J. Kahanpää leg.",
   "notes": "There is a black streak/smudge partially obscuring the collector's name (Rönnholm)."
@@ -233,15 +235,6 @@ class geminiAI(): # Make subclasses based on authentication method
                                    schema = labeldata_model.LabelData ) # Tries parsing the text as JSON
         aioutput.raw = raw
         return aioutput
-    def _file2bytes(self:Self,  filepath:Path):
-        with filepath.open('rb') as f:   return f.read()
-    def _http_post_inline_image(self:Self,  filepath:Path) -> dict[str,str]: 
-        fbytes  = self._file2bytes(filepath)       
-        return {
-            "type": "image",
-            "data": base64.b64encode(fbytes).decode('utf-8'),
-            "mime_type": "image/jpeg",
-            }
     def _smallertempfile(self:Self, fpath:Path, image_max_dim:int, dir = None) :
         "Returns a NamedTemporaryFile object or None."
  #TODO -> None | tempfile.NamedTemporaryFile fails ... is there a typo in the typing of NamedTemporaryFile?
@@ -255,23 +248,35 @@ class geminiAI(): # Make subclasses based on authentication method
         jkm.tools.save_img(tmpf.name, img)
         log.debug(f"Resizing done, saved to {tmpf.name}.")
         return tmpf
+    def _handle_nonlocal_file(self:Self, url:type_url, ctype:str="image") -> dict[str,str]:
+        """Returns a HTTP reqest fragment wrapping the url with resource type and mimertype."""
+        return {"type": ctype,
+            "uri": url,
+            "mime_type": mimetypes.guess_type(url),
+                }
+        return http_input_fragment
     def _handle_local_file(self:Self, fpath:Path, max_dim:int = 0) -> dict[str,str]:
         if max_dim == 0: 
             log.debug("No image resizing requested before AI.")
-            return self._http_post_inline_image(fpath)
+            return self._http_inline_image(fpath)
         log.debug(f"Resizing requested to a maximum dimension of {max_dim}.")
         smallerdir = None # We do not care where these images are temporarily stored
         tmpf = self._smallertempfile(fpath, max_dim, dir = smallerdir)
         if tmpf: # Should not rescale
             tmpfilepath = Path(tmpf.name) 
-            return self._http_post_inline_image(tmpfilepath) 
+            return self._http_inline_image(tmpfilepath) 
             del tmpf  # Delete temp file onced we are done
         log.warning(f"Could not save a rescaled copy of {fpath}, using the original.")
-        return self._http_post_inline_image(fpath)
-
-    def _handle_nonlocal_file(self:Self, url:type_url) -> dict[str,str]:
-        raise AIWarning("Handling of nonlocal files is still work in progress. File not included in analysis.")
-            
+        return self._http_inline_image(fpath)
+    def _file2bytes(self:Self,  filepath:Path):
+        with filepath.open('rb') as f:   return f.read()
+    def _http_inline_image(self:Self,  filepath:Path) -> dict[str,str]: 
+        fbytes  = self._file2bytes(filepath)       
+        return {
+            "type": "image",
+            "data": base64.b64encode(fbytes).decode('utf-8'),
+            "mime_type": "image/jpeg",
+            }
     def _add_images(self:Self,
                     imageurls:Sequence[type_url],
                     max_dim:int = 0
@@ -287,20 +292,23 @@ class geminiAI(): # Make subclasses based on authentication method
 
         """
         assert max_dim >= 0
-        # IMGS SHOULD CONTAIN A LIST OF DICTIONARIES
-        imgs = []
+        # img_blocks should contain dictionaries corresponding to JSON HTTP blocks
+        img_blocks = []
+        recognised = False
         for url in imageurls:
-            print("GOT VALUE", url)
-            # For not, we do not know how to hand URLs directly to the AI...            
-            fpath = jkm.tools.url2path(url)
-            print("GOT PATH", fpath)
-            if fpath.exists(): # This is a local file
-                imgs.append( self._handle_local_file(fpath, max_dim) ) 
-            else:
-                imgs.append( self._handle_nonlocal_file(fpath) ) 
-        return imgs
+            log.debug(f"Trying to classify {url} as a local path or online resource.")
+            try: 
+                fpath = jkm.tools.url2path(url) 
+                if fpath.exists(): # This is a local file
+                    recognised = True
+                    img_blocks.append( self._handle_local_file(fpath, max_dim) )                    
+                    log.debug(f"\t a local resource.")
+            except ValueError: pass
+            # Local a local path .. try treating it as an online resource
+            log.debug(f"\t an online resource.")            
+            img_blocks.append( self._handle_nonlocal_file(url) ) 
+        return img_blocks
     
-
 # APIKEY security solution.    
 class apikey_geminiAI(geminiAI):
     def __init__(self:Self,  apikey:str|None = None):
