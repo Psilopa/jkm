@@ -11,8 +11,8 @@ import numpy as np
 #from urllib.request import urlopen
 from urllib.parse import urlparse, urlunparse
 
-type imagetype = np.ndarray
-type urltype = str # Alias, maybe we enforce this later
+# For typing
+from jkm.typing import *
 
 log = logging.getLogger() # Overwrite from calling script for fancier logging
 deg2rotcode = {90: cv2.ROTATE_90_CLOCKWISE,
@@ -38,15 +38,15 @@ class SampleBase(abc.ABC):
         else: self._time = time
         self.name = str(self) # TODO: replace with better names in subclasses, should use timestamp or camera name
     @property
-    def time(self) -> datetime:  return self._time
-    def encodeJSON(self) -> dict:
+    def time(self:Self) -> datetime:  return self._time
+    def encodeJSON(self:Self) -> None|dict[str,Any]:
         jsonpickle.set_preferred_backend('json')
         jsonpickle.set_encoder_options("json", ensure_ascii=False,  indent=2)        
         return jsonpickle.encode(self)
     @staticmethod
-    def fromJSONfile(fn:str) -> None:
-        with open(fn) as f:
-            return  jsonpickle.decode(f.read())
+    def fromJSONfile(fpath:Path) -> Any|None:
+        with fpath.open() as f:
+            return jsonpickle.decode(f.read())
 
 #------------------------------------------------------------------------------------------------------
 class SampleEvent(SampleBase,  abc.ABC):
@@ -61,14 +61,14 @@ class SampleEvent(SampleBase,  abc.ABC):
         self._shortidentifier: str|None = None
         self.results = Results()
     @property
-    def identifier(self) -> str|None:  return self._identifier
+    def identifier(self:Self) -> str|None:  return self._identifier
     @identifier.setter
     def identifier(self, x: str):  
         self._identifier = x    
         self._shortidentifier = self._shortenidentifier(x)
         self.name = x
     @property
-    def shortidentifier(self) -> str|None:  return self._shortidentifier
+    def shortidentifier(self:Self) -> str|None:  return self._shortidentifier
     @property 
     def imagelist(self, labels:list[str]=[]) -> list:  # Can a propery have an alternative keyword approach?
         if not labels: 
@@ -77,7 +77,7 @@ class SampleEvent(SampleBase,  abc.ABC):
             #Only return images with certain labels
             return [x for x in self._imagelist if x.label in labels] 
 #    @property
-#    def filelist(self):
+#    def filelist(self:Self):
 #        # INCOMPLETE IMPLEMENTATION, ONLY IMAGE FILES
 #        filelist = [Path(x.filename) for x in self._imagelist]
 #        return tuple(filelist) 
@@ -139,7 +139,7 @@ class SampleEvent(SampleBase,  abc.ABC):
     # Override in child classes if needed!
     def find_samples(dirname: str|Path,
                      datafile_patterns: list[str]
-                     ) -> tuple[urltype]:
+                     ) -> tuple[type_url]:
         """Returns a list of urls pointing to a source that can be used to build an Sample. Child classes can replace this.
 
         Arguments:
@@ -168,11 +168,11 @@ class SampleImageBase(SampleBase,  abc.ABC):
     supports_rename_directories = False    
     has_specimens = False # Property
     has_labels = False # Property
-    def __init__(self,  label:str,  url:urltype, time: datetime|None= None):
+    def __init__(self,  label:str,  url:type_url, time: datetime|None= None):
         super().__init__(time)
-        self._bitmap:imagetype|None = None  # Full image data loaded to memory (set to None if not yet loaded)
+        self._bitmap:type_image|None = None  # Full image data loaded to memory (set to None if not yet loaded)
         self._loaded:bool = False
-        self.url:urltype = url # Also sets self._parsed_url
+        self.url:type_url = url # Also sets self._parsed_url
         self.name:str = f"{type(self).__name__} ({url})" # For images, the image source is a good name
         self.label:str = label
         self.meta = jkm.samplemetadata.ImageMetadata(self.label)  #Image-level metadata
@@ -185,38 +185,38 @@ class SampleImageBase(SampleBase,  abc.ABC):
     def _loadImage(self, colourspace:int = cv2.IMREAD_COLOR) -> None: return
     # properties
     @property
-    def url(self) -> urltype: return self._url
+    def url(self:Self) -> type_url: return self._url
     @url.setter
-    def url(self, value:urltype):
+    def url(self, value:type_url):
         self._url = value
         self._parsed_url = urlparse(self.url)
     @property
-    def bitmap(self) -> imagetype|None:
+    def bitmap(self:Self) -> type_image|None:
         # TODO: Try to load if unloaded!
 #        assert self._bitmap, "Trying to access bitmap data before loading it."
         return self._bitmap
     @bitmap.setter
-    def bitmap(self, newbitmap:imagetype|None) -> None:
+    def bitmap(self, newbitmap:type_image|None) -> None:
         self._bitmap = newbitmap
         if self._bitmap is None: self._loaded = False # Set to None
         else: self._loaded = True        
     @property
-    def path(self) -> Path:
+    def path(self:Self) -> Path:
         assert self._parsed_url.scheme == "file" # Should be accessed only for files
         return Path(self._parsed_url.path)
     # Functions
-    def encodeJSON(self) -> dict:
+    def encodeJSON(self:Self) -> dict:
         "Return a JSON serializable representation."
         # TODO: ADD FULL STRUCTURE HERE
         # TODO: IMPLEMENT IN CHILD CLASSES
-        d:dict = {}
+        d:dict = {str:str}
         d[f"__{type(self).__name__}__"] = True
         d['label'] = self.label
         d['confsection'] = str(self.confsection)
         d['_url'] = self.url
         d['meta'] = self.meta.encodeJSON()
         return d
-    def unloadImageData(self) -> None: 
+    def unloadImageData(self:Self) -> None: 
         self.bitmap = None  # Delete in-memory copy of image data
     def copyMetadatafFomConf(self, configobject) -> None:
         cf = configobject
@@ -226,7 +226,7 @@ class SampleImageBase(SampleBase,  abc.ABC):
         self.meta.add(title,  content)
     def addlogMeta(self,title:str,content:str="",lvl:int=logging.INFO) -> None:
         self.meta.addlog(title,  content, lvl=lvl)
-    def getsubimage(self,  rect=tuple[int]|list[int]) -> imagetype|None:
+    def getsubimage(self,  rect=tuple[int]|list[int]) -> type_image|None:
         "Rect to [x1,y1,x2,y2,rot] from upper left corner"
         x1,y1,x2,y2,rot = rect
         self._loadImage()
@@ -257,7 +257,7 @@ class SampleImageBase(SampleBase,  abc.ABC):
 
 class SampleImage(SampleImageBase): 
     "One image plus metadata"
-    def __init__(self,  label:str,  url:urltype,  time:datetime|None = None) -> None: 
+    def __init__(self,  label:str,  url:type_url,  time:datetime|None = None): 
         super().__init__(label, url,  time)
     def _loadImage(self, colourspace:int = cv2.IMREAD_COLOR) -> None: 
         """Returns image as a cv2/numpy array. 
@@ -279,31 +279,30 @@ class SpecimenImage(SampleImage):
     #Class properties
     has_specimens = True # Property
     has_labels = False # Property
-    def __init__(self,  label:str,  url:urltype,  time:datetime|None = None) -> None:
+    def __init__(self,  label:str,  url:type_url,  time:datetime|None = None) :
         super().__init__(label,  url,  time)
 
 class LabelImage(SampleImage):
         #Class properties
     has_specimens = False # Property
     has_labels = True # Property
-    def __init__(self,  label:str,  url:urltype,  time:datetime|None = None) -> None:
+    def __init__(self,  label:str,  url:type_url,  time:datetime|None = None) :
         super().__init__(label,  url,  time)
         self._textareas = []
     @property
-    def textareas(self) -> list:  
+    def textareas(self:Self) -> list:  
         "Access textareas once they have been identified using findtextareas()"
         return self._textareas
-    def findtextareas(self,  nnfn:str) -> list|tuple:
+    def findtextareas(self,  nnfn:str) -> Collection[type_rotated_rect]:
         "Find areas with text using EAST text detector"
         img = self._loadImage()
         log.debug("Find areas with text using EAST text detector")
-        self._textareas = jkm.ocr.find_text_rects(img,nnfn)
-        return self._textareas
+        return jkm.ocr.find_text_rects(img,nnfn)
     def savetextareas(self, namehdr:str) -> None:
         x = 1
         try:
             for rect in self._textareas:
-                imgx:imagetype|None = self.getsubimage(rect) # Get subimage            
+                imgx:type_image|None = self.getsubimage(rect) # Get subimage            
                 imgname = self.path.stem
                 fullfn = self.path.with_name(f"{imgname}{namehdr}{x}.jpg")
                 log.debug(f"Storing individual label image: {fullfn}")
@@ -324,11 +323,11 @@ class LabelImage(SampleImage):
                 txt += " " + jkm.ocr.ocr(self.getsubimage(area),ocrcommand)
                 x += 1
         return txt
-#    def readMetadata(self): pass
-#    def writeMetadata(self): pass    
+#    def readMetadata(self:Self): pass
+#    def writeMetadata(self:Self): pass    
 
 class CombinedImage(SpecimenImage, LabelImage): 
-    def __init__(self,  label:str,  url:urltype,  time:datetime|None = None) -> None:
+    def __init__(self,  label:str,  url:type_url,  time:datetime|None = None) :
         # Note: potential problems with inheritance, resolve!
         super().__init__(label,  url,  time)
         # Set these after constructors to make sure we get them right
@@ -339,17 +338,17 @@ class SingleImageSample(SampleEvent):
     """A single image based minimal sample event"""
     supports_rename_files = True    
     supports_rename_directories = False    
-    def __init__(self,  time:datetime|None = None) -> None:
+    def __init__(self,  time:datetime|None = None) :
         super().__init__(time)
     @staticmethod
-    def from_url(url:urltype, conf, label:str="generic_camera")-> SingleImageSample: 
+    def from_url(url:type_url, conf, label:str="generic_camera")-> SingleImageSample: 
         # Assumes jpg file name is metadata file name
         log.debug("Creating sample data from JPEG image and config file metadata")
         # Extract creating time from JPG and to be used as the Sample event creationtime
 	# Create a CombinedImage to hold image data 
         image = CombinedImage(label, url)
         try:
-            imgpath = jkm.tools.uri2path( url )
+            imgpath = jkm.tools.url2path( url )
             filecreated = getFileCreationDateTime(imgpath)
         except ValueError: # THis is not a local file URI
             imgpath = None
@@ -371,7 +370,7 @@ class LuomusLineSample(SampleEvent):
     supports_rename_files = True    
     supports_rename_directories = True    
     allowed_url_domains = ["http://tun.fi/", "http://id.luomus.fi/",""]
-    def __init__(self,  time:datetime|None=None) -> None:
+    def __init__(self,  time:datetime|None=None) :
         super().__init__(time)
         self.digipropfile = DigipropFile() 
     def _grab_identifier_prefix(self, ident:str|None) -> str|None:
@@ -380,7 +379,7 @@ class LuomusLineSample(SampleEvent):
         else:
             parts = ident.split("/")
             return "/".join(parts[:-1]) + "/"        
-    def verify_identifier(self) -> bool:  # Check if thosed identifier is a valid Luomus identifier
+    def verify_identifier(self:Self) -> bool:  # Check if thosed identifier is a valid Luomus identifier
         # SIMPLISTIC IMPLEMENTATION
         # As Luomus identifiers are URIs, could actually use formal parsing here
         pref = self._grab_identifier_prefix(self.identifier)
@@ -391,7 +390,7 @@ class LuomusLineSample(SampleEvent):
     def _shortenidentifier(self, x:str) -> str: # Overrides base class
         separator = r'/'
         return x.split(separator)[-1] 
-    def original_timestamp(self) -> str: #helper function for insect line processing
+    def original_timestamp(self:Self) -> str: #helper function for insect line processing
         marker = "dc1."
         x = str(self.datapath.name).split(marker) # Look for marker in last element of directory name
         if len(x) != 2: return ""
@@ -448,10 +447,10 @@ class LuomusLineSample(SampleEvent):
 #------------------------------------------------------------------------------------------------------    
 class LuomusPlantLineSample(LuomusLineSample): 
 # Inherits the specific rename function. Might want to reimplement it here more generally
-    def __init__(self,  time:datetime|None=None) -> None:
+    def __init__(self,  time:datetime|None=None):
         super().__init__(time)
     @staticmethod    
-    def from_directory(dirpath: Path, conf) -> LuomusPlantLineSample: 
+    def from_directory(dirurl: type_url, conf:type_conf) -> LuomusPlantLineSample: 
         """Create a Sample object from a directory path with files like those created by the Luomus Plant Imaging Line.
     
 arguments: 
@@ -461,6 +460,7 @@ arguments:
         # Most code shared with MZHInsectLineSample!
         log.debug("Creating sample data from JPEG image and jkm config file metadata") 
         # Does not currently read digitization.propersies or the XML file
+        dirpath = jkm.tools.url2path(dirurl)
         filepath = dirpath / Path(conf.get("sampleformat", "label_file"))
         # Extract creating time from JPG and use it as the Sample event time        
         itime = getFileCreationDateTime(filepath)
@@ -479,7 +479,8 @@ class LuomusInsectLineSample(LuomusLineSample):
     def __init__(self,  time:datetime|None=None):
         super().__init__(time)
     @staticmethod
-    def from_directory(dirpath:Path, conf) -> LuomusInsectLineSample: 
+    def from_directory(dirurl:type_url, conf:type_conf) -> LuomusInsectLineSample: 
+        dirpath = jkm.tools.url2path(dirurl)
         log.debug("Creating sample data from JPEG image and jkm config file metadata") 
         # Does not currently read digitization.propersies or the XML file
         labelpath = dirpath / Path(conf.get("data", "label_file"))
@@ -508,11 +509,11 @@ class SubDirectorySample(LuomusLineSample):
     def __init__(self,  time:datetime|None=None):
         super().__init__(time)
     @staticmethod
-    def from_directory(url:urltype, conf):
+    def from_directory(url:type_url, conf):
         "Create a ImageDirectorySample from a url pointing to a directory name."
         log.debug("Creating sample data from directory with images and jkm config file metadata.") 
         # Use directory as default name for this Sample
-        dirpath = jkm.tools.uri2path( url )
+        dirpath = jkm.tools.url2path( url )
         # Extract creating time from directory name 
         itime = getFileCreationDateTime(dirpath)
         s = SubDirectorySample( time = itime )
@@ -539,7 +540,7 @@ class FileRowSample(SingleImageSample):
     @staticmethod
     def find_samples(dirname: str|Path,
                      datafile_patterns: list[str]
-                     ) -> tuple[urltype]:
+                     ) -> tuple[type_url]:
         """Returns a list of urls pointing to a source that can be used to build an Sample. Child classes can replace this.
 
         Arguments of the default version:
@@ -571,6 +572,6 @@ class FileRowSample(SingleImageSample):
         # return the image
         return image
     @staticmethod
-    def from_url(url:urltype, conf, label:str="generic_camera") -> SingleImageSample:  
+    def from_url(url:type_url, conf, label:str="generic_camera") -> SingleImageSample:  
         return SingleImageSample.from_url(url, conf, label="generic_camera")
 #------------------------------------------------------------------------------------------------------    

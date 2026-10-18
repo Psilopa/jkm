@@ -5,6 +5,8 @@ import cv2
 import jkm.tools
 #from pathlib import Path
 import time, sys
+# For typing
+from jkm.typing import *
 
 log = logging.getLogger() # Overwrite if needed
 _net = None
@@ -19,7 +21,8 @@ ocr_max_width = 3000
 def_timeout = 10
 def_lang = "eng"
 
-def _load_neural_net(fn):
+
+def _load_neural_net(fn:str):
     # TODO: add error handling
     log.debug("Loading neural net text detector (EAST) from %s ..." % fn)
     try:
@@ -31,7 +34,7 @@ def _load_neural_net(fn):
     return net
 
 
-def intersection(a, b):
+def intersection(a:type_rect, b:type_rect) -> bool:
     startX = max( min(a[0], a[2]), min(b[0], b[2]) )
     startY = max( min(a[1], a[3]), min(b[1], b[3]) )
     endX = min( max(a[0], a[2]), max(b[0], b[2]) )
@@ -39,18 +42,18 @@ def intersection(a, b):
     if startX < endX and startY < endY: return True
     else: return False
 
-def boundingbox(a, b): 
+def boundingbox(a:type_rect, b:type_rect) -> type_rect: 
     startX = min( a[0], b[0] )
     startY = min( a[1], b[1] )
     endX = max( a[2], b[2] )
     endY = max( a[3], b[3] )
     return (startX, startY, endX, endY, b[4]) # Copies over rotation angle of b
 
-def group_rects(rects): # Primitive implementation!
+def group_rects(rects:Sequence[type_rect]) -> Sequence[type_rect]: # Primitive implementation!
     len_in = len(rects)
     if len_in == 0: return ()
     if len_in == 1: return rects
-    remaining = rects.copy() # remaining rectangles
+    remaining = list(rects).copy() # remaining rectangles
     first_discrete = False
     while not first_discrete and len(remaining) >1:
         r0 = remaining[0]
@@ -69,7 +72,7 @@ def group_rects(rects): # Primitive implementation!
     remaining.append(remaining.pop(0))
     return group_rects(remaining)
     
-def _pad(x1,y1,x2,y2,pad = 1.2): # Pad as a factor
+def _pad(x1,y1,x2,y2,pad = 1.2) -> type_rect: # Pad as a factor
     w = max((x2-x1) * pad, 0) # New width
     h = max((y2-y1) * pad, 0) # New height
     halfpadx = 0.5*(pad-1)*w
@@ -80,7 +83,7 @@ def _pad(x1,y1,x2,y2,pad = 1.2): # Pad as a factor
     y2f = int( y2+halfpady )
     return (x1f,y1f,x2f,y2f)
 
-def find_text_rects(img, nnfn, max_textareas = 50, min_areasize = 30):
+def find_text_rects(img, nnfn, max_textareas = 50, min_areasize = 30) -> Collection[type_rotated_rect]:
     "nnfn = neural net file name"
     # Uses a (module) global neural net _net
     # Resize to a square
@@ -155,12 +158,13 @@ def find_text_rects(img, nnfn, max_textareas = 50, min_areasize = 30):
         x1,y1,x2,y2 = _pad(x1,y1,x2,y2,postpadding)
         out.append((x1,y1,x2,y2, rot))
 #        cv2.rectangle(orig, (x1,y1), (x2,y2), clr, 2)
-#    cv2.imshow("Text Detection", orig)
-#    cv2.waitKey(0)
     log.debug("... Found %i groups" % len(out))
     return out
 
-def ocr(rect, ocr_command, timeout=def_timeout,lang=def_lang,fdir=None):
+def ocr(rect:type_image,
+        ocr_command:str,
+        timeout:int=def_timeout,
+        lang:str=def_lang) -> str:
     "OCR text from a given rectangle (image array). Uses Tesseract"
     if pytesseract.pytesseract.tesseract_cmd is None:
         pytesseract.pytesseract.tesseract_cmd = ocr_command

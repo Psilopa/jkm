@@ -1,5 +1,7 @@
 import requests, time
 from pathlib import Path
+# For typing
+from jkm.typing import *
 
 IMAGE_REQUEST_HEADERS = {
     "User-Agent": (
@@ -8,22 +10,21 @@ IMAGE_REQUEST_HEADERS = {
         "Chrome/120.0.0.0 Safari/537.36"
     )
 }
-def defaultdownloader(url: str, sleeptime:int|None = 0, timeout: int|None = 1) -> bytes | None: 
+def defaultdownloader(url: type_url,
+                      sleeptime:int = 0,
+                      timeout: int = 1) -> bytes|None: 
     """Extract output filename from image URL path."""
     # Based on Mikko Heikkinen's read_specimens.py from MocoDigi
     try:
         # To avoid flooding the server, we do not rush here...
-        time.sleep(sleeptime) 
+        if sleeptime: time.sleep(sleeptime) 
         image_response = requests.get(
             url,
             headers=IMAGE_REQUEST_HEADERS,
             timeout=timeout,
         )
         image_response.raise_for_status()
-        return image_response.content # Return raw data
+        return bytes(image_response.content) # Return raw data
     except requests.RequestException as exc:
         return None
-
-if __name__ == "__main__":
-    downloader("https://picsum.photos/200/300", 0, 1)
 

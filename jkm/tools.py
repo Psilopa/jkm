@@ -7,16 +7,14 @@ import cv2
 from jkm.downloader import defaultdownloader
 from jkm.errors import FileLoadingError
 from urllib.parse import urlparse, ParseResult
-#import urllib.request # For web downloads
-# Typing
-from collections.abc import Callable
 log = logging.getLogger() # Overwrite if needed
-type imagetype = np.ndarray
+# For typing
+from jkm.typing import *
 
-def is_existing_path(url: str) -> None: 
+def is_existing_path(url: type_url) -> None: 
     "Verify that this url, if a local file url, corresponds to an accessible path"
     try:
-        filepath: Path = uri2path( url )
+        filepath: Path = url2path( url )
     except ValueError: return # Can't validate this
     dirpath: Path = filepath.parent
     # Catch some error states
@@ -25,14 +23,14 @@ def is_existing_path(url: str) -> None:
     if not filepath.exists():
         raise FileLoadingError(f"Could not find file {filepath}.")
 
-def list2printvalues(mylist: list[str, object])-> str:
+def list2printvalues( mylist: Collection[dict] )-> str:
     "Prettyprints the values from a list of dictionaries."
     out: list = []
     for valuedict in mylist:
         out +=  valuedict.values()
     return "\n".join(out)
     
-def json2printdict(jsondata: str | dict[str,object] ) -> dict[str,object]:
+def json2printdict(jsondata: str | dict[str,Any] ) -> dict[str,Any]:
     "Converts a string with JSON data or a corresponding dictionary with prettyprinted content."
     # TODO: this is not pasticularly good
     if isinstance(jsondata, str):  jsondata = json.loads(jsondata) 
@@ -83,24 +81,24 @@ def monitor_disk_space(dir_name: str | Path,
     elif freeb < levels[2]*limit:
         log.critical("Disk space critical (free space %.0f MB (%.1f GB)" % feespace)
 
-def gammacorrect(img: imagetype, gamma: float) -> imagetype:
-    lookUpTable: imagetype = np.empty((1,256), np.uint8)
+def gammacorrect(img: type_image, gamma: float) -> type_image:
+    lookUpTable: type_image = np.empty((1,256), np.uint8)
     for i in range(256):
         lookUpTable[0,i] = np.clip(math.pow(i / 255.0, gamma) * 255.0, 0, 255)
     return cv2.LUT(img, lookUpTable)
 
-def shrink_to_maxdim(img: imagetype, maxdim: int) -> imagetype:
+def shrink_to_maxdim(img: type_image, maxdim: int) -> type_image:
     current_maxdim: int = max(img.shape)
     scale: float = min(1.0, float(maxdim)/current_maxdim)
     return cv2.resize(img,(0,0),fx=scale,fy=scale)
     
-def save_img(fn: str|Path, image: imagetype) -> None: 
+def save_img(fn: str|Path, image: type_image) -> None: 
     # Better error handling than the raw cv2 imwrite
     if isinstance(fn,Path): fn = str(fn)
     try: cv2.imwrite(fn,image)
     except SystemError as err: raise err
 
-def img_from_file(imagestr: str|Path) -> imagetype | None:
+def img_from_file(imagestr: str|Path) -> type_image | None:
         fnp = Path(imagestr)
         if not fnp.exists(): raise FileLoadingError("File %s does not exist" % fnp)
         if not fnp.is_file(): raise FileLoadingError("%s is not a file" % fnp)
@@ -108,8 +106,8 @@ def img_from_file(imagestr: str|Path) -> imagetype | None:
         return cv2.imread(str(fnp),cv2.IMREAD_UNCHANGED)
     
 def img_from_url(url: str,
-                 downloader: Callable[[str,int|None,int|None],bytes|None] = defaultdownloader,
-                 dlargs:list = [], dlkwords:dict = {}) -> imagetype | None:
+                 downloader: Callable = defaultdownloader,
+                 dlargs:list = [], dlkwords:dict = {}) -> type_image | None:
     """Tries to return an image from a URI.
 
     If the needs to be downloaded, calls the optional downloader function
@@ -130,7 +128,7 @@ def img_from_url(url: str,
     return cv2.imdecode(arr, -1) # 'Load it as it is'
 
     
-def load_img(image: str|Path|io.IOBase) -> imagetype | None: 
+def load_img(image: str|Path|io.IOBase) -> type_image | None: 
     """Loads an image (as a cv2 image) from a variety of sources.
 
     Accept
@@ -153,7 +151,7 @@ def load_img(image: str|Path|io.IOBase) -> imagetype | None:
     else:
         return image # This is hopefully already a Image-type object ... test for numpy.ndarray ?    
 
-def increaseTopContrast(image: imagetype, greyrange: int) -> imagetype:
+def increaseTopContrast(image: type_image, greyrange: int) -> type_image:
     """Increase contast in the bright parts of the image.
     Assumes a grayscale image. greyrange = width of grayscale area between
     black and max_brightness."""
@@ -213,6 +211,6 @@ def path2url(fpath: Path) -> str:
     return fpath.as_uri() # THIS IS DEPRECATED
 #    return urllib.request.pathname2url( str(fpath) ) 
 
-def uri2path(url: str) -> Path:
+def url2path(url: str) -> Path:
     return Path.from_uri(url) # Added in version 3.13.
 #    return Path( urllib.request.url2pathname(url) )

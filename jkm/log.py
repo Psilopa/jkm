@@ -1,4 +1,6 @@
 import logging, os
+# For typing
+from jkm.typing import *
 
 LOG_FILE_ENCODING = "utf8"
        
@@ -9,7 +11,7 @@ class ColorFormatter(logging.Formatter):
     red = "\x1b[31;20m"
     bold_red = "\x1b[31;1m"
     reset = "\x1b[0m"
-    def __init__(self, formatstr):
+    def __init__(self, formatstr:str):
 #        formatstr = "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)" 
         self.FORMATS = {
             logging.DEBUG: self.grey + formatstr + self.reset,
@@ -18,22 +20,23 @@ class ColorFormatter(logging.Formatter):
             logging.ERROR: self.red + formatstr + self.reset,
             logging.CRITICAL: self.bold_red + formatstr + self.reset,
         }
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         log_fmt = self.FORMATS.get(record.levelno)
         formatter = logging.Formatter(log_fmt)
         return formatter.format(record)
             
 # Send log data to an external reader via an event
 class ExtHandler(logging.Handler):
-    def __init__(self, ext):
+    def __init__(self, ext:type_external):
         super().__init__()
         self.ext = ext
-    def emit(self,record): self.ext.event_log(record)
+    def emit(self,record: logging.LogRecord) -> None :
+        self.ext.event_log(record)
 
-def setup_logging(name,
-                  logging_level_file = logging.INFO,
-                  logging_level_stream = logging.INFO,
-                  ext = None):
+def setup_logging(name:str,
+                  logging_level_file:int = logging.INFO,
+                  logging_level_stream:int = logging.INFO,
+                  ext:type_external = None) -> logging.Logger:
     """Set up logging services"""
     STREAMLOGFORMAT = '[%(asctime)s] %(message)s'
 #    STREAMLOGFORMAT = '%(message)s'

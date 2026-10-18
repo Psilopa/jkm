@@ -16,7 +16,10 @@ def isemptyfile(fpath: Path) -> bool:
     "Note: may fail is something happens to the file while we check"
     return fpath.is_file() and ( fpath.stat().st_size == 0 ) 
 
-class SpreadsheetCSV(): 
+class SpreadsheetBase():
+    pass
+
+class SpreadsheetCSV(SpreadsheetBase): 
     # TODO: Convert to use the DictWriter class (needs data-pre-work to handle duplicate 'keys')
     """ """
     def __init__(self, filename: str|Path, dialect = CSV_DIALECT_DEFAULT) -> None: 

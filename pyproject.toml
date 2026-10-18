@@ -13,7 +13,7 @@ authors = [ {name = "Jere Kahanpää"} ]
 readme = "README.md"
 #license = "LicenseRef-My-Custom-License"
 #license-files = ["LICEN[CS]E*", "vendored/licenses/*.txt", "AUTHORS.md"]
-requires-python = ">= 3.11" # Uses Path.copy !
+requires-python = ">= 3.12" # Uses Path.copy and the typing 'type' keyword
 # These should also be listed in requirements.txt !
 dependencies = [   
 "jsonpickle==4.1.2",
@@ -40,6 +40,15 @@ project-includes = [
     "**/*.py*",
     "**/*.ipynb",
 ]
+project-excludes = [
+    "**/legacy/*",
+    "**/typing.py",
+# For now, exclude the GUI and OCR as they are tricky
+    "*gui.py",
+    "**/barcodes.py",
+    "**/ocr.py",
+]
+
 
 # Dynamic versioning, currently not used
 #[tool.setuptools_scm]

@@ -1,17 +1,18 @@
 #from pathlib import Path
 import logging
 from collections import UserDict
-
 log = logging.getLogger() # Overwrite if needed
 
 class metaStorage(UserDict):
     "A dictionary-like metadata storage container (should keep order in Python 3.7+)"
-    def addlog(self,title:str,content:str="",lvl:int=logging.INFO, log_add_hdr:str = "") -> None:
+    def addlog(self,title:str,content:str="",
+               lvl:int=logging.INFO,
+               log_add_hdr:str = "") -> None:
         "Add metadata and also write to logging"
         self.data[title] = content
         if not log_add_hdr:  log.log(lvl, f"{title}: {content}" )
         else: log.log(lvl, f"{log_add_hdr}- {title}: {content}" )
-    def add(self,title:str,content=""): 
+    def add(self,title:str,content="") -> None: 
         self.data[title] = content        
     def encodeJSON(self) -> dict:
         d:dict = {}
@@ -32,10 +33,14 @@ class EventMetadata(metaStorage):
         super().__init__(self)
         
 class ImageMetadata(metaStorage):
-    def __init__(self, cameraname="unknown"):
+    def __init__(self, cameraname:str="unknown"):
         super().__init__(self) 
         self.label = cameraname    
-    def addlog(self,title:str,content:str="",lvl:int=logging.INFO, log_add_hdr:str = "") -> None:
+    def addlog(self,
+               title:str,
+               content:str="",
+               lvl:int=logging.INFO,
+               log_add_hdr:str = "") -> None:
         "Add metadata and also write to logging"
         self.data[title] = content
         if not log_add_hdr:  log.log(lvl, f"{self.label} - {title}: {content}" )

@@ -15,7 +15,8 @@ class ConfigError(LoggingError):
     def __init__(self, msg): super().__init__(msg)
 
 class ConfigWarning(LoggingError):
-    def __init__(self, msg): super().__init__(msglevel = logging.WARNING)
+    def __init__(self, msg):
+        super().__init__(msg, level = logging.WARNING)
 
 class FileLoadingError(LoggingError):
     def __init__(self, msg): super().__init__(msg)
