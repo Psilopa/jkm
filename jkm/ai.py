@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import  logging,  json, os, base64,tempfile
 from pathlib import Path
-import jkm.errors, jkm.tools
+import jkm.tools
+from jkm.errors import AIError, AIWarning
 log = logging.getLogger() # Overwrite if needed
 # GOOGLE-SPECIFIC IMPORTS
 from google import genai
@@ -77,7 +78,7 @@ def _parseAI_JSON(text:str, schema = None ) -> dict:
         return d
     except json.JSONDecodeError as msg:
         # Strip everything outside first { and last }
-        raise jkm.errors.AIWarning(f"AI-generated JSON parsing failed with error message {msg}.")
+        raise AIWarning(f"AI-generated JSON parsing failed with error message {msg}.")
         
 # --- AI-related classes ---- 
 class AI_output:
@@ -126,7 +127,8 @@ class AI_output:
             del newdict[self.rawstr]
             return json.dumps(newdict)
         else: return json.dumps(self._dict)
-        
+
+# TODO: SPLIT THIS INTO GENERIC AND GEMINI-SPECIFIC CODE        
 class geminiAI(): # Make subclasses based on authentication method
     def __init__(self:Self):
         self._promt = None
@@ -173,12 +175,12 @@ class geminiAI(): # Make subclasses based on authentication method
         
         TODO: Needs Error handling!"""
         log.debug (f"Trying to upload {filepath},  of type {type(filepath)}") 
-        if  self.client is None: raise jkm.errors.AIError("Upload images requested before AI Client was created in code.")        
+        if  self.client is None: raise AIError("Upload images requested before AI Client was created in code.")        
         fileobj = self.client.files.upload(  file = filepath )
-        if not fileobj: jkm.errors.AIError(f"Uploading image failed, status {fileobj}")
+        if not fileobj: AIError(f"Uploading image failed, status {fileobj}")
         log.debug (f"OK upload {filepath}",  )   
         return fileobj
-    def query_images(self:Self,
+    def labeldata_from_images(self:Self,
                      imageurls=Sequence[type_url],
                      timeout:int|None = None,
                      image_max_dim:int = 0) -> AI_output:
@@ -190,12 +192,11 @@ class geminiAI(): # Make subclasses based on authentication method
         Returns: 
             an AI_output object
 	Exceptions: 
-##	   jkm.errors.AIError 
+##	   AIError 
         """
-        imageurls = ["ddskj"]
         log.debug("Query_images started")
         # State checks
-        if not self.prompt: raise jkm.errors.AIError("No prompt for AI provided.")
+        if not self.prompt: raise AIError("No prompt for AI provided.")
 #        img_bytes = [self._file2bytes(x) for x in pathlist]
 #        sumsize = int(sum( [len(x) for x in img_bytes] )/1024)
 #        log.debug( f"Images to bytes done, size {sumsize} kb" )
@@ -210,7 +211,7 @@ class geminiAI(): # Make subclasses based on authentication method
             if  timeout: httpopts = HttpOptions(timeout=timeout)      
             else: httpopts = HttpOptions()
             self.client = self._create_client(httpopts)
-            if not self.client: raise jkm.errors.AIError("Creating an AI client failed.")
+            if not self.client: raise AIError("Creating an AI client failed.")
             # log.debug("Create client done")
             content =  [ {"type": "text", "text": self.prompt} ]
             content += self._add_images(imageurls, image_max_dim)
@@ -222,7 +223,7 @@ class geminiAI(): # Make subclasses based on authentication method
                     gemini_errors.APIError,
                     gemini_errors.ServerError,
                     APIConnectionError) as msg:
-                raise jkm.errors.AIError(msg)
+                raise AIError(msg)
         log.debug( f'Response was "{text_output}"' )
         log.debug( f'Raw was "{raw}"' )
         aioutput = AI_output()
@@ -269,7 +270,7 @@ class geminiAI(): # Make subclasses based on authentication method
         return self._http_post_inline_image(fpath)
 
     def _handle_nonlocal_file(self:Self, url:type_url) -> dict[str,str]:
-         assert False, "URL passthrough not yet implemented"
+        raise AIWarning("Handling of nonlocal files is still work in progress. File not included in analysis.")
             
     def _add_images(self:Self,
                     imageurls:Sequence[type_url],
@@ -289,12 +290,14 @@ class geminiAI(): # Make subclasses based on authentication method
         # IMGS SHOULD CONTAIN A LIST OF DICTIONARIES
         imgs = []
         for url in imageurls:
+            print("GOT VALUE", url)
             # For not, we do not know how to hand URLs directly to the AI...            
             fpath = jkm.tools.url2path(url)
+            print("GOT PATH", fpath)
             if fpath.exists(): # This is a local file
                 imgs.append( self._handle_local_file(fpath, max_dim) ) 
             else:
-                imgs.append( self._handle_local_file(fpath, max_dim) ) 
+                imgs.append( self._handle_nonlocal_file(fpath) ) 
         return imgs
     
 
@@ -305,16 +308,8 @@ class apikey_geminiAI(geminiAI):
         super().__init__()
     def _create_client(self:Self, httpopts:HttpOptions) -> genai.Client:
         return genai.Client(api_key=self.apikey,  http_options = httpopts)
-#    def _add_images(self:Self, filepaths, image_max_dim=0):
-#        results = []
-#        assert image_max_dim >= 0
-#        if 
-#        readiedfiles = [self._upload_image(fp) for fp in filepaths]
-#        for myfile in readiedfiles:
-#            results.append( {"type": "image", "uri": myfile.uri, "mime_type": myfile.mime_type} )
-#        return results
 
-# OAUTH2 VARANT BASE CLASS
+# OAUTH2 VARIANT BASE CLASS
 class oauth_geminiAI(geminiAI):
     def __init__(self:Self, projectID:str, location:str):
         super().__init__()
@@ -329,12 +324,13 @@ class oauth_geminiAI(geminiAI):
                     enterprise=True,
                     )
 
-# Gcloud-based 
+# OAUTH2  with Google's gcloud command line tools available (see the AUTHENTICATION.md )
 class cloud_oauth_geminiAI(oauth_geminiAI):
     def __init__(self:Self,projectID:str, location:str):
         log.debug("Using cloud_oauth_geminiAI()")
         super().__init__(projectID, location)
 
+# OAUTH2 without gcloud --- we keep manual track of credentials.
 class local_oauth_geminiAI(oauth_geminiAI):
     def __init__(self:Self, projectID:str, location:str, secretpath:Path, tokenpath:Path|None = None) :
         log.debug("Using local_oauth_geminiAI()")

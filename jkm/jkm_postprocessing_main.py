@@ -147,9 +147,9 @@ def task_AI_label_data_extraction(conf:type_conf, sample:type_sample) -> type_ai
         if myai: #
             myai.model = conf.getstr('ai','model')
             myai.prompt = conf.getstr('ai','prompt')
-            imageurls = tuple(str(x.url) for x in sample.imagelist if x.has_labels)
+            imageurls = (x.url for x in sample.imagelist if x.has_labels)
             image_max_dim = conf.geti("ai", "max_image_dim", default=0)
-            airesult = myai.query_images(imageurls,  image_max_dim = image_max_dim)
+            airesult = myai.labeldata_from_images(imageurls,  image_max_dim = image_max_dim)
             myai.close()
         # airesult can contain almost anything, possibly including non-valid UTF8. Should sanitize better.
         log.debug(f"{sample.name}:AI call for data extraction returned {str(airesult)}")
@@ -158,8 +158,8 @@ def task_AI_label_data_extraction(conf:type_conf, sample:type_sample) -> type_ai
             outpath = sample.datapath / outfn
             with outpath.open("w") as f: f.write(airesult.to_json())                                                        
         else: log.debug(f"{sample.name}:No AI properties file generation requested in config file")
-    except (IOError,  jkm.errors.AIError) as msg:
-        log.warning(f"{sample.name}: AI Error '{msg}'.")
+    except (IOError,  jkm.errors.AIError, jkm.errors.AIWarning) as msg:
+        log.warning(f"{sample.name} - AI issue: '{msg}'.")
         airesult = None
     sample.results.labeltext_ai1 = airesult
     return airesult
