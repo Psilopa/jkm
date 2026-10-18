@@ -1,4 +1,6 @@
-from collections.abc import Callable, Collection, Sequence
+from collections.abc import Callable, Collection, Sequence, Generator
+#Examples:
+#   Generator[SampleImageBase,None,None]
 from typing import Self, Any, Hashable
 
 type type_conf = jkm.configfile.tomlConfig # Depends on Python 3.12+

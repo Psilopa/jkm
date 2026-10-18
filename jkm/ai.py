@@ -3,17 +3,19 @@ import  logging,  json, os, base64,tempfile
 from pathlib import Path
 import jkm.errors, jkm.tools
 log = logging.getLogger() # Overwrite if needed
-#import imgtools
+# GOOGLE-SPECIFIC IMPORTS
 from google import genai
 from google.genai import types
 from google.genai import errors as gemini_errors
 from google.genai.types import HttpOptions
+from google.genai._gaos.lib.compat_errors import APIConnectionError
 import jkm.labeldata_model as labeldata_model
 
 # For local OAUTH token management, used by local_oauth_geminiAI
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
+
 # For typing
 from jkm.typing import *
 
@@ -54,7 +56,9 @@ def load_apikey(fp:Path):
     with fp.open() as f: return f.read()
     
 def _parseAI_JSON(text:str, schema = None ) -> dict:
-    """Cleanup and parse pseudo-JSON as returned from an AI."""
+    """Converts the AI returned JSON to a dictionary structure like that returned by json.loads().
+
+        Raises a jkm.errors.AIWarning on failure."""
     if schema is not None: # Check if this is already valid JSON following a Schema
         try:
             data = schema.model_validate_json(text)
@@ -72,9 +76,8 @@ def _parseAI_JSON(text:str, schema = None ) -> dict:
         d = json.loads(text)
         return d
     except json.JSONDecodeError as msg:
-        # Strip everything outside first { and last }        
-        log.warning(f"AI-generated JSON parsing failed with error message {msg}. Returning empty result.")
-        return {}
+        # Strip everything outside first { and last }
+        raise jkm.errors.AIWarning(f"AI-generated JSON parsing failed with error message {msg}.")
         
 # --- AI-related classes ---- 
 class AI_output:
@@ -104,13 +107,15 @@ class AI_output:
         assert(self._dict)
         self._dict.update( {self.rawstr:self.raw} )
         return self._dict
-    def from_text(self:Self,  text, schema = None) -> bool:
+    def from_text(self:Self,  text, schema = None) -> None:
+        """Tries to convert the AI returned JSON to other formats.
+
+        Raises a jkm.errors.AIWarning on failure."""
         self._text = text
-        self._dict = _parseAI_JSON(self._text, schema)
+        self._dict = _parseAI_JSON(self._text, schema) # Raises an AIWarning on failure
         # Prettyprint the verbatim_all_text field
         vatext = "verbatim_all_text"
         self._dict[vatext] = jkm.tools.list2printvalues(self._dict[vatext])       
-        return True # Success
     def __str__(self:Self) -> str: 
         if self._dict: return str(self._dict) 
         return str( self._text)
@@ -187,6 +192,7 @@ class geminiAI(): # Make subclasses based on authentication method
 	Exceptions: 
 ##	   jkm.errors.AIError 
         """
+        imageurls = ["ddskj"]
         log.debug("Query_images started")
         # State checks
         if not self.prompt: raise jkm.errors.AIError("No prompt for AI provided.")
@@ -211,11 +217,11 @@ class geminiAI(): # Make subclasses based on authentication method
             try: # Query the model
                 rv = self._execute_query(content)
                 (raw, text_output) = self._execute_query(content)
-            except gemini_errors.ServerError as msg:
-                raise jkm.errors.AIError(msg)
-            except gemini_errors.ClientError as msg:
-                raise jkm.errors.AIError(msg)
-            except gemini_errors.APIError as msg:
+            except (gemini_errors.ServerError,
+                    gemini_errors.ClientError,
+                    gemini_errors.APIError,
+                    gemini_errors.ServerError,
+                    APIConnectionError) as msg:
                 raise jkm.errors.AIError(msg)
         log.debug( f'Response was "{text_output}"' )
         log.debug( f'Raw was "{raw}"' )
@@ -228,7 +234,7 @@ class geminiAI(): # Make subclasses based on authentication method
         return aioutput
     def _file2bytes(self:Self,  filepath:Path):
         with filepath.open('rb') as f:   return f.read()
-    def _urify_image(self:Self,  filepath:Path) -> dict[str,str]: 
+    def _http_post_inline_image(self:Self,  filepath:Path) -> dict[str,str]: 
         fbytes  = self._file2bytes(filepath)       
         return {
             "type": "image",
@@ -239,7 +245,7 @@ class geminiAI(): # Make subclasses based on authentication method
         "Returns a NamedTemporaryFile object or None."
  #TODO -> None | tempfile.NamedTemporaryFile fails ... is there a typo in the typing of NamedTemporaryFile?
         img = jkm.tools.load_img(fpath)
-        if not img: return None # Nothing to do
+        if img is None: return None # Nothing to do
         small = jkm.tools.shrink_to_maxdim(img, image_max_dim)
         # Save to temp directory
         suffix = fpath.suffix
@@ -248,27 +254,47 @@ class geminiAI(): # Make subclasses based on authentication method
         jkm.tools.save_img(tmpf.name, img)
         log.debug(f"Resizing done, saved to {tmpf.name}.")
         return tmpf
-    def _add_images(self:Self, imageurls:Sequence[type_url], max_dim:int = 0) -> Sequence[dict[str,str]]: 
-        """Default _add_images(): passes files as query parameters."""
+    def _handle_local_file(self:Self, fpath:Path, max_dim:int = 0) -> dict[str,str]:
+        if max_dim == 0: 
+            log.debug("No image resizing requested before AI.")
+            return self._http_post_inline_image(fpath)
+        log.debug(f"Resizing requested to a maximum dimension of {max_dim}.")
+        smallerdir = None # We do not care where these images are temporarily stored
+        tmpf = self._smallertempfile(fpath, max_dim, dir = smallerdir)
+        if tmpf: # Should not rescale
+            tmpfilepath = Path(tmpf.name) 
+            return self._http_post_inline_image(tmpfilepath) 
+            del tmpf  # Delete temp file onced we are done
+        log.warning(f"Could not save a rescaled copy of {fpath}, using the original.")
+        return self._http_post_inline_image(fpath)
+
+    def _handle_nonlocal_file(self:Self, url:type_url) -> dict[str,str]:
+         assert False, "URL passthrough not yet implemented"
+            
+    def _add_images(self:Self,
+                    imageurls:Sequence[type_url],
+                    max_dim:int = 0
+                    ) -> Sequence[dict[str,str]]: 
+        """Converts files to resources usable in HTTP queries
+
+        The return value is a list of dictionaries, with each dictionary describing a series of HTTP
+        call key: value pairs. For an example of how what a single item should look like,
+        see geminiAI._http_post_inline_image(),
+
+        Keywords:
+        max_dim: maximum dimension of a (local) image file. If >0: images that are larger than this will be downscaled.
+
+        """
         assert max_dim >= 0
+        # IMGS SHOULD CONTAIN A LIST OF DICTIONARIES
         imgs = []
         for url in imageurls:
-            # For not, we do not know how to hand URLs directly to the AI...
+            # For not, we do not know how to hand URLs directly to the AI...            
             fpath = jkm.tools.url2path(url)
-            if max_dim == 0:# No scaling
-                log.debug("No image resizing requested before AI.")
-                imgs.append( self._urify_image(fpath) )
+            if fpath.exists(): # This is a local file
+                imgs.append( self._handle_local_file(fpath, max_dim) ) 
             else:
-                log.debug(f"Resizing requested to a maximum dimension of {max_dim}.")
-                smallerdir = None
-                tmpf = self._smallertempfile(fpath, max_dim, dir = smallerdir)
-                if tmpf: # Should not rescale
-                    tmpfilepath = Path(tmpf.name) 
-                    imgs.append( self._urify_image(tmpfilepath) )
-                    del tmpf  # Delete temp file onced we are done
-                else:
-                    log.warning(f"Could not save a rescaled copy of {fpath}, using the original.")
-                    imgs.append( self._urify_image(fpath) )
+                imgs.append( self._handle_local_file(fpath, max_dim) ) 
         return imgs
     
 

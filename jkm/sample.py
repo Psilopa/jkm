@@ -53,7 +53,7 @@ class SampleEvent(SampleBase,  abc.ABC):
     "Container for 0+ photos of an sample and event-level metadata."
     def __init__(self,  time: datetime|None = None):
         super().__init__(time)
-        self._imagelist = [] # List of SamplePhoto subclass instances
+        self._imagelist:list[SampleImageBase] = [] # List of SampleImage subclass instances
         self.prefix: str|Path = "" # Common file name prefix (often/ALWAYS same as self.datapath?)
         self.datapath: Path = Path() # SHOULD THIS BE None?
         self.meta = jkm.samplemetadata.EventMetadata() # Event-level metadata
@@ -70,12 +70,12 @@ class SampleEvent(SampleBase,  abc.ABC):
     @property
     def shortidentifier(self:Self) -> str|None:  return self._shortidentifier
     @property 
-    def imagelist(self, labels:list[str]=[]) -> list:  # Can a propery have an alternative keyword approach?
+    def imagelist(self, labels:list[str]=[]) -> Generator[SampleImageBase,None,None]:  
         if not labels: 
-            return self._imagelist
+            return (x for x in self._imagelist)
         else: 
             #Only return images with certain labels
-            return [x for x in self._imagelist if x.label in labels] 
+            return (x for x in self._imagelist if x.label in labels)
 #    @property
 #    def filelist(self:Self):
 #        # INCOMPLETE IMPLEMENTATION, ONLY IMAGE FILES

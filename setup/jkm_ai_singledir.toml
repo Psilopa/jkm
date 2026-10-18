@@ -30,7 +30,7 @@ save_text_area_images = false
 ocr = false                              
 ocr_analysis = false                     
 # LABEL DATA EXTRACTION TASKS
-ai_label_text_extraction = false          
+ai_label_text_extraction = true          
 labeldata_to_CSV = true
 # OTHER DATA
 save_JSON = false                        

@@ -147,7 +147,7 @@ def task_AI_label_data_extraction(conf:type_conf, sample:type_sample) -> type_ai
         if myai: #
             myai.model = conf.getstr('ai','model')
             myai.prompt = conf.getstr('ai','prompt')
-            imageurls = tuple(x.url for x in sample.imagelist if x.has_labels)
+            imageurls = tuple(str(x.url) for x in sample.imagelist if x.has_labels)
             image_max_dim = conf.geti("ai", "max_image_dim", default=0)
             airesult = myai.query_images(imageurls,  image_max_dim = image_max_dim)
             myai.close()

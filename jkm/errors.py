@@ -33,3 +33,7 @@ class BarcodeError(LoggingError):
 
 class AIError(LoggingError):
     def __init__(self, msg): super().__init__(msg)
+
+class AIWarning(LoggingError):
+    def __init__(self, msg): super().__init__(msg, level = logging.WARNING)
+
