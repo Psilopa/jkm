@@ -8,7 +8,7 @@ log = logging.getLogger() # Overwrite if needed
 
 # Standard python modules
 import time, threading, sys, queue
-#from math import inf
+from math import inf
 from datetime import datetime
 from pathlib import Path
 # non-stdlib modules
@@ -23,8 +23,7 @@ import jkm.external as ext
 from jkm.typing import *
 
 # CONSTANTS
-_BACKUP_DATATABLE = True
-_num_worker_threads = 1 # BETTER KEEP THIS AT 1: AI PROCESSES DO NOT SEEM TO LIKE CONCURRENT CALLS
+BACKUP_DATATABLE = True
 _AI_AUTH_TYPES = ("APIKEY", "CLOUD_OAUTH", "LOCAL_OAUTH")
 class processor:
     SUCCESS = 0
@@ -278,7 +277,7 @@ class jkm_post():
         spreadsheetpath = ""
         try: 
             spreadsheetpath = Path(conf.get("spreadsheet","filename") ) 
-            if  _BACKUP_DATATABLE:  
+            if  BACKUP_DATATABLE:  
                 timestr = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
                 backup_path = spreadsheetpath.with_stem( spreadsheetpath.stem + "_" + timestr )
                 # TODO: check return 
@@ -479,29 +478,26 @@ class jkm_post():
         """jkm_post main function.
 
             Arguments:
-            logging_level_file - 
-            logging_level_stream -  
+            logging_level_file - log file logging level (typically logging.DEBUG or logging.INFO)
+            logging_level_stream - console/external logging level.
             threadpool - a thread pool. GUI implementations should provide a GUI-save version
             ext - a even handler object. 
             """
-        self.ext = ext # hooks for an external event handler (like a GUI)
-        self.threadpool = threadpool
-        # Set loggers in all modules
-        log = self.init_logging(logging_level_file, logging_level_stream)
-        log.info(f"STARTING NEW SESSION of {jkm.meta.nameversion}") # We having logging set up
-        if jkm.ai.TESTING_BYPASS_AI_CALL:
-            log.warning("*******AI BYPASS TESTING MODE IS ON*******")
-        # Read config file name from sys.argv and parse the file
         try: 
+            self.ext = ext # hooks for an external event handler (like a GUI)
+            self.threadpool = threadpool
+            # Set loggers in all modules
+            log = self.init_logging(logging_level_file, logging_level_stream)
+            log.info(f"STARTING NEW SESSION of {jkm.meta.nameversion}") # We having logging set up
+            # Read config file name from sys.argv and parse the file
             conf:type_conf = jkm.configfile.load(jkm.meta.name)
             self.verify_conf(conf) # Check that config has basic data needed to run
             datafile_patterns = conf.getlist("data", "sample_pattern")
-
-            if conf.getb("postprocessor", "process_existing"):            
-                for fn in find_existing_events(conf):
-                    self.urlqueue.put(fn)
-                log.info(f"Approximate number of sample events to process at launch is {self.urlqueue.qsize()}")
-            
+            # Set some behaviour-controlling variables
+            jkm.ai.TESTING_BYPASS_AI_CALL = conf.getb("internal","bypass_AI", default = False)
+            if jkm.ai.TESTING_BYPASS_AI_CALL:
+                log.warning("*******AI BYPASS TESTING MODE IS ON*******")
+            N_WORKER_THREADS = conf.geti("internal","n_threads", default = 17)
             if conf.getb("task", "labeldata_to_CSV", default = False):
                 self.spreadsheet = self.init_spreadsheet(conf)
 
@@ -509,9 +505,15 @@ class jkm_post():
                 # Reads keys if needed, verifies conf for chosen method. Raises jkm.errors.AIError on failure
                 self.init_AI_auth(conf) 
 
+            # Should be process existing data ?
+            if conf.getb("postprocessor", "process_existing"):            
+                for fn in find_existing_events(conf):
+                    self.urlqueue.put(fn)
+                log.info(f"Approximate number of sample events to process at launch is {self.urlqueue.qsize()}")
+            
             # Create worker threads for handlinf Sample processing requests
             wait_after_sample_s = conf.getf("postprocessor", "sleep_after_new_sample_detected")
-            for i in range(_num_worker_threads):
+            for i in range(N_WORKER_THREADS):
                 self.threadpool.newthread( target = self.processSampleEvents,
                                       args = (self.urlqueue,conf, wait_after_sample_s, self.spreadsheet) )
             #Start loops looking for data to process and processing it
