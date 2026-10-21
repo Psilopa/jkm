@@ -121,28 +121,28 @@ def img_from_url(url: str,
     if not downloader:
         raise FileLoadingError(f"Resource {url} is not local and we have no provided way to download it.")
     # Try to use the provided downloader
-    content = downloader(url) # Should return a raw byte array
+    content = downloader(url, *dlargs, **dlkwords) # Should return a raw byte array
     if content is None: 
         raise FileLoadingError(f"Could not download file {url}.")
     arr = np.asarray(bytearray(content), dtype=np.uint8)
     return cv2.imdecode(arr, -1) # 'Load it as it is'
 
     
-def load_img(image: str|Path|io.IOBase) -> type_image | None: 
+def load_img(image: str|Path|io.IOBase|type_image) -> type_image | None: 
     """Loads an image (as a cv2 image) from a variety of sources.
 
     Accept
+    - a string
     - a Path
     - a IOBase stream (which is treated as an opened file with image data
-    - 
-    an image type
+    - an numpy array (=a cv2 image in Python)
     """
     # Todo: add better Error handling (catch SystemError from and convert from FileError or like)
     if isinstance(image, Path): return img_from_file(image)
     elif isinstance(image, str): # Can be a path or a uri
         try:
             if Path(image).exists(): img_from_file(image) 
-        except FileLoadingError: pass # Continue on failure to read as path
+        except FileLoadingError: pass # Not a Path. 
         imgstr = image.strip()
         if validators.url( imgstr ):  # Should be a valid URL as-is
             return img_from_url( imgstr )
