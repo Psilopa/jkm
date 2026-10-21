@@ -1,11 +1,11 @@
 [spreadsheet]
 format = "csv" # Only format currently supported
-#filename = "Z:/juhis_previews_set2_TEST/juhis_isot2_ai_data_raw.csv"
-filename = "/home/kahanpaa/projects/_videostill/ai_data_raw.csv"
+#filename = 'Z:/juhis_previews_set2_TEST/juhis_isot2_ai_data_raw.csv'
+filename = '/home/kahanpaa/projects/_videostill/ai_data_raw.csv'
 write_raw_output  = true
 
 [data] # Which file type identifies a record?
-main_data_directory = "/home/kahanpaa/projects/_videostill/"
+main_data_directory = '/home/kahanpaa/projects/_videostill/'
 # Currently available value for the Datatype to load
 # DIR_CONTENT = read a directory, treat each image matching recognize_by_filename_pattern as a new sample
 # SUBDIRECTORIES = read a directory, treat subdirectory (with 0+ images) as a new sample
@@ -68,14 +68,14 @@ properties_filename = "" # String - leave empty for no output
 # Authentication to Google Cloud services
 auth_type = "APIKEY" # APIKEY, LOCAL_OAUTH or CLOUD_OAUTH
 # Settings for API KEY auth
-APIkeyfile = "/home/kahanpaa/GEMINI_APIKEY"
+APIkeyfile = '/home/kahanpaa/GEMINI_APIKEY'
 #APIkeyfile = "Z:/APIKEYS/GEMINI_APIKEY.txt"
 # Google Cloud API settings (LOCAL_OAUTH and CLOUD_OAUTH)
 google_location = "global"
 google_project_id = "gen-lang-client-0404401598"
 # Settings LOCAL_OAUTH: OAUTH2 authentication without Google's Gcloud tool
-app_token_path = "Z:/ADC/jkm_token.json" # Should be readable
-tmp_token_path = "Z:/ADC/temptoken.json" # Should be writeable
+app_token_path = 'Z:/ADC/jkm_token.json' # Should be readable
+tmp_token_path = 'Z:/ADC/temptoken.json' # Should be writeable
 
 [meta]
 copyright_owner = "Luomus" # Written into JSON metadata files only

@@ -1,11 +1,10 @@
 [spreadsheet]
 format = "csv" # Only format currently supported
-filename = "C:/Insect_APPs/labeldata/ai_labeldata.csv"
+filename = 'C:/Insect_APPs/labeldata/ai_labeldata.csv'
 #write_raw_output  = false
 
 [data] # Which file type identifies a record?
-#main_data_directory = "/home/kahanpaa/projects/_videostill/"
-main_data_directory = "C:/Insect_APPs/data"
+main_data_directory = 'C:/Insect_APPs/data'
 # CURRENTLY AVAILABLE OPTIONS = MZH_INSECTLINE, MZH_PLANTLINE, DIR_CONTENT, SUBDIRECTORIES
 # DIR_CONTENT = read a directory, treat each image matching recognize_by_filename_pattern as a new sample
 # SUBDIRECTORIES = read a directory, treat subdirectory (with 0+ images) as a new sample
@@ -62,14 +61,13 @@ properties_filename = "" # String - leave empty for no output
 # Authentication to Google Cloud services
 auth_type = "LOCAL_OAUTH" # APIKEY, LOCAL_OAUTH or CLOUD_OAUTH
 # Settings for API KEY auth
-#APIkeyfile = "/home/kahanpaa/GEMINI_APIKEY"
-APIkeyfile = "Z:/APIKEYS/GEMINI_APIKEY.txt"
+APIkeyfile = 'Z:/APIKEYS/GEMINI_APIKEY.txt'
 # Google Cloud API settings (LOCAL_OAUTH and CLOUD_OAUTH)
 google_location = "global"
 google_project_id = "gen-lang-client-0404401598"
 # Settings LOCAL_OAUTH: OAUTH2 authentication without Google's Gcloud tool
-app_token_path = "C:/Insect_APPs/ACT/jkm_token.json" # Should be readable
-tmp_token_path = "C:/Insect_APPs/ACT/temptoken.json" # Should be writeable
+app_token_path = 'C:/Insect_APPs/ACT/jkm_token.json' # Should be readable
+tmp_token_path = 'C:/Insect_APPs/ACT/temptoken.json' # Should be writeable
 
 # Setting for the barcode recognition tool
 [barcodes]
