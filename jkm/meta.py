@@ -1,4 +1,4 @@
-import toml
+import tomllib
 from pathlib import Path
 #from importlib.metadata import version
 # TODO: PARSE FROM pyproject.toml
@@ -8,7 +8,8 @@ class MetaError(Exception): pass
 
 try:
     # TODO: should fail with an exception
-    meta = toml.load(pyproject_toml_file)
+    with pyproject_toml_file.open("rb") as f:
+        meta = toml.load(f)
 
     # Assumes these exist
     name = meta['project']['name']

@@ -99,6 +99,10 @@ secondary_from_ocr = false # true of false - Attempt reading specimen ID from th
 barcodepackage = "pyzbar" # qreader or pyzbar - Python qr package used
 # TODO: barcode type list
 
+[internal]
+n_threads = 1		# Number of parallel threads. If using AI, bertter keep this at 1. For fast turnaround, a few would be ideal
+bypass_AI = false	# true or false. It true, uses internal test output, faking the AI output for testing speed and resource use.
+
 # Setting for the OCR tool
 #[ocr]
 # OCR engine program location
