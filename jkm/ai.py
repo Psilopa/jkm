@@ -51,7 +51,6 @@ _IMAGE_TRANSFER_UPLOAD:int = 1
 _IMAGE_TRANSFER_INLINE:int = 2
 _TEST_PROMPT = "There images are all of the same object. Find text in the images. Reply with JSON only, fitting the data into the following variables: collector, date, locality, identifier, and notes."
 AI_FAILURE_RETURN_VALUE = 'null'
-_AI_GEMINI_TIMEOUT:int = 10 * 1000 # 10 seconds
 
 def load_apikey(fp:Path):
     "Read content from a file."
@@ -210,6 +209,7 @@ class geminiAI(): # Make subclasses based on authentication method
         else:
             # Create AI client
             log.debug("Create client")
+            log.debug(r"AI client HTTP call timeout set to {timeout}.")
             if  timeout: httpopts = HttpOptions(timeout=timeout)      
             else: httpopts = HttpOptions()
             self.client = self._create_client(httpopts)
