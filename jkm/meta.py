@@ -9,7 +9,7 @@ class MetaError(Exception): pass
 try:
     # TODO: should fail with an exception
     with pyproject_toml_file.open("rb") as f:
-        meta = toml.load(f)
+        meta = tomllib.load(f)
 
     # Assumes these exist
     name = meta['project']['name']
