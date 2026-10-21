@@ -23,6 +23,7 @@ def defaultdownloader(url: type_url,
             headers=IMAGE_REQUEST_HEADERS,
             timeout=timeout,
         )
+        log.debug(f"Defaultdownloader: response statuscode: {image_response.status_code} and text {status_code.text}")
         image_response.raise_for_status()
         return bytes(image_response.content) # Return raw data
     except requests.RequestException as exc:
