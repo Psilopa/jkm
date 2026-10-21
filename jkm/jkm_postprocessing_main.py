@@ -66,7 +66,9 @@ class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
         super().__init__(**kwargs)
     def on_created(self:Self, event: watchdog.events.FileSystemEvent) -> None:
         """Queues path names when a new filesystem event is noticed."""
-        if event.src_path != self._lastinsert: self.queue.put(event.src_path)
+        if event.src_path != self._lastinsert: 
+            url = jkm.tools.path2url( Path(event.src_path) )             
+            self.queue.put(url)
         else: log.debug(f"Prevented double insertion of {event.src_path} into the queue")
         self._lastinsert = event.src_path        
 
@@ -335,7 +337,8 @@ class jkm_post():
         allbarcodes = []
         try:
             # If local, checks that it the path exists
-            jkm.tools.is_existing_path( sourceurl ) 
+            jkm.tools.is_existing_path( sourceurl ) # Raises an FileLoadingError on failure
+                            
             # Try to recognise input file/directory format
             sample_format = conf.get("data", "datatype_to_load")        
             sample_class = get_sample_class( sample_format.lower() )
@@ -491,7 +494,10 @@ class jkm_post():
             log = self.init_logging(logging_level_file, logging_level_stream)
             log.info(f"STARTING NEW SESSION of {jkm.meta.nameversion}") # We having logging set up
             # Read config file name from sys.argv and parse the file
-            conf:type_conf = jkm.configfile.load(jkm.meta.name)
+            (conf, _DEBUG) = jkm.configfile.load(jkm.meta.name)
+            if _DEBUG: # re-init logging
+                log = self.init_logging(logging.DEBUG, logging.DEBUG)
+                
             self.verify_conf(conf) # Check that config has basic data needed to run
             datafile_patterns = conf.getlist("data", "sample_pattern")
             # Set some behaviour-controlling variables

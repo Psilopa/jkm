@@ -510,8 +510,9 @@ class SubDirectorySample(LuomusLineSample):
         super().__init__(time)
     @staticmethod
     def from_directory(url:type_url, conf):
+        # First, url is the trigger file, not the directory!
         "Create a ImageDirectorySample from a url pointing to a directory name."
-        log.debug("Creating sample data from directory with images and jkm config file metadata.") 
+        log.debug(f"Creating sample data from directory {url}.") 
         # Use directory as default name for this Sample
         dirpath = jkm.tools.url2path( url )
         # Extract creating time from directory name 

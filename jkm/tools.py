@@ -207,7 +207,7 @@ def safecopy(orig_path: Path, target_path: Path, overwrite:bool = True) -> bool:
 def unique(s: list|tuple) ->tuple :return tuple(set(s))
 
 #  ---------------- URL to Path conversions ------------------
-def path2url(fpath: Path) -> str:
+def path2url(fpath: Path) -> str:    
     return fpath.as_uri() # THIS IS DEPRECATED
 #    return urllib.request.pathname2url( str(fpath) ) 
 
