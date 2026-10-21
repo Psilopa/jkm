@@ -68,6 +68,7 @@ google_project_id = "gen-lang-client-0404401598"
 # Settings LOCAL_OAUTH: OAUTH2 authentication without Google's Gcloud tool
 app_token_path = 'C:/Insect_APPs/ACT/jkm_token.json' # Should be readable
 tmp_token_path = 'C:/Insect_APPs/ACT/temptoken.json' # Should be writeable
+request_timeout = 10000 # AI request timeout in milliseconds
 
 # Setting for the barcode recognition tool
 [barcodes]

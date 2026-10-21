@@ -48,6 +48,8 @@ labeldata_to_CSV = true # false or true: will be ignored if no label data extrac
 # OTHER DATA
 save_JSON = false # false or true  
 write_postprocessor_report_file = true
+request_timeout = 10000 # AI request timeout in milliseconds
+
 
 # IMAGE CHANGE TASKS
 [task.image]

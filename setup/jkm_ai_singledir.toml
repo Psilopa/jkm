@@ -76,6 +76,8 @@ google_project_id = "gen-lang-client-0404401598"
 # Settings LOCAL_OAUTH: OAUTH2 authentication without Google's Gcloud tool
 app_token_path = 'Z:/ADC/jkm_token.json' # Should be readable
 tmp_token_path = 'Z:/ADC/temptoken.json' # Should be writeable
+request_timeout = 10000 # AI request timeout in milliseconds
+
 
 [meta]
 copyright_owner = "Luomus" # Written into JSON metadata files only

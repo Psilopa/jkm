@@ -12,7 +12,7 @@ main_data_directory = 'C:\LocalData\jkahanpa\jkm\DOC'
 # RESOURCEFILE = Read a list of URIs or paths from a file
 # MZH* = FInnish Museum of Natural History -specific modes
 datatype_to_load = "RESOURCEFILE" 
-sample_pattern = ["target_url_list_example.txt"] # List - Trigger pattern(s) that leads to a sample processing event
+sample_pattern = ["../DOC/target_url_list_example.txt"] # List - Trigger pattern(s) that leads to a sample processing event
 image_name_pattern = ["*.jpg"] # For Sample types where several images can be loaded
 label_file = "Preview002.jpg" # Files with this name pattern are treated as files with labels
 object_files = ["Preview001.jpg"] # Files with this name pattern are treated as files with specimens (if both match, treated as combined)
@@ -68,14 +68,15 @@ properties_filename = "" # String - leave empty for no output
 # Authentication to Google Cloud services
 auth_type = "APIKEY" # APIKEY, LOCAL_OAUTH or CLOUD_OAUTH
 # Settings for API KEY auth
-APIkeyfile = '/home/kahanpaa/GEMINI_APIKEY'
-#APIkeyfile = 'Z:/APIKEYS/GEMINI_APIKEY.txt'
+#APIkeyfile = '/home/kahanpaa/GEMINI_APIKEY'
+APIkeyfile = 'Z:/APIKEYS/GEMINI_APIKEY.txt'
 # Google Cloud API settings (LOCAL_OAUTH and CLOUD_OAUTH)
 google_location = "global"
 google_project_id = "gen-lang-client-0404401598"
 # Settings LOCAL_OAUTH: OAUTH2 authentication without Google's Gcloud tool
 app_token_path = 'Z:/ADC/jkm_token.json' # Should be readable
 tmp_token_path = 'Z:/ADC/temptoken.json' # Should be writeable
+request_timeout = 10000 # AI request timeout in milliseconds
 
 [meta]
 copyright_owner = "Luomus" # Written into JSON metadata files only
