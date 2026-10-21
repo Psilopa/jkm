@@ -70,12 +70,12 @@ class SampleEvent(SampleBase,  abc.ABC):
     @property
     def shortidentifier(self:Self) -> str|None:  return self._shortidentifier
     @property 
-    def imagelist(self, labels:list[str]=[]) -> Generator[SampleImageBase,None,None]:  
+    def imagelist(self, labels:list[str]=[]) -> tuple(SampleImageBase,...):  
         if not labels: 
-            return (x for x in self._imagelist)
+            return tuple(x for x in self._imagelist)
         else: 
             #Only return images with certain labels
-            return (x for x in self._imagelist if x.label in labels)
+            return tuple(x for x in self._imagelist if x.label in labels)
 #    @property
 #    def filelist(self:Self):
 #        # INCOMPLETE IMPLEMENTATION, ONLY IMAGE FILES
@@ -366,13 +366,54 @@ class SingleImageSample(SampleEvent):
         separator = r'/'
         return x.split(separator)[-1] # Last element
 #------------------------------------------------------------------------------------------------------    
-class LuomusLineSample(SampleEvent): 
+class DirectorySample(SampleEvent): 
     supports_rename_files = True    
     supports_rename_directories = True    
     allowed_url_domains = ["http://tun.fi/", "http://id.luomus.fi/",""]
     def __init__(self,  time:datetime|None=None) :
         super().__init__(time)
         self.digipropfile = DigipropFile() 
+    @staticmethod
+    def _createsample(url:type_url,SampleClass):
+        triggerfile = jkm.tools.url2path( url )
+        # First, url is the trigger file, not the directory!
+        dirpath = triggerfile.parent
+        # Extract creating time from directory name 
+        itime = getFileCreationDateTime(dirpath)
+        s = SampleClass( time = itime )
+        s.name = f"{type(s).__name__} ({dirpath})" # Set name to class(directory)
+        s.datapath = dirpath
+        s.prefix = dirpath
+        return s
+    @staticmethod
+    def _createimages(datapath:Path, patterns:list[str], ImageClass) -> list[SampleImage]:
+        imagefilepaths = []
+        for pattern in patterns:
+            foundpaths = [Path(x) for x in datapath.glob(pattern)]
+            imagefilepaths.extend( foundpaths)
+        imagefileurls = [jkm.tools.path2url(path) for path in imagefilepaths]
+        # TODO: get object descriptions from config (already there, but unused)
+        object_descriptions = [f"Image file {url}" for url in imagefileurls]
+        # We do not know if these are sample or label images
+        imagelist = []
+        for fileurl, filename in zip(imagefileurls, object_descriptions):
+            img = CombinedImage(filename, fileurl)
+            imagelist.append(img)
+        return imagelist       
+    @staticmethod
+    def from_directory(url:type_url, conf:type_conf) -> DirectorySample:
+        """Directory URL (file:///...) to sample object."""
+        log.debug(f"Creating sample data from directory {url}.")
+        s = DirectorySample._createsample(url, DirectorySample)
+#        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
+        # Load all images found, treating them as combined label/specimen images
+        imgsearchpatterns = conf.getlist("data","image_name_pattern")
+        imagelist = DirectorySample._createimages( s.datapath,
+                                                    imgsearchpatterns,
+                                                    CombinedImage ) 
+        for img in imagelist: s.addImage(img)
+        log.debug(f"Created a DirectorySample with {len(s.imagelist)} images.")
+        return s             
     def _grab_identifier_prefix(self, ident:str|None) -> str|None:
         # everything up to the last. Inelefant
         if (not ident) or (not "/" in ident): return ""
@@ -445,95 +486,45 @@ class LuomusLineSample(SampleEvent):
             log.warning( f"Saving a properties file failed with error message: {msg}" )
 
 #------------------------------------------------------------------------------------------------------    
-class LuomusPlantLineSample(LuomusLineSample): 
+class LuomusPlantLineSample(DirectorySample): 
 # Inherits the specific rename function. Might want to reimplement it here more generally
     def __init__(self,  time:datetime|None=None):
         super().__init__(time)
     @staticmethod    
-    def from_directory(dirurl: type_url, conf:type_conf) -> LuomusPlantLineSample: 
-        """Create a Sample object from a directory path with files like those created by the Luomus Plant Imaging Line.
-    
-arguments: 
-    dirpath = a Path instance pointing to the directory containing the data files
-    conf = a JKM configuration data instance
-"""
-        # Most code shared with MZHInsectLineSample!
-        log.debug("Creating sample data from JPEG image and jkm config file metadata") 
-        # Does not currently read digitization.propersies or the XML file
-        dirpath = jkm.tools.url2path(dirurl)
-        filepath = dirpath / Path(conf.get("sampleformat", "label_file"))
-        # Extract creating time from JPG and use it as the Sample event time        
-        itime = getFileCreationDateTime(filepath)
-        s = LuomusPlantLineSample( time = itime )
+    def from_directory(url: type_url, conf:type_conf) -> LuomusPlantLineSample: 
+        """Directory URL (file:///...) to sample object."""
+        # Slightly modified version of the parent one
+        s = LuomusPlantLineSample._createsample(url, LuomusPlantLineSample)
         s.copyMetadatafFomConf(conf, no_new_directiories=True)
-        s.datapath = dirpath
-        s.name = f"{dirpath.name}"        
-        s.prefix = dirpath
-        # Load image (just one on plant line)
+        # Load image (just one on plant line) TODO: Logic here is not very ideal
         title = conf.get("data", "label_title")
+        filepath = s.datapath / Path(conf.get("sampleformat", "label_file"))
         image = CombinedImage(title, jkm.tools.path2url(filepath))
         s.addImage(image)
+        log.debug(f"Created a LuomusPlantLineSample with {len(s.imagelist)} images.")
         return s           
 #------------------------------------------------------------------------------------------------------            
-class LuomusInsectLineSample(LuomusLineSample): 
+class LuomusInsectLineSample(DirectorySample): 
     def __init__(self,  time:datetime|None=None):
         super().__init__(time)
     @staticmethod
-    def from_directory(dirurl:type_url, conf:type_conf) -> LuomusInsectLineSample: 
-        dirpath = jkm.tools.url2path(dirurl)
-        log.debug("Creating sample data from JPEG image and jkm config file metadata") 
-        # Does not currently read digitization.propersies or the XML file
-        labelpath = dirpath / Path(conf.get("data", "label_file"))
-        # Extract creating time from JPG and use it as the Sample event time        
-        itime = getFileCreationDateTime(labelpath)
-        s = LuomusInsectLineSample( time = itime )
-        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
-        s.datapath = dirpath
-        s.name = f"{dirpath.name}"        
-        s.prefix = dirpath
-        #Load label image
-        label_title = conf.get("data", "label_title")
-        labelimage = LabelImage(label_title, url = jkm.tools.path2url(labelpath))
-        s.addImage(labelimage)
-        #Load object (insect/plant) images
-        objectfiles = conf.getlist("data", "object_files")
-        object_titles = conf.getlist("data", "object_titles")
-        objectfilepaths= [dirpath / Path(x) for x in objectfiles]
-        for fpath, fname in zip(objectfilepaths, object_titles):
-            s.addImage( SpecimenImage(fname, jkm.tools.path2url(fpath)  ) )
-        return s             
-#------------------------------------------------------------------------------------------------------    
-class SubDirectorySample(LuomusLineSample): 
-    supports_rename_files = True # Should really check the Image objects
-    supports_rename_directories = True    
-    def __init__(self,  time:datetime|None=None):
-        super().__init__(time)
-    @staticmethod
-    def from_directory(url:type_url, conf):
-        # First, url is the trigger file, not the directory!
-        "Create a ImageDirectorySample from a url pointing to a directory name."
-        log.debug(f"Creating sample data from directory {url}.") 
-        # Use directory as default name for this Sample
-        dirpath = jkm.tools.url2path( url )
-        # Extract creating time from directory name 
-        itime = getFileCreationDateTime(dirpath)
-        s = SubDirectorySample( time = itime )
-        s.name = f"{type(s).__name__} ({url})" 
-        s.datapath = dirpath
-        s.prefix = dirpath
-#        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
-        # Load all images found, treating them as combined label/specimen images
-        objectfilepaths = []
-        for pattern in conf.getlist("data","image_name_pattern"):
-            foundpaths = [Path(x) for x in dirpath.glob(pattern)]
-            objectfilepaths.extend( foundpaths)
-        objectfileurls = [jkm.tools.path2url(path) for path in objectfilepaths]
-        object_titles = [f"Image file {url}" for url in objectfileurls]
-        # We do not know if these are sample or label images 
-        for fileurl, filename in zip(objectfileurls, object_titles):
-            img = CombinedImage(filename, fileurl)
-            s.addImage(img)
-        return s             
+    def from_directory(url:type_url, conf:type_conf) -> LuomusInsectLineSample: 
+        # Slightly modified version of the parent one
+        s = DirectorySample._createsample(url, LuomusInsectLineSample)
+        s.copyMetadatafFomConf(conf, no_new_directiories=True)
+        # Load image (two+ on the insect line) TODO: Logic here is not very ideal
+        # Load label image
+        title = conf.get("data", "label_title")
+        filepath = s.datapath / Path(conf.get("sampleformat", "label_file"))
+        image = LabelImage(title, jkm.tools.path2url(filepath))
+        s.addImage(image)        
+        # Load specimen images
+        imagelist = DirectorySample._createimages( s.datapath,
+                                                   conf.getlist("data","object_files"),
+                                                   SpecimenImage ) 
+        for img in imagelist: s.addImage(img)
+        log.debug(f"Created a LuomusInsectLineSample with {len(s.imagelist)} images.")
+        return s           
 #------------------------------------------------------------------------------------------------------    
 class FileRowSample(SingleImageSample): 
     def __init__(self,  time:datetime|None = None):

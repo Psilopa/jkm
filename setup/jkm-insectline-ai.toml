@@ -12,10 +12,11 @@ main_data_directory = 'C:/Insect_APPs/data'
 # MZH* = FInnish Museum of Natural History -specific modes
 datatype_to_load = "DIR_CONTENT" 
 sample_pattern = ["*.jpg"] # List - Trigger pattern(s) that leads to a sample processing event
-image_name_pattern = ["*.jpg"] # For Sample types where several images can be loaded
+image_name_pattern = ["*.jpg"] # List - For Sample types where several images can be loaded
+# For MZH Line type patterns with separate image and label images
 label_file = "Preview002.jpg" # Files with this name pattern are treated as files with labels
-object_files = ["Preview001.jpg"] # Files with this name pattern are treated as files with specimens (if both match, treated as combined)
 label_title = "specimens_and_labels" # Written into metadata only
+object_files = ["Preview001.jpg"] # Files with this name pattern are treated as files with specimens (if both match, treated as combined)
 object_titles = ["habitus1"] # Written into metadata only
 
 [postprocessor]

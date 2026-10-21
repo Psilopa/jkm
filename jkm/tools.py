@@ -6,7 +6,8 @@ import numpy as np
 import cv2
 from jkm.downloader import defaultdownloader
 from jkm.errors import FileLoadingError
-from urllib.parse import urlparse, ParseResult
+from urllib.parse import urlparse, ParseResult, unquote
+import urllib.request
 log = logging.getLogger() # Overwrite if needed
 # For typing
 from jkm.typing import *
@@ -116,7 +117,8 @@ def img_from_url(url: str,
     """
     parsed_url: ParseResult = urlparse(url)
     if parsed_url.scheme == 'file':
-        return img_from_file(parsed_url.path)
+        clean_pathstr = unquote(parsed_url.path) # Handle de-encoding URL spaces etc.
+        return img_from_file( clean_pathstr )
     # OK, this is not a local file...
     if not downloader:
         raise FileLoadingError(f"Resource {url} is not local and we have no provided way to download it.")
@@ -212,5 +214,5 @@ def path2url(fpath: Path) -> str:
 #    return urllib.request.pathname2url( str(fpath) ) 
 
 def url2path(url: str) -> Path:
-    return Path.from_uri(url) # Added in version 3.13.
-#    return Path( urllib.request.url2pathname(url) )
+    p1 = urllib.request.url2pathname( url ) # Handles %20 unlike url.from_uri()
+    return  Path.from_uri(p1)

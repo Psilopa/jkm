@@ -49,7 +49,7 @@ class myThreadPool():
 def get_sample_class(sample_format_str:str) -> type_sample:
     str2class = {
         "dir_content":  jkm.sample.SingleImageSample,  # Every matching image in a directory (incl subdirs) = a sample
-        "subdirectories":  jkm.sample.SubDirectorySample, # For each directory, all images = a sample
+        "subdirectories":  jkm.sample.DirectorySample, # For each directory, all images = a sample
         "resourcefile":  jkm.sample.FileRowSample,  # 1 row = 1 sample
         "mzh_insectline" : jkm.sample.LuomusInsectLineSample,
         "mzh_plantline":  jkm.sample.LuomusPlantLineSample,
@@ -344,7 +344,7 @@ class jkm_post():
             sample_class = get_sample_class( sample_format.lower() )
             if sample_class in (jkm.sample.LuomusInsectLineSample,
                                 jkm.sample.LuomusPlantLineSample,
-                                jkm.sample.SubDirectorySample,
+                                jkm.sample.DirectorySample,
                                 ): 
                 jkm.tools.is_existing_path( sourceurl ) 
                 sample = sample_class.from_directory(sourceurl, conf)
