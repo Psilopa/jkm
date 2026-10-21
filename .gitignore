@@ -20,3 +20,5 @@ env/
 .env/
 jkm-post.log
 jkm.log
+jkm_insectline_*.bat
+jkm_singlerun.bat
