@@ -1,5 +1,5 @@
 chcp 65001 
-python.exe installer_paikkain.py
+python.exe installer_jkm.py
 @echo off
 set /p id="Enter to quit"
 
