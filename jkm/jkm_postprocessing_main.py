@@ -190,9 +190,10 @@ def task_rename_directories(conf:type_conf, sample:type_sample, sleep_before:int
             log.warning(f"{sample.name}: Renaming directory failed, original directory does not exist anymore: {msg}")                
             break # Exit the while loop 
         except PermissionError as msg:                
-            log.warning(f"No write access: {msg}. \nWill attempt again in {wait_time} seconds {attempt_times-attempt_current} times.")                    
-            attempt_current += 1
-            time.sleep(wait_time)
+            log.warning(f"No write access: {msg}. \nWill attempt again in {wait_time} seconds {attempt_times-attempt_current} times.")
+        # If loop was not interrupted by break above
+        attempt_current += 1
+        time.sleep(wait_time)
 
 def task_rotate(sample:type_sample, degrees:int, allowed_values:Collection|None = None) -> None:
     if allowed_values and (degrees not in allowed_values):
