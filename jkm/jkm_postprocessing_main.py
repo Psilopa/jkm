@@ -338,7 +338,7 @@ class jkm_post():
         allbarcodes = []
         try:
             # If local, checks that it the path exists
-            jkm.tools.is_existing_path( sourceurl ) # Raises an FileLoadingError on failure
+            # jkm.tools.as_existing_path( sourceurl ) # Raises an FileLoadingError on failure
                             
             # Try to recognise input file/directory format
             sample_format = conf.get("data", "datatype_to_load")        
@@ -347,7 +347,7 @@ class jkm_post():
                                 jkm.sample.LuomusPlantLineSample,
                                 jkm.sample.DirectorySample,
                                 ): 
-                jkm.tools.is_existing_path( sourceurl ) 
+                jkm.tools.as_existing_path( sourceurl )  # FileLoadingError on failure
                 sample = sample_class.from_directory(sourceurl, conf)
             elif sample_class in (jkm.sample.SingleImageSample,
                                   jkm.sample.FileRowSample):

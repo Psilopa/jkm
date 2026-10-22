@@ -12,17 +12,22 @@ log = logging.getLogger() # Overwrite if needed
 # For typing
 from jkm.typing import *
 
-def is_existing_path(url: type_url) -> None: 
-    "Verify that this url, if a local file url, corresponds to an accessible path"
+def as_existing_path(url: type_url) -> Path|None: 
+    """Verify that this url, if a local file url, corresponds to an accessible path.
+
+    Returns a Path on success. Raises a FileLoadingError on failure. """
     try:
-        filepath: Path = url2path( url )
-    except ValueError: return # Can't validate this
-    dirpath: Path = filepath.parent
+        filepath = url2path( url )
+    except ValueError:
+        raise FileLoadingError(f"Turning {url} into a Path failed.") 
     # Catch some error states
-    if not dirpath.is_dir():                
+    dirpath: Path = filepath.parent
+    if not dirpath.is_dir(): 
         raise FileLoadingError(f"Cannot find directory {dirpath}.")
     if not filepath.exists():
         raise FileLoadingError(f"Could not find file {filepath}.")
+    return filepath
+    
 
 def list2printvalues( mylist: Collection[dict] )-> str:
     "Prettyprints the values from a list of dictionaries."
@@ -234,5 +239,5 @@ def isValidXMLChar(char):
          0xE000 <= codepoint <= 0xFFFD or \
          0x10000 <= codepoint <= 0x10FFFF
 
-def filterInvalidXMLChars(input):
-    return filter(isValidXMLChar, input)
+def valid_xml_string(intext):
+    return "".join(filter(isValidXMLChar, intext))

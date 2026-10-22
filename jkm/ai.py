@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import sys
 import  logging,  json, os, base64, tempfile
 import  mimetypes  # mime type based on file URL
 from pathlib import Path
@@ -236,8 +237,10 @@ class geminiAI(): # Make subclasses based on authentication method
         # XML valid
         XML_VALID_CHARS_ONLY = True # THIS SHOULD COME FROM CONF
         if XML_VALID_CHARS_ONLY:
-            text_output = jkm.tools.filterInvalidXMLChars(text_output)
-            raw = jkm.tools.filterInvalidXMLChars(raw)
+            text_output = jkm.tools.valid_xml_string(text_output)
+            print(text_output)
+            raw = jkm.tools.valid_xml_string(raw)
+            sys.exit()
         # See https://www.w3.org/TR/xml11/?utm_source=chatgpt.com#charsets
         aioutput.from_text( text_output,
                             schema = labeldata_model.LabelData ) # Tries parsing the text as JSON
@@ -302,19 +305,16 @@ class geminiAI(): # Make subclasses based on authentication method
         assert max_dim >= 0
         # img_blocks should contain dictionaries corresponding to JSON HTTP blocks
         img_blocks = []
-        recognised = False
         for url in imageurls:
             log.debug(f"Trying to classify {url} as a local path or online resource.")
-            try: 
-                fpath = jkm.tools.url2path(url) 
-                if fpath.exists(): # This is a local file
-                    recognised = True
-                    img_blocks.append( self._handle_local_file(fpath, max_dim) )                    
-                    log.debug(f"\t a local resource.")
-            except ValueError: pass
-            # Local a local path .. try treating it as an online resource
-            log.debug(f"\t an online resource.")            
-            img_blocks.append( self._handle_nonlocal_file(url) ) 
+            try:
+                fpath = jkm.tools.as_existing_path(url) # FileLoadingError on error.
+                img_blocks.append( self._handle_local_file(fpath, max_dim) )                    
+                log.debug(f"\t a local resource.")
+            except FileLoadingError: 
+                # Not a local path .. try treating it as an online resource
+                log.debug(f"\t an online resource.")            
+                img_blocks.append( self._handle_nonlocal_file(url) )
         return img_blocks
     
 # APIKEY security solution.    
