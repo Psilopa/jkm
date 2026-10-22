@@ -26,7 +26,7 @@ sleep_before_renaming = 7 # integer, seconds - Wait before directory renaming to
 ## rotation, clockwise, in degrees, allowed values  = 0, 90, 180 or 270
 filename_timestamp_format = "%Y%m%d_%Hh%Mm%Ss"
 
-[tasks]
+[task]
 # FILE AND DIRECTORY NAMING AND MOVING TASKS
 create_directories = false # false or true
 files_rename_by_barcode_id = false # false or true

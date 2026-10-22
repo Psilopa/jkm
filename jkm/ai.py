@@ -236,11 +236,11 @@ class geminiAI(): # Make subclasses based on authentication method
         # XML valid
         XML_VALID_CHARS_ONLY = True # THIS SHOULD COME FROM CONF
         if XML_VALID_CHARS_ONLY:
-        text_output = jkm.tools.filterInvalidXMLChars(text_output)
-        raw = jkm.tools.filterInvalidXMLChars(raw)
+            text_output = jkm.tools.filterInvalidXMLChars(text_output)
+            raw = jkm.tools.filterInvalidXMLChars(raw)
         # See https://www.w3.org/TR/xml11/?utm_source=chatgpt.com#charsets
-        aioutput.from_text( text_output
-                                   schema = labeldata_model.LabelData ) # Tries parsing the text as JSON
+        aioutput.from_text( text_output,
+                            schema = labeldata_model.LabelData ) # Tries parsing the text as JSON
         aioutput.raw = raw
         return aioutput
     def _smallertempfile(self:Self, fpath:Path, image_max_dim:int, dir = None) :
