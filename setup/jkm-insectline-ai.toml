@@ -10,9 +10,9 @@ main_data_directory = 'C:/Insect_APPs/data'
 # DIR_CONTENT = read a directory, treat each image matching recognize_by_filename_pattern as a new sample
 # SUBDIRECTORIES = read a directory, treat subdirectory (with 0+ images) as a new sample
 # MZH* = FInnish Museum of Natural History -specific modes
-datatype_to_load = "DIR_CONTENT" 
-sample_pattern = ["*.jpg"] # List - Trigger pattern(s) that leads to a sample processing event
-image_name_pattern = ["*.jpg"] # List - For Sample types where several images can be loaded
+datatype_to_load = "MZH_INSECTLINE" 
+sample_pattern = ["digitisation.properties"] # List - Trigger pattern(s) that leads to a sample processing event
+image_name_pattern = ["Preview*.jpg"] # List - For Sample types where several images can be loaded
 # For MZH Line type patterns with separate image and label images
 label_file = "Preview002.jpg" # Files with this name pattern are treated as files with labels
 label_title = "specimens_and_labels" # Written into metadata only
@@ -35,8 +35,6 @@ image_editing_tasks = false
 create_directories = false # false or true
 files_rename_by_barcode_id = false # false or true
 directories_rename_by_barcode_id = true # false or true
-# IMAGE EDITING TASKS
-image_editing_tasks = true              
 #save_rotated = yes
 # DATA EXTRACTION TASKS
 read_barcodes = true # false or true - Read barcodes 
