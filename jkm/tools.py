@@ -214,8 +214,11 @@ def path2url(fpath: Path) -> str:
 #    return urllib.request.pathname2url( str(fpath) ) 
 
 def url2path(url: str) -> Path:
-    p1 = urllib.request.url2pathname( url ) # Handles %20 unlike url.from_uri()
-    return  Path.from_uri(p1)
+    # get path element from the URL
+    urlpath = urllib.parse.urlparse( url ).path # Can fail
+    # convert URL encoding (%20 for space etc.) back to originals
+    pathstr = urllib.request.url2pathname( urlpath ) 
+    return Path(pathstr)
 
 
 # ----- string to XML preparation ---------------
