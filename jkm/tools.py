@@ -115,11 +115,11 @@ def img_from_url(url: str,
     like this downloader(url, *dlargs, **dlkwords). This allows for custom
     downloaders for various data sources.
     """
-    parsed_url: ParseResult = urlparse(url)
-    if parsed_url.scheme == 'file':
-        clean_pathstr = unquote(parsed_url.path) # Handle de-encoding URL spaces etc.
-        return img_from_file( clean_pathstr )
-    # OK, this is not a local file...
+    try:
+        filepath = url2path(url)
+        return img_from_file( filepath )
+    except FileLoadingError as err:
+        pass # OK, this is not a local file...    
     if not downloader:
         raise FileLoadingError(f"Resource {url} is not local and we have no provided way to download it.")
     # Try to use the provided downloader
@@ -210,10 +210,12 @@ def unique(s: list|tuple) ->tuple :return tuple(set(s))
 
 #  ---------------- URL to Path conversions ------------------
 def path2url(fpath: Path) -> str:    
+    """Convert a Path to an URL."""
     return fpath.as_uri() # THIS IS DEPRECATED
 #    return urllib.request.pathname2url( str(fpath) ) 
 
 def url2path(url: str) -> Path:
+    """Convert an URL to a Path."""
     # get path element from the URL
     urlpath = urllib.parse.urlparse( url ).path # Can fail
     # convert URL encoding (%20 for space etc.) back to originals

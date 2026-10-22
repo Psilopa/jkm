@@ -91,19 +91,19 @@ class SampleEvent(SampleBase,  abc.ABC):
         log.info(f"Writing metadata to file {metafn}")
         with metafn.open("w",encoding="utf8") as metaf:
             metaf.write(str(self.encodeJSON()))
-    def copyMetadatafFomConf(self, configobject, no_new_directiories:bool=False) -> None:
-        cf = configobject
-        self.meta.add("Data owner", cf.get("meta","copyright_owner") )
-        self.meta.add("Operator", cf.get("meta","operator") )
-        self.meta.add("Free text", cf.get("meta","textline") )
-        self.meta.add("Timestamp", self.time)
-        self.prefix = Path(self.time.strftime(cf.get("postprocessor","filename_timestamp_format") ))
+#    def copyMetadatafFomConf(self, configobject, no_new_directiories:bool=False) -> None:
+#        cf = configobject
+#        self.meta.add("Data owner", cf.get("meta","copyright_owner") )
+#        self.meta.add("Operator", cf.get("meta","operator") )
+#        self.meta.add("Free text", cf.get("meta","textline") )
+#        self.meta.add("Timestamp", self.time)
+#        self.prefix = Path(self.time.strftime(cf.get("postprocessor","filename_timestamp_format") ))
 #        self.basepath = Path(cf.basepath)
-        self.datapath = Path(cf.basepath) 
-        if cf.getb("task","create_directories") and not no_new_directiories:
-            self.datapath = Path(cf.basepath) / self.prefix
-            log.info(f"Creating new directory for data: {self.datapath}" )
-            self.datapath.mkdir() # Create subdirectory (unlikely to exist, but TODO: verify)
+#        self.datapath = Path(cf.basepath) 
+##        if cf.getb("task","create_directories") and not no_new_directiories:
+#            self.datapath = Path(cf.basepath) / self.prefix
+#            log.info(f"Creating new directory for data: {self.datapath}" )
+#            self.datapath.mkdir() # Create subdirectory (unlikely to exist, but TODO: verify)
     def addImage(self,  imageobject) -> None: 
         self._imagelist.append(imageobject)
     # Binary representation storage in a file using the Python Pickle protocol
@@ -170,6 +170,7 @@ class SampleImageBase(SampleBase,  abc.ABC):
     has_labels = False # Property
     def __init__(self,  label:str,  url:type_url, time: datetime|None= None):
         super().__init__(time)
+        log.debug(f"Creating {type(self).__name__} from URL {url}.")
         self._bitmap:type_image|None = None  # Full image data loaded to memory (set to None if not yet loaded)
         self._loaded:bool = False
         self.url:type_url = url # Also sets self._parsed_url
@@ -177,6 +178,7 @@ class SampleImageBase(SampleBase,  abc.ABC):
         self.label:str = label
         self.meta = jkm.samplemetadata.ImageMetadata(self.label)  #Image-level metadata
         self.confsection:dict|None = None
+        
         # Data about the actual image: can we surrpot renaming
         if self._parsed_url.scheme in ("file",):
             self.supports_rename_files:bool = True # We can rename local resources
@@ -218,8 +220,8 @@ class SampleImageBase(SampleBase,  abc.ABC):
         return d
     def unloadImageData(self:Self) -> None: 
         self.bitmap = None  # Delete in-memory copy of image data
-    def copyMetadatafFomConf(self, configobject) -> None:
-        cf = configobject
+#    def copyMetadatafFomConf(self, configobject) -> None:
+#        cf = configobject
 #        self.addMeta("Free text", cf.get(self.confsection,"freetextline", fallback=""))
         self.addMeta("Image timing", self.time)
     def addMeta(self,title:str,content="") -> None:
@@ -356,7 +358,7 @@ class SingleImageSample(SampleEvent):
 	# Create a new SingleImageSample instance and return it 
         s = SingleImageSample( time = filecreated )
         s.name = f"{type(s).__name__} ({url})" # For images, the image source is a good name
-        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
+#        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
         if imgpath: # These make sense only to local files
             s.datapath = imgpath.parent # Use the directory holding the file as the Sample 'home'
             s.prefix = imgpath.stem # default naming scheme for sample-related objects
@@ -403,7 +405,6 @@ class DirectorySample(SampleEvent):
     @staticmethod
     def from_directory(url:type_url, conf:type_conf) -> DirectorySample:
         """Directory URL (file:///...) to sample object."""
-        log.debug(f"Creating sample data from directory {url}.")
         s = DirectorySample._createsample(url, DirectorySample)
 #        s.copyMetadatafFomConf(conf,  no_new_directiories=True)
         # Load all images found, treating them as combined label/specimen images
@@ -476,7 +477,7 @@ class DirectorySample(SampleEvent):
             if self.identifier: # Only one identifier-containing barcode was found
                 id_OK = self.verify_identifier() # This should probably be done way earlier elsewhere
                 if not id_OK: 
-                    log.critical(f"{self.name}: *******\n\n\n\nMALFORMED IDENTIFIER {self.identifier}*******\n\n\n\n")
+                    log.critical(f"{self.name}: MALFORMED IDENTIFIER {self.identifier}")
                 self.digipropfile.update("url_format_OK", str(id_OK) )
             self.digipropfile.update("Q-sharp", "" )
             self.digipropfile.update("Q-color", "" )
@@ -495,10 +496,10 @@ class LuomusPlantLineSample(DirectorySample):
         """Directory URL (file:///...) to sample object."""
         # Slightly modified version of the parent one
         s = LuomusPlantLineSample._createsample(url, LuomusPlantLineSample)
-        s.copyMetadatafFomConf(conf, no_new_directiories=True)
+        # s.copyMetadatafFomConf(conf, no_new_directiories=True)
         # Load image (just one on plant line) TODO: Logic here is not very ideal
         title = conf.get("data", "label_title")
-        filepath = s.datapath / Path(conf.get("sampleformat", "label_file"))
+        filepath = s.datapath / Path(conf.get("data", "label_file"))
         image = CombinedImage(title, jkm.tools.path2url(filepath))
         s.addImage(image)
         log.debug(f"Created a LuomusPlantLineSample with {len(s.imagelist)} images.")
@@ -510,12 +511,12 @@ class LuomusInsectLineSample(DirectorySample):
     @staticmethod
     def from_directory(url:type_url, conf:type_conf) -> LuomusInsectLineSample: 
         # Slightly modified version of the parent one
-        s = DirectorySample._createsample(url, LuomusInsectLineSample)
-        s.copyMetadatafFomConf(conf, no_new_directiories=True)
+        s = LuomusInsectLineSample._createsample(url, LuomusInsectLineSample)
+#        s.copyMetadatafFomConf(conf, no_new_directiories=True)
         # Load image (two+ on the insect line) TODO: Logic here is not very ideal
         # Load label image
         title = conf.get("data", "label_title")
-        filepath = s.datapath / Path(conf.get("sampleformat", "label_file"))
+        filepath = s.datapath / Path(conf.get("data", "label_file"))
         image = LabelImage(title, jkm.tools.path2url(filepath))
         s.addImage(image)        
         # Load specimen images

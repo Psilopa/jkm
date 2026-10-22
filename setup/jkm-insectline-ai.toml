@@ -29,6 +29,8 @@ sleep_before_renaming = 7 # integer, seconds - Wait before directory renaming to
 filename_timestamp_format = '%Y%m%d_%Hh%Mm%Ss'
 
 [task]
+### IMAGE EDITING TASKS
+image_editing_tasks = false  
 # FILE AND DIRECTORY NAMING AND MOVING TASKS
 create_directories = false # false or true
 files_rename_by_barcode_id = false # false or true
@@ -49,7 +51,6 @@ labeldata_to_CSV = true # false or true: will be ignored if no label data extrac
 # OTHER DATA
 save_JSON = false # false or true  
 write_postprocessor_report_file = true
-request_timeout = 10000 # AI request timeout in milliseconds
 
 
 # IMAGE CHANGE TASKS
@@ -80,6 +81,7 @@ google_project_id = "gen-lang-client-0404401598"
 # Settings LOCAL_OAUTH: OAUTH2 authentication without Google's Gcloud tool
 app_token_path = 'C:/Insect_APPs/ACT/jkm_token.json' # Should be readable
 tmp_token_path = 'C:/Insect_APPs/ACT/temptoken.json' # Should be writeable
+request_timeout = 10000 # AI request timeout in milliseconds
 
 # Setting for the barcode recognition tool
 [barcodes]

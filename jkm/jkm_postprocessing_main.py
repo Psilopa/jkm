@@ -582,6 +582,3 @@ class jkm_post():
         log.info("Ending session, closing log files.")
         logging.shutdown()
         
-
-def is_url():
-    
