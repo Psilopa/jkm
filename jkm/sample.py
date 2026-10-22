@@ -347,17 +347,20 @@ class CETAFSample(SampleEvent):
     """CETAFSample extends with basic SampleEvent with CETAF identifcation validators."""
     # TODO: HARDCODED ALLOWED VALUES -> conf
     allowed_scheme = ("http",)
-    allowed_domains = ("id.luomus.fi", "tun.fi")
-    allowed_shortid_re = (re.compile(""),) 
+    allowed_domains = ("id.luomus.fi", "tun.fi", "mus.utu.fi", "id.herb.oulu.fi")
+    allowed_shortid_re = (re.compile(r"[a-zA-Z]{1,6}\.\d+", re.ASCII), # Standard Luomus URI scheme
+                          re.compile(r"\w{3}\.\w{3}", re.ASCII)) # Old digitarium URI scheme
     def verify_identifier(self:Self) -> bool:
         """Check of the validator value stored in a valid CETAF identifier."""
         if not self.identifier: return False # An empty id is not valid
         urlparts = urlparse(self.identifier)
         if urlparts.scheme not in self.allowed_scheme: return False
         if urlparts.netloc not in self.allowed_domains: return False
+        # Short id check. This should remain the last part in the function
+        shortid = urlparts.path[1:] #Everything after the leading '/'
         for regrule in self.allowed_shortid_re:
-            pass
-        return True        
+            if regrule.fullmatch(shortid): return True 
+        return False
     def _shortenidentifier(self:Self) -> str: # Overrides base class
         """Shorten a given identifier string for display and file renaming purposes."""
         separator = r'/'
