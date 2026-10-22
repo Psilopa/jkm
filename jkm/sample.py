@@ -1,4 +1,4 @@
-import abc
+import abc, re
 from pathlib import Path
 from datetime import datetime
 import logging,  os, validators
@@ -65,7 +65,7 @@ class SampleEvent(SampleBase,  abc.ABC):
     @identifier.setter
     def identifier(self, x: str):  
         self._identifier = x    
-        self._shortidentifier = self._shortenidentifier(x)
+        self._shortidentifier = self._shortenidentifier()# Accessed self._identifier
         self.name = x
     @property
     def shortidentifier(self:Self) -> str|None:  return self._shortidentifier
@@ -81,9 +81,16 @@ class SampleEvent(SampleBase,  abc.ABC):
 #        # INCOMPLETE IMPLEMENTATION, ONLY IMAGE FILES
 #        filelist = [Path(x.filename) for x in self._imagelist]
 #        return tuple(filelist) 
-    @abc.abstractmethod
-    def _shortenidentifier(self, x: str) -> str: 
+    def _shortenidentifier(self) -> str:
+        """Shorten a given identifier string for display and file renaming purposes.
+
+        The default implementation does nothing."""
         return x
+    def verify_identifier(self:Self) -> bool:
+        """Check if identifier is a valid one. Default imprementation accepts anything.
+
+        Reimplement in child classes if you want validation."""
+        return True
     def writeMetaJSON(self,  extension:str = ".json") -> None: 
         "Save SampleEvent metadata to a file"
         for img in self._imagelist: img.unloadImageData()
@@ -335,8 +342,32 @@ class CombinedImage(SpecimenImage, LabelImage):
         # Set these after constructors to make sure we get them right
         self.has_specimens = True # Property
         self.has_labels = True # Property
+#------------------------------------------------------------------------------------------------------    
+class CETAFSample(SampleEvent):
+    """CETAFSample extends with basic SampleEvent with CETAF identifcation validators."""
+    # TODO: HARDCODED ALLOWED VALUES -> conf
+    allowed_scheme = ("http",)
+    allowed_domains = ("id.luomus.fi", "tun.fi")
+    allowed_shortid_re = (re.compile(""),) 
+    def verify_identifier(self:Self) -> bool:
+        """Check of the validator value stored in a valid CETAF identifier."""
+        if not self.identifier: return False # An empty id is not valid
+        urlparts = urlparse(self.identifier)
+        if urlparts.scheme not in self.allowed_scheme: return False
+        if urlparts.netloc not in self.allowed_domains: return False
+        for regrule in self.allowed_shortid_re:
+            pass
+        return True        
+    def _shortenidentifier(self:Self) -> str: # Overrides base class
+        """Shorten a given identifier string for display and file renaming purposes."""
+        separator = r'/'
+        return self._identifier.split(separator)[-1] # Last element
+
+# NOTE: THIS DEFINES ORGANIZATION-SPECIFIC THINGS (FOR NOW, IDENTIFIER FORMATTING IS HERE)
+MySampleBase = CETAFSample
+
 #---------------------------------------------------------------------------------------------------    
-class SingleImageSample(SampleEvent): 
+class SingleImageSample(MySampleBase): 
     """A single image based minimal sample event"""
     supports_rename_files = True    
     supports_rename_directories = False    
@@ -364,15 +395,11 @@ class SingleImageSample(SampleEvent):
             s.prefix = imgpath.stem # default naming scheme for sample-related objects
         s.addImage(image)
         return s        
-    def _shortenidentifier(self, x:str) -> str: # Overrides base class
-        separator = r'/'
-        return x.split(separator)[-1] # Last element
 #------------------------------------------------------------------------------------------------------    
-class DirectorySample(SampleEvent): 
+class DirectorySample(MySampleBase): 
     supports_rename_files = True    
     supports_rename_directories = True    
-    allowed_url_domains = ["http://tun.fi/", "http://id.luomus.fi/",""]
-    def __init__(self,  time:datetime|None=None) :
+    def __init__(self:Self,  time:datetime|None=None) :
         super().__init__(time)
         self.digipropfile = DigipropFile() 
     @staticmethod
@@ -415,29 +442,12 @@ class DirectorySample(SampleEvent):
         for img in imagelist: s.addImage(img)
         log.debug(f"Created a DirectorySample with {len(s.imagelist)} images.")
         return s             
-    def _grab_identifier_prefix(self, ident:str|None) -> str|None:
-        # everything up to the last. Inelefant
-        if (not ident) or (not "/" in ident): return ""
-        else:
-            parts = ident.split("/")
-            return "/".join(parts[:-1]) + "/"        
-    def verify_identifier(self:Self) -> bool:  # Check if thosed identifier is a valid Luomus identifier
-        # SIMPLISTIC IMPLEMENTATION
-        # As Luomus identifiers are URIs, could actually use formal parsing here
-        pref = self._grab_identifier_prefix(self.identifier)
-        if pref is None: return True  # No url to test
-        for url_ok in self.allowed_url_domains:
-            if url_ok == self.identifier: return True
-        return False # No matching url pattern found    
-    def _shortenidentifier(self, x:str) -> str: # Overrides base class
-        separator = r'/'
-        return x.split(separator)[-1] 
     def original_timestamp(self:Self) -> str: #helper function for insect line processing
         marker = "dc1."
         x = str(self.datapath.name).split(marker) # Look for marker in last element of directory name
         if len(x) != 2: return ""
         else: return x[-1] # Last element
-    def rename_directories(self, config, prefix:str, ignore_domain:bool=True) -> None:
+    def rename_directories(self:Self, config:type_conf, prefix:str, ignore_domain:bool=True) -> None:
         """Rename files/dirs if sample ID data is available (from QR code parsing or other source)
 
         id0: a single (long or short)
@@ -486,7 +496,7 @@ class DirectorySample(SampleEvent):
             assert(properties_filename) # Should exist if this exception was triggered
             log.warning( f"Saving a properties file failed with error message: {msg}" )
 
-#------------------------------------------------------------------------------------------------------    
+
 class LuomusPlantLineSample(DirectorySample): 
 # Inherits the specific rename function. Might want to reimplement it here more generally
     def __init__(self,  time:datetime|None=None):
@@ -526,6 +536,7 @@ class LuomusInsectLineSample(DirectorySample):
         for img in imagelist: s.addImage(img)
         log.debug(f"Created a LuomusInsectLineSample with {len(s.imagelist)} images.")
         return s           
+
 #------------------------------------------------------------------------------------------------------    
 class FileRowSample(SingleImageSample): 
     def __init__(self,  time:datetime|None = None):
