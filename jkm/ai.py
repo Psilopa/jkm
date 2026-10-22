@@ -229,9 +229,17 @@ class geminiAI(): # Make subclasses based on authentication method
         log.debug( f'Response was "{text_output}"' )
         log.debug( f'Raw was "{raw}"' )
         aioutput = AI_output()
-        if text_output == AI_FAILURE_RETURN_VALUE: return aioutput        # Primitive error handling
+        # Primitive error handling on failure, return empty result
+        if text_output == AI_FAILURE_RETURN_VALUE: return aioutput   
         # TODO: Handle errors here
-        aioutput.from_text( text_output,
+        # Sanitize text_output and raw: exclude UTF8 characters that are not
+        # XML valid
+        XML_VALID_CHARS_ONLY = True # THIS SHOULD COME FROM CONF
+        if XML_VALID_CHARS_ONLY:
+        text_output = jkm.tools.filterInvalidXMLChars(text_output)
+        raw = jkm.tools.filterInvalidXMLChars(raw)
+        # See https://www.w3.org/TR/xml11/?utm_source=chatgpt.com#charsets
+        aioutput.from_text( text_output
                                    schema = labeldata_model.LabelData ) # Tries parsing the text as JSON
         aioutput.raw = raw
         return aioutput

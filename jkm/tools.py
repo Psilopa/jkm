@@ -216,3 +216,18 @@ def path2url(fpath: Path) -> str:
 def url2path(url: str) -> Path:
     p1 = urllib.request.url2pathname( url ) # Handles %20 unlike url.from_uri()
     return  Path.from_uri(p1)
+
+
+# ----- string to XML preparation ---------------
+#Based on an answer by John Machin on Stack Overflow (http://stackoverflow.com/users/84270/john-machin)
+#http://stackoverflow.com/questions/8733233/filtering-out-certain-bytes-in-python
+
+def isValidXMLChar(char):
+  codepoint = ord(char)
+  return 0x20 <= codepoint <= 0xD7FF or   \
+         codepoint in (0x9, 0xA, 0xD) or  \
+         0xE000 <= codepoint <= 0xFFFD or \
+         0x10000 <= codepoint <= 0x10FFFF
+
+def filterInvalidXMLChars(input):
+    return filter(isValidXMLChar, input)
