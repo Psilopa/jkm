@@ -22,36 +22,30 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 # For typing
 from jkm.typing import *
 
-# For testing, Google Free Key for small tests
-TESTING_BYPASS_AI_CALL:bool = False
-_TESTING_JSON_FROM_AI = r"""
-{
-  "verbatim_all_text": [
-    {
-      "verbatim_text": "Korpilahti"
-    },
-    {
-      "verbatim_text": "17.7. 1939"
-    },
-    {
-      "verbatim_text": "Rönnholm"
-    }  ],
-  "verbatim_date": "17.7. 1939",
-  "verbatim_locality": "Korpilahti",
-  "verbatim_collector": "Rönnholm",
-  "verbatim_coordinates": "664:28",
-  "verbatim_notebook_reference_code":"",
-  "notebook_reference_code_label_properties":"",
-  "verbatim_taxon": "Baccha elongata",
-  "verbatim_identified_by": "J. Kahanpää leg.",
-  "notes": "There is a black streak/smudge partially obscuring the collector's name (Rönnholm)."
-}
-"""
-_TESTING_RAW_JSON = r'{"status": "completed", "model": "gemini-3.5-flash-lite", "id": "v1_ChdaM3pLYXZqa05zdnk3TThQeHZ6VzRRTRIXWjN6S2F2amtOc3Z5N004UHh2elc0UU0", "created": "2026-10-10T17:56:56Z", "updated": "2026-10-10T17:56:56Z", "usage": {"total_input_tokens": 1133, "input_tokens_by_modality": [{"modality": "image", "tokens": 1100}, {"modality": "text", "tokens": 33}], "total_cached_tokens": 0, "total_output_tokens": 229, "total_tool_use_tokens": 0, "total_thought_tokens": 0, "total_tokens": 1362}, "service_tier": "standard", "steps": [{"type": "thought", "signature": "EmAKXgFpFH0TCBtbvirA2u6a+1v3JSS4CcgWyreyJdZ0OolgZ7FlhgZrxPNuT+UWDr9GIj2vDZs7nqlOlthrCskbaQep9nF2VUoq7B5zOFo/2bINWEN1eO8E1lHHj+p4jR0="}, {"type": "model_output", "content": [{"text": "{\n  \"verbatim_all_text\": [\n    {\n      \"verbatim_text\": \"ID: http://id.luomus.fi/GV.92671\"\n    },\n    {\n      \"verbatim_text\": \"Helsinki\"\n    },\n    {\n      \"verbatim_text\": \"8.VI. 1932\"\n    },\n    {\n      \"verbatim_text\": \"E. Kangas\"\n    },\n    {\n      \"verbatim_text\": \"GV92671\"\n    }\n  ],\n  \"verbatim_locality\": \"Helsinki\",\n  \"verbatim_collector\": \"E. Kangas\",\n  \"verbatim_date\": \"8.VI. 1932\",\n  \"verbatim_coordinates\": \"\",\n  \"verbatim_field_identifier\": \"\",\n  \"verbatim_taxon\": \"\",\n  \"verbatim_identified_by\": \"\",\n  \"notes\": \"\"\n}", "type": "text"}]}], "output_text": "{\n  \"verbatim_all_text\": [\n    {\n      \"verbatim_text\": \"ID: http://id.luomus.fi/GV.92671\"\n    },\n    {\n      \"verbatim_text\": \"Helsinki\"\n    },\n    {\n      \"verbatim_text\": \"8.VI. 1932\"\n    },\n    {\n      \"verbatim_text\": \"E. Kangas\"\n    },\n    {\n      \"verbatim_text\": \"GV92671\"\n    }\n  ],\n  \"verbatim_locality\": \"Helsinki\",\n  \"verbatim_collector\": \"E. Kangas\",\n  \"verbatim_date\": \"8.VI. 1932\",\n  \"verbatim_coordinates\": \"\",\n  \"verbatim_field_identifier\": \"\",\n  \"verbatim_taxon\": \"\",\n  \"verbatim_identified_by\": \"\",\n  \"notes\": \"\"\n}'
-_IMAGE_TRANSFER_UPLOAD:int = 1
-_IMAGE_TRANSFER_INLINE:int = 2
+_IMAGE_TRANSFER_UPLOAD = 1
+_IMAGE_TRANSFER_INLINE = 2
 _TEST_PROMPT = "There images are all of the same object. Find text in the images. Reply with JSON only, fitting the data into the following variables: collector, date, locality, identifier, and notes."
 AI_FAILURE_RETURN_VALUE = 'null'
+
+# For testing, Google Free Key for small tests
+TESTING_BYPASS_AI_CALL = False # Default to no bypass: use actual AI
+_TESTING_JSON_FROM_AI = r"""{
+  "verbatim_all_text": [
+    {"verbatim_text": "Xanthorhoé designata Hfn."},
+    {"verbatim_text": "SUOMI U. Nurmijärvi 17.6.1967 M. Koponen leg."},
+    {"verbatim_text": "E714218"}
+  ],
+  "verbatim_locality": "U. Nurmijärvi",
+  "verbatim_collector": "M. Koponen",
+  "verbatim_date": "17.6.1967",
+  "verbatim_coordinates": "",
+  "verbatim_notebook_reference_code": "",
+  "notebook_reference_code_label_properties": "",
+  "verbatim_taxon": "Xanthorhoé designata Hfn.",
+  "verbatim_identified_by": ""
+}
+"""
+_TESTING_RAW_JSON = r"""{"status": "completed", "model": "gemini-3.5-flash-lite", "id": "DUMMYID", "created": "2026-10-10T17:56:56Z", "updated": "2026-10-10T17:56:56Z", "usage": {"total_input_tokens": 1133, "input_tokens_by_modality": [{"modality": "image", "tokens": 1100}, {"modality": "text", "tokens": 33}], "total_cached_tokens": 0, "total_output_tokens": 229, "total_tool_use_tokens": 0, "total_thought_tokens": 0, "total_tokens": 1362}, "service_tier": "standard", "steps": [{"type": "thought", "signature": "EmAKXgFpFH0TCBtbvirA2u6a+1v3JSS4CcgWyreyJdZ0OolgZ7FlhgZrxPNuT+UWDr9GIj2vDZs7nqlOlthrCskbaQep9nF2VUoq7B5zOFo/2bINWEN1eO8E1lHHj+p4jR0="}, {"type": "model_output", "content": [{"text": "{\n  \"verbatim_all_text\": [\n    {\n      \"verbatim_text\": \"ID: http://id.luomus.fi/GV.92671\"\n    },\n    {\n      \"verbatim_text\": \"Helsinki\"\n    },\n    {\n      \"verbatim_text\": \"8.VI. 1932\"\n    },\n    {\n      \"verbatim_text\": \"E. Kangas\"\n    },\n    {\n      \"verbatim_text\": \"GV92671\"\n    }\n  ],\n  \"verbatim_locality\": \"Helsinki\",\n  \"verbatim_collector\": \"E. Kangas\",\n  \"verbatim_date\": \"8.VI. 1932\",\n  \"verbatim_coordinates\": \"\",\n  \"verbatim_field_identifier\": \"\",\n  \"verbatim_taxon\": \"\",\n  \"verbatim_identified_by\": \"\",\n  \"notes\": \"\"\n}", "type": "text"}]}], "output_text": "{\n  \"verbatim_all_text\": [\n    {\n      \"verbatim_text\": \"ID: http://id.luomus.fi/GV.92671\"\n    },\n    {\n      \"verbatim_text\": \"Helsinki\"\n    },\n    {\n      \"verbatim_text\": \"8.VI. 1932\"\n    },\n    {\n      \"verbatim_text\": \"E. Kangas\"\n    },\n    {\n      \"verbatim_text\": \"GV92671\"\n    }\n  ],\n  \"verbatim_locality\": \"Helsinki\",\n  \"verbatim_collector\": \"E. Kangas\",\n  \"verbatim_date\": \"8.VI. 1932\",\n  \"verbatim_coordinates\": \"\",\n  \"verbatim_field_identifier\": \"\",\n  \"verbatim_taxon\": \"\",\n  \"verbatim_identified_by\": \"\",\n  \"notes\": \"\"\n}"""
 
 def load_apikey(fp:Path):
     "Read content from a file."
