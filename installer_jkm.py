@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # Install pyxls
+# NOTE: THE INSTALLER ITSELF SHOULD USE NOTHING OUTSIDE STDLIB
 import subprocess, sys, glob, re, argparse, importlib
 from pathlib import Path
 _TEST = False # Bypass pip for speed

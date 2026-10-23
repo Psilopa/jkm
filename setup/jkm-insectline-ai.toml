@@ -80,10 +80,11 @@ google_project_id = "gen-lang-client-0404401598"
 app_token_path = 'C:/Insect_APPs/ACT/jkm_token.json' # Should be readable
 tmp_token_path = 'C:/Insect_APPs/ACT/temptoken.json' # Should be writeable
 request_timeout = 10000 # AI request timeout in milliseconds
+max_image_dim = 2000
 
 # Setting for the barcode recognition tool
 [barcodes]
-increase_contrast = true # false or true - if true, will increase contrast before barcode recognition attempt
+increase_contrast = false # false or true - if true, will increase contrast before barcode recognition attempt
 grey_range = 50 # integer - CHECK MEANING
 secondary_from_ocr = false # false or true - Attempt reading specimen ID from the image if barcode was not found (or readable)
 barcodepackage = "pyzbar" # qreader or pyzbar - Python qr package used

@@ -210,7 +210,7 @@ class geminiAI(): # Make subclasses based on authentication method
         else:
             # Create AI client
             log.debug("Create client")
-            log.debug(r"AI client HTTP call timeout set to {timeout}.")
+            log.debug(f"AI client HTTP call timeout set to {timeout}.")
             if  timeout: httpopts = HttpOptions(timeout=timeout)      
             else: httpopts = HttpOptions()
             self.client = self._create_client(httpopts)
@@ -238,9 +238,7 @@ class geminiAI(): # Make subclasses based on authentication method
         XML_VALID_CHARS_ONLY = True # THIS SHOULD COME FROM CONF
         if XML_VALID_CHARS_ONLY:
             text_output = jkm.tools.valid_xml_string(text_output)
-            print(text_output)
             raw = jkm.tools.valid_xml_string(raw)
-            sys.exit()
         # See https://www.w3.org/TR/xml11/?utm_source=chatgpt.com#charsets
         aioutput.from_text( text_output,
                             schema = labeldata_model.LabelData ) # Tries parsing the text as JSON

@@ -14,7 +14,7 @@ class LabelData(BaseModel):
     notebook_reference_code_label_properties: str = Field(description="Properties of the label with the notebook reference code: color, handwritten or printed, font color, roman or italic font, and lines on the label under, over, before, or after the identifier.")
     verbatim_taxon: str = Field(description="Species or other taxon name, including any author data and leg abbreviation, as written on the label(s).")
     verbatim_identified_by: str = Field(description="Name of the person who identified the sample as written on the label(s).")
-    notes: str = Field(description="Other notes about the label data.")
+#    notes: str = Field(description="Other notes about the label data.")
 
 if __name__ == '__main__':
     print("Testing")
