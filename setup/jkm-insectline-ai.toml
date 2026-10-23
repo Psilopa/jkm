@@ -18,6 +18,11 @@ label_file = "Preview002.jpg" # Files with this name pattern are treated as file
 label_title = "specimens_and_labels" # Written into metadata only
 object_files = ["Preview001.jpg"] # Files with this name pattern are treated as files with specimens (if both match, treated as combined)
 object_titles = ["habitus1"] # Written into metadata only
+save_images = true 
+
+[task.saveimages]
+path = 'C:/Insect_APPs/labeldata/smallimages' 
+max_size = 1200
 
 [postprocessor]
 # Having BOTH monitor and process_existing as true is asking for trouble...

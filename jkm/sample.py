@@ -70,12 +70,8 @@ class SampleEvent(SampleBase,  abc.ABC):
     @property
     def shortidentifier(self:Self) -> str|None:  return self._shortidentifier
     @property 
-    def imagelist(self, labels:list[str]=[]) -> tuple(SampleImageBase,...):  
-        if not labels: 
-            return tuple(x for x in self._imagelist)
-        else: 
-            #Only return images with certain labels
-            return tuple(x for x in self._imagelist if x.label in labels)
+    def imagelist(self) -> tuple(SampleImageBase,...):  
+        return tuple(x for x in self._imagelist)
 #    @property
 #    def filelist(self:Self):
 #        # INCOMPLETE IMPLEMENTATION, ONLY IMAGE FILES
@@ -175,14 +171,14 @@ class SampleImageBase(SampleBase,  abc.ABC):
     supports_rename_directories = False    
     has_specimens = False # Property
     has_labels = False # Property
-    def __init__(self,  label:str,  url:type_url, time: datetime|None= None):
+    def __init__(self,  label:str,  url:type_url, time: datetime|None = None):
         super().__init__(time)
         log.debug(f"Creating {type(self).__name__} from URL {url}.")
         self._bitmap:type_image|None = None  # Full image data loaded to memory (set to None if not yet loaded)
-        self._loaded:bool = False
-        self.url:type_url = url # Also sets self._parsed_url
-        self.name:str = f"{type(self).__name__} ({url})" # For images, the image source is a good name
-        self.label:str = label
+        self._loaded = False
+        self.url = url # Also sets self._parsed_url
+        self.name= f"{type(self).__name__} ({url})" # For images, the image source is a good name
+        self.label = label
         self.meta = jkm.samplemetadata.ImageMetadata(self.label)  #Image-level metadata
         self.confsection:dict|None = None
         
@@ -512,7 +508,7 @@ class LuomusPlantLineSample(DirectorySample):
         # s.copyMetadatafFomConf(conf, no_new_directiories=True)
         # Load image (just one on plant line) TODO: Logic here is not very ideal
         title = conf.get("data", "label_title")
-        filepath = s.datapath / Path(conf.get("data", "label_file"))
+        filepath = s.datapath / Path(conf.get("data", "label_file")) # Assumes this is not a list
         image = CombinedImage(title, jkm.tools.path2url(filepath))
         s.addImage(image)
         log.debug(f"Created a LuomusPlantLineSample with {len(s.imagelist)} images.")

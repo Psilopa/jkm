@@ -82,6 +82,25 @@ def find_existing_events(conf:type_conf) -> tuple[type_url]:
     return found
         
 #------------------ SINGLE TASKS -------------------
+def task_backup_images(sample:type_sample, target_dir:Path, maxdim:int=0):
+    """Save copied of the processed images.
+    Keywords:   
+    maxdim - if >0, maximum dimension of the saved image
+    """
+    for sampleimg in sample.imagelist:
+        fpath = jkm.tools.url2path(sampleimg.url) # TODO: handle nonlocal ones
+        img = jkm.tools.load_img(fpath)
+        if img is None: return None # Nothing to do
+        if maxdim > 0: img = jkm.tools.shrink_to_maxdim(img, maxdim)
+        # Create target safe path from the full image filename AND parent directory 
+        pathparts = fpath.parts
+        imgdir = pathparts[-2]        
+        filename = "_".join( (imgdir,fpath.name) ) # dir+filename as a filename        
+        outpath = target_dir / filename
+        log.debug(f"{sampleimg.name} Trying to save image to {outpath}.")
+        jkm.tools.save_img(outpath, img)
+        log.debug(f"{sampleimg.name} saved as {outpath}.")
+
 def task_add_prefix_to_imagefiles(sample:type_sample) -> None:
     try:
         new_name_prefix = sample.shortidentifier
@@ -446,6 +465,12 @@ class jkm_post():
             log.debug(f"{sample.name}: Adding row to spreadsheet done.")
         else: log.debug(f"{sample.name}: No data export to a spreadsheet.")
 
+        # Create backup scaled-down images for review:
+        if conf.getb( "task", "save_images"):
+            image_backup_path = conf.getpath( "task", "saveimages","path")
+            max_size = conf.geti( "task", "saveimages","max_size")
+            task_backup_images(sample, image_backup_path, max_size)
+        
         # Write sample metadata to a JSON Metadata file (should this be before renaming?)
         if conf.getb( "task", "save_JSON", default=False):
             sample.writeMetaJSON()

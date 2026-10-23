@@ -40,6 +40,12 @@ write_postprocessor_report_file = false
 create_directories = false               
 files_rename_by_barcode_id = false
 directories_rename_by_barcode_id =  false
+save_images = false
+
+[task.saveimages]
+path = '/home/kahanpaa/projects/_videostill/small_images' 
+max_size = 1200
+
 
 # IMAGE CHANGE TASKS
 [task.image]

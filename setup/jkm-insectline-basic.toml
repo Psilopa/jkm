@@ -47,6 +47,11 @@ labeldata_to_CSV = false # false or true: will be ignored if no label data extra
 # OTHER DATA
 save_JSON = false # false or true  
 write_postprocessor_report_file = true
+save_images = false
+
+[task.saveimages]
+path = 'C:/Insect_APPs/labeldata/smallimages' 
+max_size = 1200
 
 [meta]
 copyright_owner = "Luomus" # Written into JSON metadata files only
@@ -79,7 +84,7 @@ secondary_from_ocr = false # false or true - Attempt reading specimen ID from th
 barcodepackage = "pyzbar" # qreader or pyzbar - Python qr package used
 # TODO: barcode type list
 
-[internal]
+[internal] # Move to postprocessor ?
 n_threads = 1		# Number of parallel threads. If using AI, bertter keep this at 1. For fast turnaround, a few would be ideal
 bypass_AI = false	# true or false. It true, uses internal test output, faking the AI output for testing speed and resource use.
 
