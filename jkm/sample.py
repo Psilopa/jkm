@@ -379,8 +379,8 @@ class SingleImageSample(MySampleBase):
         # Extract creating time from JPG and to be used as the Sample event creationtime
 	# Create a CombinedImage to hold image data 
         image = CombinedImage(label, url)
-        try:
-            imgpath = jkm.tools.url2path( url )
+        try: # If this a file:/// URL ?
+            imgpath = jkm.tools.url2path( url, "file")
             filecreated = getFileCreationDateTime(imgpath)
         except ValueError: # THis is not a local file URI
             imgpath = None
@@ -403,7 +403,7 @@ class DirectorySample(MySampleBase):
         self.digipropfile = DigipropFile() 
     @staticmethod
     def _createsample(url:type_url,SampleClass):
-        triggerfile = jkm.tools.url2path( url )
+        triggerfile = jkm.tools.url2path( url, "file")
         # First, url is the trigger file, not the directory!
         dirpath = triggerfile.parent
         # Extract creating time from directory name 

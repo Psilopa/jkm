@@ -12,21 +12,6 @@ log = logging.getLogger() # Overwrite if needed
 # For typing
 from jkm.typing import *
 
-def as_existing_path(url: type_url) -> Path|None: 
-    """Verify that this url, if a local file url, corresponds to an accessible path.
-
-    Returns a Path on success. Raises a FileLoadingError on failure. """
-    try:
-        filepath = url2path( url )
-    except ValueError:
-        raise FileLoadingError(f"Turning {url} into a Path failed.") 
-    # Catch some error states
-    dirpath: Path = filepath.parent
-    if not dirpath.is_dir(): 
-        raise FileLoadingError(f"Cannot find directory {dirpath}.")
-    if not filepath.exists():
-        raise FileLoadingError(f"Could not find file {filepath}.")
-    return filepath
     
 
 def list2printvalues( mylist: Collection[dict] )-> str:
@@ -128,7 +113,7 @@ def img_from_url(url: type_url,
     downloaders for various data sources.
     """
     try:
-        filepath = url2path(url)
+        filepath = url2path( url, "file")
         return img_from_file( filepath )
     except (ValueError, FileLoadingError) as err:
         pass # OK, this is not a local file...    
@@ -226,24 +211,34 @@ def path2url(fpath: Path) -> str:
     return fpath.as_uri() # THIS IS DEPRECATED
 #    return urllib.request.pathname2url( str(fpath) ) 
 
-def url2path(url: type_url) -> Path:
+def url2path(url: type_url, allowed_schemes=None) -> Path:
     """Convert an URL to a Path.
 
     Raise a ValueError on failure."""
     # get path element from the URL
     parsed = urllib.parse.urlparse( url )
-    if parsed.scheme != "file":
-        raise ValueError("Not a file:// URl.")
+    if allowed_schemes and parsed.scheme.lower() not in allowed_schemes:
+        raise ValueError(f"URL scheme {parsed.scheme} not amomng understood values {allowed_schemes}.")
     urlpath = parsed.path # Can fail
     # convert URL encoding (%20 for space etc.) back to originals
     pathstr = urllib.request.url2pathname( urlpath ) 
     return Path(pathstr)
 
-def filename_from_url(url):
-    """Get the filename from an URL."""
-    parsed = urllib.parse.urlparse( url )
-    return parsed.path[1:]
-    
+def as_existing_path(url: type_url) -> Path|None: 
+    """Verify that this url, if a local file url, corresponds to an accessible path.
+
+    Returns a Path on success. Raises a FileLoadingError on failure. """
+    try:
+        filepath = url2path(url, "file")
+    except ValueError:
+        raise FileLoadingError(f"Turning {url} into a Path failed.") 
+    # Catch some error states
+    dirpath: Path = filepath.parent
+    if not dirpath.is_dir(): 
+        raise FileLoadingError(f"Cannot find directory {dirpath}.")
+    if not filepath.exists():
+        raise FileLoadingError(f"Could not find file {filepath}.")
+    return filepath
 
 # ----- string to XML preparation ---------------
 #Based on an answer by John Machin on Stack Overflow (http://stackoverflow.com/users/84270/john-machin)

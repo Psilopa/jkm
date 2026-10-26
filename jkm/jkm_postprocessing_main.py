@@ -93,8 +93,10 @@ def task_backup_images(sample:type_sample, target_dir:Path, maxdim:int=0):
         if img is None: return None # Nothing to do
         if maxdim > 0: img = jkm.tools.shrink_to_maxdim(img, maxdim)
         # Create target safe path from the full image filename AND parent directory 
-        try:
-            fpath = jkm.tools.url2path(sampleimg.url) 
+        try: # TODO: THIS ASSUMES LUOMUS-STYLE URL PATHS!
+            fpath = jkm.tools.url2path(sampleimg.url,
+                                       allowed_schemes = ("file","http", "https")
+                                       )
             pathparts = fpath.parts
             imgdir = pathparts[-2]        
             filename = "_".join( (imgdir,fpath.name) ) # dir+filename as a filename        
