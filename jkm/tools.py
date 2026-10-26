@@ -111,7 +111,7 @@ def img_from_file(imagestr: str|Path) -> type_image | None:
         if fnp.is_reserved(): raise FileLoadingError("File %s is reserved" % fnp)
         return cv2.imread(str(fnp),cv2.IMREAD_UNCHANGED)
     
-def img_from_url(url: str,
+def img_from_url(url: type_url,
                  downloader: Callable = defaultdownloader,
                  dlargs:list = [], dlkwords:dict = {}) -> type_image | None:
     """Tries to return an image from a URI.
@@ -123,7 +123,7 @@ def img_from_url(url: str,
     try:
         filepath = url2path(url)
         return img_from_file( filepath )
-    except FileLoadingError as err:
+    except (ValueError, FileLoadingError) as err:
         pass # OK, this is not a local file...    
     if not downloader:
         raise FileLoadingError(f"Resource {url} is not local and we have no provided way to download it.")
@@ -135,7 +135,7 @@ def img_from_url(url: str,
     return cv2.imdecode(arr, -1) # 'Load it as it is'
 
     
-def load_img(image: str|Path|io.IOBase|type_image) -> type_image | None: 
+def load_img(image: type_url|str|Path|io.IOBase|type_image) -> type_image | None: 
     """Loads an image (as a cv2 image) from a variety of sources.
 
     Accept
@@ -219,14 +219,24 @@ def path2url(fpath: Path) -> str:
     return fpath.as_uri() # THIS IS DEPRECATED
 #    return urllib.request.pathname2url( str(fpath) ) 
 
-def url2path(url: str) -> Path:
-    """Convert an URL to a Path."""
+def url2path(url: type_url) -> Path:
+    """Convert an URL to a Path.
+
+    Raise a ValueError on failure."""
     # get path element from the URL
-    urlpath = urllib.parse.urlparse( url ).path # Can fail
+    parsed = urllib.parse.urlparse( url )
+    if parsed.scheme != "file":
+        raise ValueError("Not a file:// URl.")
+    urlpath = parsed.path # Can fail
     # convert URL encoding (%20 for space etc.) back to originals
     pathstr = urllib.request.url2pathname( urlpath ) 
     return Path(pathstr)
 
+def filename_from_url(url):
+    """Get the filename from an URL."""
+    parsed = urllib.parse.urlparse( url )
+    return parsed.path[1:]
+    
 
 # ----- string to XML preparation ---------------
 #Based on an answer by John Machin on Stack Overflow (http://stackoverflow.com/users/84270/john-machin)

@@ -88,14 +88,21 @@ def task_backup_images(sample:type_sample, target_dir:Path, maxdim:int=0):
     maxdim - if >0, maximum dimension of the saved image
     """
     for sampleimg in sample.imagelist:
-        fpath = jkm.tools.url2path(sampleimg.url) # TODO: handle nonlocal ones
-        img = jkm.tools.load_img(fpath)
+            
+        img = jkm.tools.load_img(sampleimg.url)
         if img is None: return None # Nothing to do
         if maxdim > 0: img = jkm.tools.shrink_to_maxdim(img, maxdim)
         # Create target safe path from the full image filename AND parent directory 
-        pathparts = fpath.parts
-        imgdir = pathparts[-2]        
-        filename = "_".join( (imgdir,fpath.name) ) # dir+filename as a filename        
+        try:
+            fpath = jkm.tools.url2path(sampleimg.url) 
+            pathparts = fpath.parts
+            imgdir = pathparts[-2]        
+            filename = "_".join( (imgdir,fpath.name) ) # dir+filename as a filename        
+        except ValueError: # Probably not a local file
+            urlfilename = Path( jkm.tools.filename_from_url(sampleimg.url) )
+            postfix = "smaller"
+            newstem = "_".join( (urlfilename.stem, postfix) )
+            filename = urlfilename.with_stem(newstem)
         outpath = target_dir / filename
         log.debug(f"{sampleimg.name} Trying to save image to {outpath}.")
         jkm.tools.save_img(outpath, img)
@@ -374,118 +381,118 @@ class jkm_post():
             # get_sample_class(sformat) should already block unknown sample types:   
             else:
                 raise jkm.errors.FileLoadingError(f"Unknown sample type {sample_format}")
+                
+    ##        # MAIN POSTPROCESSOR STARTS HERE
+            if sample: log.info(f"New sample found, initial name {sample.name}")
+            if self.ext: self.ext.event_new_sample(sample)
+
+            # IMAGE EDITING        
+            edit_images = conf.getb( "task", "image_editing_tasks")
+            # This meta-function does its own logging etc
+            if edit_images:
+                self.task_edit_images(conf, sample) 
+            
+            # FIND BARCODES ?
+            if conf.getb( "task", "read_barcodes"):
+                allbarcodes += task_read_barcodes(conf,sample)
+                if self.ext: self.ext.event_barcode_detection(sample)
+            else: log.debug(f"{sample.name}: No barcode extraction.")
+                        
+            # FOR FURTHER PROCESSING, CHECK IF IDENTIFIER LIST CONTAINS A SINGLE VALID IDENTIFIER
+            # In case sample does already have a known identifier, append to to the list
+            if sample.identifier: allbarcodes.append(sample.identifier)
+            sampleids = jkm.tools.unique(allbarcodes)
+            if len(sampleids) == 0:
+                log.warning(f"{sample.name}:No usable identifiers found")
+            elif len(sampleids) > 1:
+                log.warning(f"{sample.name}:Several  different identifiers for the sample in barcodes/OCR/sample metadata")
+            else:
+                sample.identifier =  sampleids[0] # Sets also sample.shortidentifier
+                if self.ext: self.ext.event_single_sample_id(sample)
+            
+            # FIND TEXT ARES ?
+            if conf.getb( "task", "find_text_areas"):
+                textareas = task_get_text_areas(conf, sample)
+                if self.ext: self.ext.event_textareas(sample)
+            else:
+                textareas = []
+                log.debug(f"{sample.name}: No text area recognition.")
+
+            # PERFORM Classic OCR ?
+            if conf.getb( "task", "ocr"):
+                task_OCR(conf, sample)
+                if self.ext: self.ext.event_OCRtext(sample)
+            else: log.debug(f"{sample.name}: No OCR.")
+
+            # AI-BASED TEXT EXTRACTION ?
+            if conf.getb( "task", "ai_label_text_extraction"):
+                airesult = task_AI_label_data_extraction(conf, sample)
+                if airesult: log.info(f'AI label analysis results was \n"{airesult.to_prettyprint()}\n"\n')
+                else: log.warning(f'AI label analysis results was empty.\n') # Shouldn't happen
+                if self.ext: self.ext.event_ai_labeltext(sample)
+            else:
+                airesult = None
+                log.debug(f"{sample.name}: No AI label data extraction.")
+
+            # SUBMIT alltext to COMPONENT ANALYSIS (splitting raw text into locality, collector etc)?
+    #       if conf.getb( "task", "ocr") and
+    #          conf.getb( "task", "ocr_analysis") and
+    #          sample.results.ocrtext:
+    #         **** Not currently implemented. ****
+    #       Also, the current AI label data extractor does already do this. 
+    #       A large task and very content-
+
+            # RENAME DIRECTORIES (this may need to stay above file renaming)  
+            if sample.shortidentifier \
+                      and  conf.getb( "task", "directories_rename_by_barcode_id") \
+                      and sample.supports_rename_directories:
+                sleep_before = conf.geti("postprocessor", "sleep_before_renaming", default=0)
+                task_rename_directories(conf, sample, sleep_before)
+                if self.ext: self.ext.event_renamed_directories(sample)
+            else: log.debug(f"{sample.name}: No directory rename.")
+
+            # RENAME FILES
+            # Current implementation renames only the original image files as per the configuration file
+            if sample.shortidentifier \
+                            and conf.getb( "task", "files_rename_by_barcode_id", default=False) \
+                            and sample.supports_rename_files:
+                task_add_prefix_to_imagefiles(sample)
+                if self.ext: self.ext.event_renamed_image_files(sample)
+            else: log.debug(f"{sample.name}: No file(s) rename.")
+
+            # FINALLY, WRITE RESULTS TO FILES
+            # Store interpreted data in a spreadsheet file 
+            if self.spreadsheet and conf.getb( "task", "ai_label_text_extraction"):
+                # Check if we want to store raw/all output from the AI (it can be loooong)
+                write_raw_output= conf.getb( "spreadsheet", "write_raw_output", default = True)
+                task_write_spreadsheet(self.spreadsheet, airesult,sample.identifier, write_raw_output)
+                log.debug(f"{sample.name}: Adding row to spreadsheet done.")
+            else: log.debug(f"{sample.name}: No data export to a spreadsheet.")
+
+            # Create backup scaled-down images for review:
+            if conf.getb( "task", "save_images"):
+                image_backup_path = conf.getpath( "task", "saveimages","path")
+                max_size = conf.geti( "task", "saveimages","max_size")
+                task_backup_images(sample, image_backup_path, max_size)
+            
+            # Write sample metadata to a JSON Metadata file (should this be before renaming?)
+            if conf.getb( "task", "save_JSON", default=False):
+                sample.writeMetaJSON()
+            else: log.debug(f"{sample.name}: No JSON metadata file created.")
+
+            # Write a sample (and sample type) specific postprocessor report file (or files)
+            if conf.getb( "task", "write_postprocessor_report_file", default=False):
+                log.debug(f"{sample.name}: Postprocessor report file created for sample.")
+                task_write_postprocessor_report(conf, sample)
+            else: log.debug(f"{sample.name}: No postprocessor report file created for sample.")
+
+            log.info(f"Postprocessing sample {sample.name} ready.")
+            if self.ext: self.ext.event_sample_done(sample, processor.SUCCESS)
+            return processor.SUCCESS
+
         except jkm.errors.FileLoadingError as msg:
             log.error(msg)
             return processor.FAIL_IGNORE
-                
-##        # MAIN POSTPROCESSOR STARTS HERE
-        if sample: log.info(f"New sample found, initial name {sample.name}")
-        if self.ext: self.ext.event_new_sample(sample)
-
-        # IMAGE EDITING        
-        edit_images = conf.getb( "task", "image_editing_tasks")
-        # This meta-function does its own logging etc
-        if edit_images:
-            self.task_edit_images(conf, sample) 
-        
-        # FIND BARCODES ?
-        if conf.getb( "task", "read_barcodes"):
-            allbarcodes += task_read_barcodes(conf,sample)
-            if self.ext: self.ext.event_barcode_detection(sample)
-        else: log.debug(f"{sample.name}: No barcode extraction.")
-                    
-        # FOR FURTHER PROCESSING, CHECK IF IDENTIFIER LIST CONTAINS A SINGLE VALID IDENTIFIER
-        # In case sample does already have a known identifier, append to to the list
-        if sample.identifier: allbarcodes.append(sample.identifier)
-        sampleids = jkm.tools.unique(allbarcodes)
-        if len(sampleids) == 0:
-            log.warning(f"{sample.name}:No usable identifiers found")
-        elif len(sampleids) > 1:
-            log.warning(f"{sample.name}:Several  different identifiers for the sample in barcodes/OCR/sample metadata")
-        else:
-            sample.identifier =  sampleids[0] # Sets also sample.shortidentifier
-            if self.ext: self.ext.event_single_sample_id(sample)
-        
-        # FIND TEXT ARES ?
-        if conf.getb( "task", "find_text_areas"):
-            textareas = task_get_text_areas(conf, sample)
-            if self.ext: self.ext.event_textareas(sample)
-        else:
-            textareas = []
-            log.debug(f"{sample.name}: No text area recognition.")
-
-        # PERFORM Classic OCR ?
-        if conf.getb( "task", "ocr"):
-            task_OCR(conf, sample)
-            if self.ext: self.ext.event_OCRtext(sample)
-        else: log.debug(f"{sample.name}: No OCR.")
-
-        # AI-BASED TEXT EXTRACTION ?
-        if conf.getb( "task", "ai_label_text_extraction"):
-            airesult = task_AI_label_data_extraction(conf, sample)
-            if airesult: log.info(f'AI label analysis results was \n"{airesult.to_prettyprint()}\n"\n')
-            else: log.warning(f'AI label analysis results was empty.\n') # Shouldn't happen
-            if self.ext: self.ext.event_ai_labeltext(sample)
-        else:
-            airesult = None
-            log.debug(f"{sample.name}: No AI label data extraction.")
-
-        # SUBMIT alltext to COMPONENT ANALYSIS (splitting raw text into locality, collector etc)?
-#       if conf.getb( "task", "ocr") and
-#          conf.getb( "task", "ocr_analysis") and
-#          sample.results.ocrtext:
-#         **** Not currently implemented. ****
-#       Also, the current AI label data extractor does already do this. 
-#       A large task and very content-
-
-        # RENAME DIRECTORIES (this may need to stay above file renaming)  
-        if sample.shortidentifier \
-                  and  conf.getb( "task", "directories_rename_by_barcode_id") \
-                  and sample.supports_rename_directories:
-            sleep_before = conf.geti("postprocessor", "sleep_before_renaming", default=0)
-            task_rename_directories(conf, sample, sleep_before)
-            if self.ext: self.ext.event_renamed_directories(sample)
-        else: log.debug(f"{sample.name}: No directory rename.")
-
-        # RENAME FILES
-        # Current implementation renames only the original image files as per the configuration file
-        if sample.shortidentifier \
-                        and conf.getb( "task", "files_rename_by_barcode_id", default=False) \
-                        and sample.supports_rename_files:
-            task_add_prefix_to_imagefiles(sample)
-            if self.ext: self.ext.event_renamed_image_files(sample)
-        else: log.debug(f"{sample.name}: No file(s) rename.")
-
-        # FINALLY, WRITE RESULTS TO FILES
-        # Store interpreted data in a spreadsheet file 
-        if self.spreadsheet and conf.getb( "task", "ai_label_text_extraction"):
-            # Check if we want to store raw/all output from the AI (it can be loooong)
-            write_raw_output= conf.getb( "spreadsheet", "write_raw_output", default = True)
-            task_write_spreadsheet(self.spreadsheet, airesult,sample.identifier, write_raw_output)
-            log.debug(f"{sample.name}: Adding row to spreadsheet done.")
-        else: log.debug(f"{sample.name}: No data export to a spreadsheet.")
-
-        # Create backup scaled-down images for review:
-        if conf.getb( "task", "save_images"):
-            image_backup_path = conf.getpath( "task", "saveimages","path")
-            max_size = conf.geti( "task", "saveimages","max_size")
-            task_backup_images(sample, image_backup_path, max_size)
-        
-        # Write sample metadata to a JSON Metadata file (should this be before renaming?)
-        if conf.getb( "task", "save_JSON", default=False):
-            sample.writeMetaJSON()
-        else: log.debug(f"{sample.name}: No JSON metadata file created.")
-
-        # Write a sample (and sample type) specific postprocessor report file (or files)
-        if conf.getb( "task", "write_postprocessor_report_file", default=False):
-            log.debug(f"{sample.name}: Postprocessor report file created for sample.")
-            task_write_postprocessor_report(conf, sample)
-        else: log.debug(f"{sample.name}: No postprocessor report file created for sample.")
-
-        log.info(f"Postprocessing sample {sample.name} ready.")
-        if self.ext: self.ext.event_sample_done(sample, processor.SUCCESS)
-        return processor.SUCCESS
-
 # ----------------- main worker function, called in a new thread created when a sample arrival event is noticed ------------------------
     def processSampleEvents(self:Self,queue:queue.Queue, conf:type_conf, sleep_s:int, spreadsheet:type_spreadsheet) -> None:
         while True:
