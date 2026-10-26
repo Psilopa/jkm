@@ -12,7 +12,17 @@ pyzbar = QReader = None
 # For typing
 from jkm.typing import *
 
-def _extract_pyzbar(greyimg:type_image, encoding:str|None=None) -> list[str]:
+class barcodeitem:
+    def __init__(self):
+        self.text = ""
+        self.w1 = self.w2 = self.h1= self.h2 = None
+#        self.rot = 0
+    @property
+    def center(self): return ( (self.w2+self.w1)/2, (self.h2+self.h1)/2 )
+    def __str__(self):
+        return f"{self.text} at {self.w1}:{self.w2} {self.h1}:{self.h2}"
+
+def _extract_class_pyzbar(greyimg:type_image, encoding:str|None=None) -> list[str]:
     """Extract barcode data using PyZBar.
     
     Returns a list of found (nonempty) values. It nay contain duplicates.
@@ -32,10 +42,32 @@ def _extract_pyzbar(greyimg:type_image, encoding:str|None=None) -> list[str]:
     log.debug("Found %i barcode(s)" % len(barcodes))
     d = []
     for qr in barcodes:
-        bkd = qr.data
-        if encoding: bkd = bkd.decode(encoding) 
-        d.append(bkd)
-    return [x for x in d if x] # Make sure the result is a list of non-empty string
+        n = barcodeitem()        
+        n.text = qr.data
+        n.w1 = qr.rect.left 
+        n.h1 = qr.rect.top
+        n.w2 = qr.rect.left + qr.rect.width
+        n.h2 = qr.rect.top + qr.rect.height
+        if encoding: n.text = n.text.decode(encoding) 
+        d.append(n)
+        print(n)
+        print(n.center)
+    return [x for x in d if x.text] # Make sure the result is a list of non-empty string
+
+    
+def _extract_pyzbar(greyimg:type_image, encoding:str|None=None) -> list[str]:
+    """Extract barcode data using PyZBar.
+    
+    Returns a list of found (nonempty) values. It nay contain duplicates.
+
+    Arguments:
+    greyimg: a in image object (cv2 image, a  numpy array, or a file name)
+
+    Keywords:
+    encoding: encoding on the barcode content, if known.
+    """
+    data = _extract_class_pyzbar(greyimg, encoding)
+    return [x.text for x in data] 
 
 def _extract_qreader(greyimg:type_image) -> list[str]:
     """Extract barcode data using QReader. Returns a list of found (nonempty) values. It may contain duplicates.
@@ -57,7 +89,44 @@ def _extract_qreader(greyimg:type_image) -> list[str]:
         d = []
     return d
     
-def extractbarcodedata(image:type_image,
+def extractbarcodes(image:type_image,
+                       qrpackage:str,
+                       increasecontast:bool=False,
+                       greyrange:int=50,
+                       encoding:str|None=None) -> list[str]:
+    """Extract barcode data from an image. 
+    
+    Returns a list of found (nonempty) values. Can contain duplicates.
+    
+    Parameters: 
+    image -- Accepts either a filename, a file object, opencv images. Should also work with PIL or nympy image arrays.
+    qrpackage -- name of barcode decoding backage to be used: see constants ONST_PYZBAR & CONST_QREADER.
+    increasecontast -- if True, calls tools.increaseTopContrast with greyrange as the parameter.
+    greyrange -- see above.
+    encoding -- None or a name for the enconding used in decoding the barcode byte stream to text.
+    """
+    global QReader, pyzbar
+    if qrpackage not in (CONST_QREADER, CONST_PYZBAR):
+        raise BarcodeError(f"Unknown barcode reader tool '{qrpackage}'")
+#    img = tools.load_img(image)
+    img = image
+    greyimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    if increasecontast:
+        greyimg = tools.increaseTopContrast(greyimg,greyrange)
+    if qrpackage == CONST_PYZBAR:
+        if not pyzbar: 
+            importlib.import_module("pyzbar")
+            from pyzbar import pyzbar
+        d = _extract_class_pyzbar(greyimg, encoding)    
+    elif qrpackage == CONST_QREADER:
+        if not QReader: 
+            QReader = importlib.import_module("qreader").QReader
+        d = _extract_class_qreader(greyimg)
+    
+    # else: should not happen as tested above
+    return d
+
+def extractbarcodestrings(image:type_image,
                        qrpackage:str,
                        increasecontast:bool=False,
                        greyrange:int=50,

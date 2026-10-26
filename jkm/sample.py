@@ -237,9 +237,9 @@ class SampleImageBase(SampleBase,  abc.ABC):
         self._loadImage()
         if self.bitmap: return self.bitmap[y1:y2, x1:x2]
         else: return None # Nothing to rotate
-    def readbarcodes(self, qrpackage) -> list[str]:
+    def readbarcodestrings(self, qrpackage) -> list[str]:
         self._loadImage()
-        bkdata = jkm.barcodes.extractbarcodedata(self.bitmap, qrpackage, encoding='ascii')
+        bkdata = jkm.barcodes.extractbarcodestrings(self.bitmap, qrpackage, encoding='ascii')
         return bkdata        
     def rotate(self, angle: int) -> None: # angle = 0,90,180,270
         angle = int(angle)
