@@ -497,7 +497,8 @@ class jkm_post():
             try:
                 log.debug(f"Processing data from {next_input}" )
                 successQ = self.processSingleEvent( next_input, conf, self.spreadsheet )        
-            except jkm.errors.FileLoadingError as msg:
+            except (jkm.errors.FileLoadingError,
+                    jkm.errors.FileSavingError) as msg:
                 log.error(msg)
                 successQ = processor.FAIL_IGNORE                
             if successQ is processor.FAIL_RETRY: queue.put( next_input ) # retry from start

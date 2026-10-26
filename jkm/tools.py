@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import cv2
 from jkm.downloader import defaultdownloader
-from jkm.errors import FileLoadingError
+from jkm.errors import FileLoadingError, FileSavingError
 from urllib.parse import urlparse, ParseResult, unquote
 import urllib.request
 log = logging.getLogger() # Overwrite if needed
@@ -98,11 +98,18 @@ def shrink_to_maxdim(img: type_image, maxdim: int) -> type_image:
     scale: float = min(1.0, float(maxdim)/current_maxdim)
     return cv2.resize(img,(0,0),fx=scale,fy=scale)
     
-def save_img(fn: str|Path, image: type_image) -> None: 
+def save_img(savepath: Path, image: type_image) -> None: 
     # Better error handling than the raw cv2 imwrite
-    if isinstance(fn,Path): fn = str(fn)
-    try: cv2.imwrite(fn,image)
-    except SystemError as err: raise err
+    if not savepath.parent.exists():
+        raise FileSavingError(f"Cannot save into a nonexisting directory {savepath.parent}.")
+    try:
+        fn = str(savepath)
+        print("TRYING TO SAVE", fn)
+        cv2.imwrite(fn,image)
+        print("OK")
+    except SystemError as err:
+        # Converting to a jkm Error should go here
+        raise err
 
 def img_from_file(imagestr: str|Path) -> type_image | None:
         fnp = Path(imagestr)
