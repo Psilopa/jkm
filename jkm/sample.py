@@ -70,18 +70,18 @@ class SampleEvent(SampleBase,  abc.ABC):
     @property
     def shortidentifier(self:Self) -> str|None:  return self._shortidentifier
     @property 
-    def imagelist(self) -> tuple(SampleImageBase,...):  
+    def imagelist(self) -> tuple[SampleImageBase,...]:  
         return tuple(x for x in self._imagelist)
 #    @property
 #    def filelist(self:Self):
 #        # INCOMPLETE IMPLEMENTATION, ONLY IMAGE FILES
 #        filelist = [Path(x.filename) for x in self._imagelist]
 #        return tuple(filelist) 
-    def _shortenidentifier(self) -> str:
-        """Shorten a given identifier string for display and file renaming purposes.
+    def _shortenidentifier(self) ->  str|None:
+        """Shorten a current identifier string for display and file renaming purposes.
 
         The default implementation does nothing."""
-        return x
+        return self._identifier
     def verify_identifier(self:Self) -> bool:
         """Check if identifier is a valid one. Default imprementation accepts anything.
 
@@ -360,6 +360,7 @@ class CETAFSample(SampleEvent):
     def _shortenidentifier(self:Self) -> str: # Overrides base class
         """Shorten a given identifier string for display and file renaming purposes."""
         separator = r'/'
+        # TODO: ASSUMES self._identifier exists
         return self._identifier.split(separator)[-1] # Last element
 
 # NOTE: THIS DEFINES ORGANIZATION-SPECIFIC THINGS (FOR NOW, IDENTIFIER FORMATTING IS HERE)
@@ -380,7 +381,7 @@ class SingleImageSample(MySampleBase):
 	# Create a CombinedImage to hold image data 
         image = CombinedImage(label, url)
         try: # If this a file:/// URL ?
-            imgpath = jkm.tools.url2path( url, "file")
+            imgpath = jkm.tools.url2path( url, ("file",))
             filecreated = getFileCreationDateTime(imgpath)
         except ValueError: # THis is not a local file URI
             imgpath = None
@@ -403,7 +404,7 @@ class DirectorySample(MySampleBase):
         self.digipropfile = DigipropFile() 
     @staticmethod
     def _createsample(url:type_url,SampleClass):
-        triggerfile = jkm.tools.url2path( url, "file")
+        triggerfile = jkm.tools.url2path( url, ("file",))
         # First, url is the trigger file, not the directory!
         dirpath = triggerfile.parent
         # Extract creating time from directory name 
@@ -414,7 +415,7 @@ class DirectorySample(MySampleBase):
         s.prefix = dirpath
         return s
     @staticmethod
-    def _createimages(datapath:Path, patterns:list[str], ImageClass) -> list[SampleImage]:
+    def _createimages(datapath:Path, patterns:list[str], ImageClass) -> list[SampleImageBase]:
         imagefilepaths = []
         for pattern in patterns:
             foundpaths = [Path(x) for x in datapath.glob(pattern)]

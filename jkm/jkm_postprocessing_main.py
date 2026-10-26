@@ -82,7 +82,7 @@ def find_existing_events(conf:type_conf) -> tuple[type_url]:
     return found
         
 #------------------ SINGLE TASKS -------------------
-def task_backup_images(sample:type_sample, target_dir:Path, maxdim:int=0):
+def task_backup_images(sample:type_sample, target_dir:Path, maxdim:int=0) -> Path:
     """Save copied of the processed images.
     Keywords:   
     maxdim - if >0, maximum dimension of the saved image
@@ -93,22 +93,22 @@ def task_backup_images(sample:type_sample, target_dir:Path, maxdim:int=0):
         if img is None: return None # Nothing to do
         if maxdim > 0: img = jkm.tools.shrink_to_maxdim(img, maxdim)
         # Create target safe path from the full image filename AND parent directory 
-        try: # TODO: THIS ASSUMES LUOMUS-STYLE URL PATHS!
+        try: 
             fpath = jkm.tools.url2path(sampleimg.url,
-                                       allowed_schemes = ("file","http", "https")
+                                       allowed_schemes = ("file",)
                                        )
             pathparts = fpath.parts
             imgdir = pathparts[-2]        
             filename = "_".join( (imgdir,fpath.name) ) # dir+filename as a filename        
         except ValueError: # Probably not a local file
-            urlfilename = Path( jkm.tools.filename_from_url(sampleimg.url) )
-            postfix = "smaller"
-            newstem = "_".join( (urlfilename.stem, postfix) )
-            filename = urlfilename.with_stem(newstem)
-        outpath = target_dir / filename
-        log.debug(f"{sampleimg.name} Trying to save image to {outpath}.")
+            # TODO: THIS ASSUMES LUOMUS-STYLE URL PATHS!
+            fpath = jkm.tools.url2path(sampleimg.url)
+            pathparts = fpath.parts
+            imgdir = pathparts[-2]
+            filename = "_".join( (imgdir,fpath.name) ) # dir+filename as a filename        
+        outpath = target_dir / filename        
         jkm.tools.save_img(outpath, img)
-        log.debug(f"{sampleimg.name} saved as {outpath}.")
+        return outpath
 
 def task_add_prefix_to_imagefiles(sample:type_sample) -> None:
     try:
@@ -294,7 +294,6 @@ class jkm_post():
             pass # Exception does its own logging  
     # ----------------- Initialize state  -----------------------------
     def init_logging(self:Self,logging_level_file:int, logging_level_stream:int) -> logging.Logger:
-        global log  # !!!!
         log = jkm.log.setup_logging(jkm.meta.name, logging_level_file, logging_level_stream, ext = self.ext)
         jkm.configfile.log = log    
         jkm.tools.log = log
@@ -474,7 +473,9 @@ class jkm_post():
         if conf.getb( "task", "save_images"):
             image_backup_path = conf.getpath( "task", "saveimages","path")
             max_size = conf.geti( "task", "saveimages","max_size")
-            task_backup_images(sample, image_backup_path, max_size)
+            smallimg_outpath = task_backup_images(sample, image_backup_path, max_size)
+            log.debug(f"Saved review image to {smallimg_outpath}")
+            
         
         # Write sample metadata to a JSON Metadata file (should this be before renaming?)
         if conf.getb( "task", "save_JSON", default=False):
@@ -526,6 +527,7 @@ class jkm_post():
             self.ext = ext # hooks for an external event handler (like a GUI)
             self.threadpool = threadpool
             # Set loggers in all modules
+            global log
             log = self.init_logging(logging_level_file, logging_level_stream)
             log.info(f"STARTING NEW SESSION of {jkm.meta.nameversion}") # We having logging set up
             # Read config file name from sys.argv and parse the file

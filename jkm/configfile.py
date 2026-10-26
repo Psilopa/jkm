@@ -97,7 +97,7 @@ def parse_args(programname:str) -> argparse.Namespace:
             )
     return parser.parse_args()
 
-def load(programname:str) -> tomlConfig:
+def load(programname:str) -> tuple[tomlConfig, bool]:
     """Returns a config class instance with loaded data. Exits on failure as config data must be available."""
     conf_fn = ""
     try:

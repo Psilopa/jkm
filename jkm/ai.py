@@ -28,7 +28,7 @@ _TEST_PROMPT = "There images are all of the same object. Find text in the images
 AI_FAILURE_RETURN_VALUE = 'null'
 
 # For testing, Google Free Key for small tests
-TESTING_BYPASS_AI_CALL = False # Default to no bypass: use actual AI
+TESTING_BYPASS_AI_CALL:bool = False # Default to no bypass: use actual AI
 _TESTING_JSON_FROM_AI = r"""{
   "verbatim_all_text": [
     {"verbatim_text": "Xanthorhoé designata Hfn."},
@@ -49,7 +49,7 @@ _TESTING_RAW_JSON = r"""{"status": "completed", "model": "gemini-3.5-flash-lite"
 
 def load_apikey(fp:Path):
     "Read content from a file."
-    # TODO: convert errors to jk.errors.AIError
+    # TODO: convert errors to jkm.errors.AIError
     with fp.open() as f: return f.read()
     
 def _parseAI_JSON(text:str, schema = None ) -> dict:
@@ -74,7 +74,7 @@ def _parseAI_JSON(text:str, schema = None ) -> dict:
         return d
     except json.JSONDecodeError as msg:
         # Strip everything outside first { and last }
-        raise jk.errors.AIWarning(f"AI-generated JSON parsing failed with error message {msg}.")
+        raise jkm.errors.AIWarning(f"AI-generated JSON parsing failed with error message {msg}.")
         
 # --- AI-related classes ---- 
 class AI_output:
@@ -171,9 +171,9 @@ class geminiAI(): # Make subclasses based on authentication method
         
         TODO: Needs Error handling!"""
         log.debug (f"Trying to upload {filepath},  of type {type(filepath)}") 
-        if  self.client is None: raise jk.errors.AIError("Upload images requested before AI Client was created in code.")        
+        if  self.client is None: raise jkm.errors.AIError("Upload images requested before AI Client was created in code.")        
         fileobj = self.client.files.upload(  file = filepath )
-        if not fileobj: raise jk.errors.AIError(f"Uploading image failed, status {fileobj}")
+        if not fileobj: raise jkm.errors.AIError(f"Uploading image failed, status {fileobj}")
         log.debug (f"OK upload {filepath}",  )   
         return fileobj
     def labeldata_from_images(self:Self,
@@ -192,7 +192,7 @@ class geminiAI(): # Make subclasses based on authentication method
         """
         log.debug("Query_images started")
         # State checks
-        if not self.prompt: raise jk.errors.AIError("No prompt for AI provided.")
+        if not self.prompt: raise jkm.errors.AIError("No prompt for AI provided.")
 #        img_bytes = [self._file2bytes(x) for x in pathlist]
 #        sumsize = int(sum( [len(x) for x in img_bytes] )/1024)
 #        log.debug( f"Images to bytes done, size {sumsize} kb" )
@@ -208,7 +208,7 @@ class geminiAI(): # Make subclasses based on authentication method
             if  timeout: httpopts = HttpOptions(timeout=timeout)      
             else: httpopts = HttpOptions()
             self.client = self._create_client(httpopts)
-            if not self.client: raise jk.errors.AIError("Creating an AI client failed.")
+            if not self.client: raise jkm.errors.AIError("Creating an AI client failed.")
             # log.debug("Create client done")
             content =  [ {"type": "text", "text": self.prompt} ]
             content += self._add_images(imageurls, image_max_dim)
@@ -220,7 +220,7 @@ class geminiAI(): # Make subclasses based on authentication method
                     gemini_errors.APIError,
                     gemini_errors.ServerError,
                     APIConnectionError) as msg:
-                raise jk.errors.AIError(msg)
+                raise jkm.errors.AIError(msg)
         log.debug( f'Response was "{text_output}"' )
         log.debug( f'Raw was "{raw}"' )
         aioutput = AI_output()
@@ -255,7 +255,7 @@ class geminiAI(): # Make subclasses based on authentication method
         suffix = fpath.suffix
         tmpf = tempfile.NamedTemporaryFile(delete_on_close=False, suffix = suffix)
         tmpf.close() # Now it should be writeable by other processes
-        jkm.tools.save_img(tmpf.name, img)
+        jkm.tools.save_img(Path(tmpf.name), img)
         log.debug(f"Resizing done, saved to {tmpf.name}.")
         return tmpf
     def _handle_nonlocal_file(self:Self, url:type_url, ctype:str="image") -> dict[str,str]:

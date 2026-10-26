@@ -89,9 +89,7 @@ def save_img(savepath: Path, image: type_image) -> None:
         raise FileSavingError(f"Cannot save into a nonexisting directory {savepath.parent}.")
     try:
         fn = str(savepath)
-        print("TRYING TO SAVE", fn)
         cv2.imwrite(fn,image)
-        print("OK")
     except SystemError as err:
         # Converting to a jkm Error should go here
         raise err
@@ -113,7 +111,7 @@ def img_from_url(url: type_url,
     downloaders for various data sources.
     """
     try:
-        filepath = url2path( url, "file")
+        filepath = url2path( url, allowed_schemes=("file",) )
         return img_from_file( filepath )
     except (ValueError, FileLoadingError) as err:
         pass # OK, this is not a local file...    
@@ -211,14 +209,15 @@ def path2url(fpath: Path) -> str:
     return fpath.as_uri() # THIS IS DEPRECATED
 #    return urllib.request.pathname2url( str(fpath) ) 
 
-def url2path(url: type_url, allowed_schemes=None) -> Path:
+def url2path(url: type_url, allowed_schemes:tuple[str, ...]|None=None) -> Path:
     """Convert an URL to a Path.
 
     Raise a ValueError on failure."""
     # get path element from the URL
     parsed = urllib.parse.urlparse( url )
     if allowed_schemes and parsed.scheme.lower() not in allowed_schemes:
-        raise ValueError(f"URL scheme {parsed.scheme} not amomng understood values {allowed_schemes}.")
+        raise ValueError(
+            f"URL scheme {parsed.scheme} not amomng understood values {allowed_schemes}.")
     urlpath = parsed.path # Can fail
     # convert URL encoding (%20 for space etc.) back to originals
     pathstr = urllib.request.url2pathname( urlpath ) 
@@ -229,7 +228,7 @@ def as_existing_path(url: type_url) -> Path|None:
 
     Returns a Path on success. Raises a FileLoadingError on failure. """
     try:
-        filepath = url2path(url, "file")
+        filepath = url2path( url )
     except ValueError:
         raise FileLoadingError(f"Turning {url} into a Path failed.") 
     # Catch some error states
