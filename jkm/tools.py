@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import time, logging, math, re, io, shutil
+import time, logging, math, re, io, shutil, tempfile
 import validators, json
 from pathlib import Path
 import numpy as np
@@ -93,6 +93,19 @@ def save_img(savepath: Path, image: type_image) -> None:
     except SystemError as err:
         # Converting to a jkm Error should go here
         raise err
+
+def save_to_tempfile(image: type_image,
+                     max_dim:int=0,
+                     dir:Path|None = None,
+                     suffix = ".tmp.jpg") -> BinaryIO:
+    if max_dim==0:
+        small = shrink_to_maxdim(image, image_max_dim)
+    else:
+        small = image
+    tmpf = tempfile.NamedTemporaryFile(delete_on_close=False, suffix = suffix)
+    tmpf.close() # Now it should be writeable by other processes
+    save_img(Path(tmpf.name), small)
+    return tmpf
 
 def img_from_file(imagestr: str|Path) -> type_image | None:
         fnp = Path(imagestr)

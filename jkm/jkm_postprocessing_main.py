@@ -179,7 +179,8 @@ def task_AI_label_data_extraction(conf:type_conf, sample:type_sample) -> type_ai
             imageurls = (x.url for x in sample.imagelist if x.has_labels)
             image_max_dim = conf.geti("ai", "max_image_dim", default=0)
             timeout = conf.geti("ai", "request_timeout", default=None) # milliseconds
-            airesult = myai.labeldata_from_images(imageurls,  image_max_dim = image_max_dim, timeout=timeout)
+            force_download = conf.geti("ai", "force_download", default=False) 
+            airesult = myai.labeldata_from_images(imageurls,  image_max_dim = image_max_dim, timeout=timeout, force_download = force_download)
             myai.close()
         # airesult can contain almost anything, possibly including non-valid UTF8. Should sanitize better.
         log.debug(f"{sample.name}:AI call for data extraction returned {str(airesult)}")

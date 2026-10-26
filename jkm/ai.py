@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys
-import  logging,  json, os, base64, tempfile
+import  logging,  json, os, base64
 import  mimetypes  # mime type based on file URL
 from pathlib import Path
 import jkm.tools
@@ -11,7 +11,7 @@ from google import genai
 from google.genai import types
 from google.genai import errors as gemini_errors
 from google.genai.types import HttpOptions
-from google.genai._gaos.lib.compat_errors import APIConnectionError
+from google.genai._gaos.lib.compat_errors import GeminiNextGenAPIClientError
 import jkm.labeldata_model as labeldata_model
 
 # For local OAUTH token management, used by local_oauth_geminiAI
@@ -148,6 +148,7 @@ class geminiAI(): # Make subclasses based on authentication method
     def _execute_query(self:Self,content=Collection) -> tuple[ str,str|None ]:
         # Default query function. Uses the experimental Interactions API
         # May not work with older models
+        # Raises a GeminiNextGenAPIClientError on API error
         assert self.client, "_execute_query without self.client: _create_client should fail with an exception to prevent this if client creation fails"
         response_format={
             "type": "text",
@@ -179,16 +180,19 @@ class geminiAI(): # Make subclasses based on authentication method
     def labeldata_from_images(self:Self,
                      imageurls=Sequence[type_url],
                      timeout:int|None = None,
-                     image_max_dim:int = 0) -> AI_output:
+                     image_max_dim:int = 0,
+                     force_download:bool = False) -> AI_output:
         """Get data from Gemini based on multiple images. 
         
         Parameters: 
             pathlist: list of image files paths (Pathlib.Path instances)
             timeout: if given, HTTP call timeout period in milliseconds
+            force_download: True or False[default]: if True, images are downloaded and uploaded. If False, images are passed as URLs
         Returns: 
             an AI_output object
 	Exceptions: 
-##	   AIError 
+##	   AIError
+
         """
         log.debug("Query_images started")
         # State checks
@@ -211,7 +215,7 @@ class geminiAI(): # Make subclasses based on authentication method
             if not self.client: raise jkm.errors.AIError("Creating an AI client failed.")
             # log.debug("Create client done")
             content =  [ {"type": "text", "text": self.prompt} ]
-            content += self._add_images(imageurls, image_max_dim)
+            content += self._add_images(imageurls, force_download, image_max_dim)
             try: # Query the model
                 rv = self._execute_query(content)
                 (raw, text_output) = self._execute_query(content)
@@ -219,7 +223,7 @@ class geminiAI(): # Make subclasses based on authentication method
                     gemini_errors.ClientError,
                     gemini_errors.APIError,
                     gemini_errors.ServerError,
-                    APIConnectionError) as msg:
+                    GeminiNextGenAPIClientError) as msg:
                 raise jkm.errors.AIError(msg)
         log.debug( f'Response was "{text_output}"' )
         log.debug( f'Raw was "{raw}"' )
@@ -238,26 +242,23 @@ class geminiAI(): # Make subclasses based on authentication method
                             schema = labeldata_model.LabelData ) # Tries parsing the text as JSON
         aioutput.raw = raw
         return aioutput
-    def _smallertempfile(self:Self, fpath:Path, image_max_dim:int, dir:Path|None = None) :
-        #TODO -> None | tempfile.NamedTemporaryFile fails ... is there a typo in the typing of NamedTemporaryFile?
-        """Returns a NamedTemporaryFile object or None.
-        
-        Arguments:
-        image_max_dim - maximum dimension of the new image.
-        
-        Keywords:
-        dir - if given, temp file is stored here.
-        """
-        img = jkm.tools.load_img(fpath)
-        if img is None: return None # Nothing to do
-        small = jkm.tools.shrink_to_maxdim(img, image_max_dim)
-        # Save to temp directory
-        suffix = fpath.suffix
-        tmpf = tempfile.NamedTemporaryFile(delete_on_close=False, suffix = suffix)
-        tmpf.close() # Now it should be writeable by other processes
-        jkm.tools.save_img(Path(tmpf.name), img)
-        log.debug(f"Resizing done, saved to {tmpf.name}.")
-        return tmpf
+##    def _smallertempfile(self:Self, img:type_img, max_dim:int, dir:Path|None = None) -> BinaryIO :
+##        #TODO -> None | tempfile.NamedTemporaryFile fails ... is there a typo in the typing of NamedTemporaryFile?
+##        """Returns a NamedTemporaryFile object or None.
+##        
+##        Arguments:
+##        max_dim - maximum dimension of the new image.
+##        
+##        Keywords:
+##        dir - if given, temp file is stored here.
+##        """
+##        if img is None: return None # Nothing to do
+##        # Save to temp directory
+##        suffix = ".tmp"
+##        tmpf = jkm.tools.save_to_tempfile(img, max_dim=max_dim, dir=dir, suffix=suffix)
+##        log.debug(f"Resizing done, saved to {tmpf.name}.")
+##        return tmpf
+##
     def _handle_nonlocal_file(self:Self, url:type_url, ctype:str="image") -> dict[str,str]:
         """Returns a HTTP reqest fragment wrapping the url with resource type and mimertype."""
         return {"type": str(ctype),
@@ -270,8 +271,8 @@ class geminiAI(): # Make subclasses based on authentication method
             log.debug("No image resizing requested before AI.")
             return self._http_inline_image(fpath)
         log.debug(f"Resizing requested to a maximum dimension of {max_dim}.")
-        smallerdir = None # We do not care where these images are temporarily stored
-        tmpf = self._smallertempfile(fpath, max_dim, dir = smallerdir)
+        img = jkm.tools.load_img(fpath) # Load from URL
+        tmpf = jkm.tools.save_to_tempfile(img, max_dim=max_dim)
         if tmpf: # Temp file created and exists (but is not opened for writing)
             tmpfilepath = Path(tmpf.name) 
             return self._http_inline_image(tmpfilepath) 
@@ -289,6 +290,7 @@ class geminiAI(): # Make subclasses based on authentication method
             }
     def _add_images(self:Self,
                     imageurls:Sequence[type_url],
+                    force_download:bool,
                     max_dim:int = 0
                     ) -> Sequence[dict[str,str]]: 
         """Converts files to resources usable in HTTP queries
@@ -312,8 +314,20 @@ class geminiAI(): # Make subclasses based on authentication method
 #                log.debug(f"\t {url} is a local resource.")
             except jkm.errors.FileLoadingError: 
                 # Not a local path .. try treating it as an online resource
-                log.debug(f"\t {url} an online resource.")            
-                img_blocks.append( self._handle_nonlocal_file(url) )
+                log.debug(f"\t {url} an online resource.")
+                if force_download:
+                    # Download, save in temp file, then pass to AI
+                    image = jkm.tools.img_from_url(url)
+                    tempfile = jkm.tools.save_to_tempfile(image, max_dim=max_dim)
+                    if tempfile: # Temp file created and exists (but is not opened for writing)
+                        tmpfpath = Path(tempfile.name)                       
+                        img_blocks.append(
+                            self._handle_local_file(tmpfpath, max_dim)
+                            )
+                        del tempfile  # Delete temp file onced we are done
+                else: 
+                    img_blocks.append( self._handle_nonlocal_file(url) )
+                    
         return img_blocks
     
 # APIKEY security solution.    
