@@ -97,9 +97,9 @@ def save_img(savepath: Path, image: type_image) -> None:
 def save_to_tempfile(image: type_image,
                      max_dim:int=0,
                      dir:Path|None = None,
-                     suffix = ".tmp.jpg") -> BinaryIO:
+                     suffix = ".tmp.jpg") -> tempfile._TemporaryFileWrapper:
     if max_dim==0:
-        small = shrink_to_maxdim(image, image_max_dim)
+        small = shrink_to_maxdim(image, max_dim)
     else:
         small = image
     tmpf = tempfile.NamedTemporaryFile(delete_on_close=False, suffix = suffix)
@@ -236,7 +236,7 @@ def url2path(url: type_url, allowed_schemes:tuple[str, ...]|None=None) -> Path:
     pathstr = urllib.request.url2pathname( urlpath ) 
     return Path(pathstr)
 
-def as_existing_path(url: type_url) -> Path|None: 
+def as_existing_path(url: type_url) -> Path: 
     """Verify that this url, if a local file url, corresponds to an accessible path.
 
     Returns a Path on success. Raises a FileLoadingError on failure. """

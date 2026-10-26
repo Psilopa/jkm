@@ -53,7 +53,7 @@ class SampleEvent(SampleBase,  abc.ABC):
     "Container for 0+ photos of an sample and event-level metadata."
     def __init__(self,  time: datetime|None = None):
         super().__init__(time)
-        self._imagelist:list[SampleImageBase] = [] # List of SampleImage subclass instances
+        self._imagelist:list[SampleImage] = [] # List of SampleImage subclass instances
         self.prefix: str|Path = "" # Common file name prefix (often/ALWAYS same as self.datapath?)
         self.datapath: Path = Path() # SHOULD THIS BE None?
         self.meta = jkm.samplemetadata.EventMetadata() # Event-level metadata
@@ -357,11 +357,13 @@ class CETAFSample(SampleEvent):
         for regrule in self.allowed_shortid_re:
             if regrule.fullmatch(shortid): return True 
         return False
-    def _shortenidentifier(self:Self) -> str: # Overrides base class
+    def _shortenidentifier(self:Self) -> str|None: # Overrides base class
         """Shorten a given identifier string for display and file renaming purposes."""
         separator = r'/'
         # TODO: ASSUMES self._identifier exists
-        return self._identifier.split(separator)[-1] # Last element
+        if self._identifier:
+            return self._identifier.split(separator)[-1] # Last element
+        else: return self._identifier
 
 # NOTE: THIS DEFINES ORGANIZATION-SPECIFIC THINGS (FOR NOW, IDENTIFIER FORMATTING IS HERE)
 MySampleBase = CETAFSample
@@ -415,7 +417,7 @@ class DirectorySample(MySampleBase):
         s.prefix = dirpath
         return s
     @staticmethod
-    def _createimages(datapath:Path, patterns:list[str], ImageClass) -> list[SampleImageBase]:
+    def _createimages(datapath:Path, patterns:list[str], ImageClass) -> list[SampleImage]:
         imagefilepaths = []
         for pattern in patterns:
             foundpaths = [Path(x) for x in datapath.glob(pattern)]

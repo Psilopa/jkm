@@ -67,7 +67,7 @@ class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
     def on_created(self:Self, event: watchdog.events.FileSystemEvent) -> None:
         """Queues path names when a new filesystem event is noticed."""
         if event.src_path != self._lastinsert: 
-            url = jkm.tools.path2url( Path(event.src_path) )             
+            url = jkm.tools.path2url( Path(str(event.src_path) ) )             
             self.queue.put(url)
         else: log.debug(f"Prevented double insertion of {event.src_path} into the queue")
         self._lastinsert = event.src_path        
@@ -82,13 +82,12 @@ def find_existing_events(conf:type_conf) -> tuple[type_url]:
     return found
         
 #------------------ SINGLE TASKS -------------------
-def task_backup_images(sample:type_sample, target_dir:Path, maxdim:int=0) -> Path:
+def task_backup_images(sample:type_sample, target_dir:Path, maxdim:int=0) -> None:
     """Save copied of the processed images.
     Keywords:   
     maxdim - if >0, maximum dimension of the saved image
     """
     for sampleimg in sample.imagelist:
-            
         img = jkm.tools.load_img(sampleimg.url)
         if img is None: return None # Nothing to do
         if maxdim > 0: img = jkm.tools.shrink_to_maxdim(img, maxdim)
@@ -108,7 +107,6 @@ def task_backup_images(sample:type_sample, target_dir:Path, maxdim:int=0) -> Pat
             filename = "_".join( (imgdir,fpath.name) ) # dir+filename as a filename        
         outpath = target_dir / filename        
         jkm.tools.save_img(outpath, img)
-        return outpath
 
 def task_add_prefix_to_imagefiles(sample:type_sample) -> None:
     try:
@@ -176,7 +174,7 @@ def task_AI_label_data_extraction(conf:type_conf, sample:type_sample) -> type_ai
         if myai: #
             myai.model = conf.getstr('ai','model')
             myai.prompt = conf.getstr('ai','prompt')
-            imageurls = (x.url for x in sample.imagelist if x.has_labels)
+            imageurls = [x.url for x in sample.imagelist if x.has_labels]
             image_max_dim = conf.geti("ai", "max_image_dim", default=0)
             timeout = conf.geti("ai", "request_timeout", default=None) # milliseconds
             force_download = conf.geti("ai", "force_download", default=False) 
@@ -474,8 +472,8 @@ class jkm_post():
         if conf.getb( "task", "save_images"):
             image_backup_path = conf.getpath( "task", "saveimages","path")
             max_size = conf.geti( "task", "saveimages","max_size")
-            smallimg_outpath = task_backup_images(sample, image_backup_path, max_size)
-            log.debug(f"Saved review image to {smallimg_outpath}")
+            task_backup_images(sample, image_backup_path, max_size)
+            log.debug(f"Saved review images to {image_backup_path}.")
             
         
         # Write sample metadata to a JSON Metadata file (should this be before renaming?)
@@ -528,7 +526,6 @@ class jkm_post():
             self.ext = ext # hooks for an external event handler (like a GUI)
             self.threadpool = threadpool
             # Set loggers in all modules
-            global log
             log = self.init_logging(logging_level_file, logging_level_stream)
             log.info(f"STARTING NEW SESSION of {jkm.meta.nameversion}") # We having logging set up
             # Read config file name from sys.argv and parse the file
