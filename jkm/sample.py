@@ -207,10 +207,22 @@ class SampleImageBase(SampleBase,  abc.ABC):
         else: self._loaded = True        
     @property
     def path(self:Self) -> Path:
-        assert self._parsed_url.scheme == "file" # Should be accessed only for files
-        return Path(self._parsed_url.path)
+        if self._parsed_url.scheme.lower() != "file":
+            return None
+        else:
+            return jkm.tools.url2path(self._url)
     # Functions
-    def encodeJSON(self:Self) -> dict:
+    def parentMoved(self:Self, oldpath:Path, newpath:Path) -> None:
+        """Update url and derived properties to reflect a changed parent directory.
+
+        Can be safely called with non-local images (non-file URLs), but will do nothing."""
+        if not self.path: return # This is not a local file, nothing we can do
+        # Update URL, _parsed_url and path should automatically follow
+        oldurl = jkm.tools.path2url(oldpath)
+        newurl = jkm.tools.path2url(newpath)
+        self.url = self.url.replace(oldurl, newurl)
+
+	def encodeJSON(self:Self) -> dict:
         "Return a JSON serializable representation."
         # TODO: ADD FULL STRUCTURE HERE
         # TODO: IMPLEMENT IN CHILD CLASSES
@@ -461,7 +473,8 @@ class DirectorySample(MySampleBase):
         - FileExistsError
         """        
         # TODO: EXTEND TO POSSIBLE SUBDIRECTORIES?
-        newpath = self.datapath # Default to no change
+        oldpath = self.datapath 
+        newpath = oldpath # Default to no change
         basepath = self.datapath.parent
         if ignore_domain: id0 = self.shortidentifier
         else: id0 = self.identifier
@@ -476,7 +489,10 @@ class DirectorySample(MySampleBase):
         log.debug(f"Renaming {self.datapath} to {newpath}")        
         self.datapath.rename(newpath) 
         self.datapath= newpath # Set datapath to the new value only if everything preceding was successful
-    def write_postprocessor_report(self, conf, properties_filename = None) -> None:
+        # Now we need to made sure all child items know the parent item was renamed
+        for img in self._imagelist:
+            img.parentMoved(oldpath, newpath)
+	def write_postprocessor_report(self, conf, properties_filename = None) -> None:
         """Write postprocessor.properties file. Uses the same format as the Luomus degitizing line .properties file"""
         if (properties_filename is None) or (not properties_filename):
             properties_filename  = Path(r"postprocessor.properties")
