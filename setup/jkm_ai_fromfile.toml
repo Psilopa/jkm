@@ -68,7 +68,7 @@ max_w = inf          # integer - pixel value or inf for image edge
 model = "gemini-3.5-flash-lite"
 #prompt = "These images are all of the same object. Find text in the images. Reply with JSON, fitting the data into the variables specified in the JSON Schema given."
 prompt = "Your task is to accurately transcribe handwritten and typewritten specimen labels based on one or more photographs, minimizing CER and WER. Work character by character, word by word, line by line, label by label, transcribing the text exactly as it appears on the labels. To maintain the authenticity of the historical text, retain spelling errors, grammar, syntax, capitalization, and punctuation. Transcribe all the text on the labels. They may be in any language using Latin alphabet with diacritics, and may also contain numbers, dates, codes and abbreviations. Reply with JSON, fitting the data into the variables specified in the JSON Schema given."
-max_image_dim = 1200 # integer - maximum image size. Pass 0 or comment out for no scaling
+max_image_dim = 2000 # integer - maximum image size. Pass 0 or comment out for no scaling
 properties_filename = "" # String - leave empty for no output
 # Authentication to Google Cloud services
 auth_type = "APIKEY" # APIKEY, LOCAL_OAUTH or CLOUD_OAUTH
@@ -82,6 +82,7 @@ google_project_id = "gen-lang-client-0404401598"
 app_token_path = 'Z:/ADC/jkm_token.json' # Should be readable
 tmp_token_path = 'Z:/ADC/temptoken.json' # Should be writeable
 request_timeout = 10000 # AI request timeout in milliseconds
+force_download = true # Force image download/upload- If false, image URLs are passed to the AI
 
 [meta]
 copyright_owner = "Luomus" # Written into JSON metadata files only

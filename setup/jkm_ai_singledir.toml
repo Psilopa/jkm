@@ -83,6 +83,7 @@ google_project_id = "gen-lang-client-0404401598"
 app_token_path = 'Z:/ADC/jkm_token.json' # Should be readable
 tmp_token_path = 'Z:/ADC/temptoken.json' # Should be writeable
 request_timeout = 10000 # AI request timeout in milliseconds
+force_download = true # Force image download/upload- If false, image URLs are passed to the AI
 
 
 [meta]

@@ -76,6 +76,7 @@ app_token_path = 'C:/Insect_APPs/ACT/jkm_token.json' # Should be readable
 tmp_token_path = 'C:/Insect_APPs/ACT/temptoken.json' # Should be writeable
 request_timeout = 10000 # AI request timeout in milliseconds
 max_image_dim = 2000
+force_download = true # Force image download/upload- If false, image URLs are passed to the AI
 
 # Setting for the barcode recognition tool
 [barcodes]
