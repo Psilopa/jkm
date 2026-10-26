@@ -5,9 +5,10 @@ filename = 'C:/Insect_APPs/labeldata/ai_labeldata.csv'
 
 [data] # Which file type identifies a record?
 main_data_directory = 'C:/Insect_APPs/data'
-# CURRENTLY AVAILABLE OPTIONS = MZH_INSECTLINE, MZH_PLANTLINE, DIR_CONTENT, SUBDIRECTORIES
+# Currently available value for the Datatype to load
 # DIR_CONTENT = read a directory, treat each image matching recognize_by_filename_pattern as a new sample
 # SUBDIRECTORIES = read a directory, treat subdirectory (with 0+ images) as a new sample
+# RESOURCEFILE = Read a list of URIs or paths from a file
 # MZH* = FInnish Museum of Natural History -specific modes
 datatype_to_load = "MZH_INSECTLINE" 
 sample_pattern = ["*.jpg"] # List - Trigger pattern(s) that leads to a sample processing event
