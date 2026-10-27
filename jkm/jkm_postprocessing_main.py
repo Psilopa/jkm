@@ -522,7 +522,8 @@ class jkm_post():
             threadpool - a thread pool. GUI implementations should provide a GUI-save version
             ext - a even handler object. 
             """
-        try: 
+        try:
+            global log
             self.ext = ext # hooks for an external event handler (like a GUI)
             self.threadpool = threadpool
             # Set loggers in all modules

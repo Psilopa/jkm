@@ -222,7 +222,7 @@ class SampleImageBase(SampleBase,  abc.ABC):
         newurl = jkm.tools.path2url(newpath)
         self.url = self.url.replace(oldurl, newurl)
 
-	def encodeJSON(self:Self) -> dict:
+    def encodeJSON(self:Self) -> dict:
         "Return a JSON serializable representation."
         # TODO: ADD FULL STRUCTURE HERE
         # TODO: IMPLEMENT IN CHILD CLASSES
@@ -492,7 +492,7 @@ class DirectorySample(MySampleBase):
         # Now we need to made sure all child items know the parent item was renamed
         for img in self._imagelist:
             img.parentMoved(oldpath, newpath)
-	def write_postprocessor_report(self, conf, properties_filename = None) -> None:
+    def write_postprocessor_report(self, conf, properties_filename = None) -> None:
         """Write postprocessor.properties file. Uses the same format as the Luomus degitizing line .properties file"""
         if (properties_filename is None) or (not properties_filename):
             properties_filename  = Path(r"postprocessor.properties")
