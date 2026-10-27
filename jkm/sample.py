@@ -270,7 +270,8 @@ class SampleImageBase(SampleBase,  abc.ABC):
         comps = urlparse(self.url)
         comps._replace( path=str(newpath) )
         self.path.rename(newpath)
-        self.url = urlunparse(comps) # Also resets self._parsed_url
+        # Update URL to point to the new file
+        self.url = jkm.tools.path2url( newpath ) 
 
 class SampleImage(SampleImageBase): 
     "One image plus metadata"
