@@ -117,7 +117,7 @@ def task_add_prefix_to_imagefiles(sample:type_sample) -> None:
 
 def task_OCR(conf:type_conf, sample:type_sample) -> str:
     alltext = ""
-    ocr_command = conf.get("ocr", "ocr_command")
+    ocr_command = conf.getb("ocr", "ocr_command", default=False)
     for image in sample.imagelist:
         if not image.has_labels : continue # Skip pure specimen images
         labeltxt = image.ocr(ocr_command) # Default ocr uses fragments created above
@@ -469,6 +469,7 @@ class jkm_post():
         else: log.debug(f"{sample.name}: No data export to a spreadsheet.")
 
         # Create backup scaled-down images for review:
+        # This should be after dir renaming to capture most recent names
         if conf.getb( "task", "save_images"):
             image_backup_path = conf.getpath( "task", "saveimages","path")
             max_size = conf.geti( "task", "saveimages","max_size")
