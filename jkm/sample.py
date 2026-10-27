@@ -258,7 +258,8 @@ class SampleImageBase(SampleBase,  abc.ABC):
         if angle:
             self._loadImage()
             rotcode = deg2rotcode[angle]
-            if self.bitmap: self.bitmap = cv2.rotate(self.bitmap, rotateCode = rotcode)        
+            if self.bitmap is not None:
+                self.bitmap = cv2.rotate(self.bitmap, rotateCode = rotcode)        
     def rename(self,newpath: Path) -> None:
         """Rename the corresponding file on the file system.
 

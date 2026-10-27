@@ -1,8 +1,3 @@
-[spreadsheet]
-format = "csv" # Only format currently supported
-filename = 'C:/Insect_APPs/labeldata/ai_labeldata.csv'
-#write_raw_output  = false
-
 [data] # Which file type identifies a record?
 main_data_directory = 'C:/Insect_APPs/data'
 # Currently available value for the Datatype to load
@@ -28,20 +23,18 @@ sleep_before_renaming = 7 # integer, seconds - Wait before directory renaming to
 filename_timestamp_format = "%Y%m%d_%Hh%Mm%Ss"
 
 [task]
+image_editing_tasks = false
 # FILE AND DIRECTORY NAMING AND MOVING TASKS
 create_directories = false # false or true
 files_rename_by_barcode_id = false # false or true
 directories_rename_by_barcode_id = true # false or true
-# IMAGE CHANGE TASKS
-rotate_before_processing = false # false or true
-#save_rotated = yes
 # DATA EXTRACTION TASKS
 read_barcodes = true # false or true - Read barcodes 
 # Find areas with text using cv2 computer vision
-find_text_areas = false # false or true
-save_text_area_images = false # false or true
-ocr = false # false or true
-ocr_analysis = false # false or true
+#find_text_areas = false # false or true
+#save_text_area_images = false # false or true
+#ocr = false # false or true
+#ocr_analysis = false # false or true
 # LABEL DATA EXTRACTION TASKS
 ai_label_text_extraction = false # false or true
 labeldata_to_CSV = false # false or true: will be ignored if no label data extraction has been done
@@ -50,17 +43,16 @@ save_JSON = false # false or true
 write_postprocessor_report_file = true
 save_images = false
 
+[task.spreadsheet]
+format = "csv" # Only format currently supported
+filename = 'C:/Insect_APPs/labeldata/ai_labeldata.csv'
+#write_raw_output  = false
+
 [task.saveimages]
 path = 'C:/Insect_APPs/labeldata/smallimages' 
 max_size = 1200
 
-[meta]
-copyright_owner = "Luomus" # Written into JSON metadata files only
-operator = "Luomus digitoijat" # Written into JSON metadata files only
-textline = "" # Written into JSON metadata files only
-# license = ""  # Written into JSON metadata files only
-
-[ai]
+[task.ai]
 model = "gemini-3.5-flash-lite"
 prompt = "These images are all of the same object. Find text in the images. Reply with JSON, fitting the data into the variables specified in the JSON Schema given."
 properties_filename = "" # String - leave empty for no output
@@ -79,14 +71,34 @@ max_image_dim = 2000
 force_download = true # Force image download/upload- If false, image URLs are passed to the AI
 
 # Setting for the barcode recognition tool
-[barcodes]
+[task.barcodes]
 increase_contrast = false # false or true - if true, will increase contrast before barcode recognition attempt
 grey_range = 50 # integer - CHECK MEANING
 secondary_from_ocr = false # false or true - Attempt reading specimen ID from the image if barcode was not found (or readable)
 barcodepackage = "pyzbar" # qreader or pyzbar - Python qr package used
 # TODO: barcode type list
 
+[meta]
+copyright_owner = "Luomus" # Written into JSON metadata files only
+operator = "Luomus digitoijat" # Written into JSON metadata files only
+textline = "" # Written into JSON metadata files only
+# license = ""  # Written into JSON metadata files only
+
 [internal] # Move to postprocessor ?
 n_threads = 1		# Number of parallel threads. If using AI, bertter keep this at 1. For fast turnaround, a few would be ideal
 bypass_AI = false	# true or false. It true, uses internal test output, faking the AI output for testing speed and resource use.
 
+
+
+#[task.image.edit]
+#rotate = true # false or true
+#crop = true # false or true
+
+#[task.image.rotate]
+#degrees = 90 # Valid 
+#save_rotated = false # NOT YET IMPLEMENTED
+
+#[task.image.crop.1]
+#Target
+#Params
+#save_cropped = false # NOT YET IMPLEMENTED

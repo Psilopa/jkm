@@ -1,18 +1,12 @@
-[spreadsheet]
-format = "csv" # Only format currently supported
-filename = 'Z:/testing_url_access.csv'
-#filename = "/home/kahanpaa/projects/_videostill/ai_data_raw.csv"
-write_raw_output  = true
-
 [data] # Which file type identifies a record?
-main_data_directory = 'C:\LocalData\jkahanpa\jkm\DOC'
+main_data_directory = 'Z:\test path with gaps\'
 # Currently available value for the Datatype to load
 # DIR_CONTENT = read a directory, treat each image matching recognize_by_filename_pattern as a new sample
 # SUBDIRECTORIES = read a directory, treat subdirectory (with 0+ images) as a new sample
 # RESOURCEFILE = Read a list of URIs or paths from a file
 # MZH* = FInnish Museum of Natural History -specific modes
 datatype_to_load = "RESOURCEFILE" 
-sample_pattern = ["../DOC/target_url_list_example.txt"] # List - Trigger pattern(s) that leads to a sample processing event
+sample_pattern = ["speedtest_lot1.txt"] # List - Trigger pattern(s) that leads to a sample processing event
 image_name_pattern = ["*.jpg"] # For Sample types where several images can be loaded
 label_file = "Preview002.jpg" # Files with this name pattern are treated as files with labels
 object_files = ["Preview001.jpg"] # Files with this name pattern are treated as files with specimens (if both match, treated as combined)
@@ -30,8 +24,8 @@ save_text_area_images = false
 ocr = false                              
 ocr_analysis = false                     
 # LABEL DATA EXTRACTION TASKS
-ai_label_text_extraction = false          
-labeldata_to_CSV = false
+ai_label_text_extraction = true          
+labeldata_to_CSV = true
 # OTHER DATA
 save_JSON = false                        
 write_postprocessor_report_file = false
@@ -42,29 +36,42 @@ files_rename_by_barcode_id = false
 directories_rename_by_barcode_id =  false
 save_images = false
 
+[task.spreadsheet]
+format = "csv" # Only format currently supported
+filename = 'Z:\test path with gaps/testing_url_access.csv'
+#filename = "/home/kahanpaa/projects/_videostill/ai_data_raw.csv"
+write_raw_output  = true
+
 [task.saveimages]
-path = '/home/kahanpaa/projects/_videostill/small_images' 
+path = 'Z:/test path with gaps/smallimages' 
 max_size = 1200
 
 # IMAGE CHANGE TASKS
-[task.image]
-rotate_images = false
-crop_images = true
+#[task.image.edit]
+#rotate = true # false or true
+#crop = true # false or true
 
-[task.image.rotate]
-degrees = 180
-## rotation, clockwise, in degrees, allowed values  = 0, 90, 180 or 270
-#save_rotated = false
+#[task.image.rotate]
+#degrees = 90 # Valid 
+#save_rotated = false # NOT YET IMPLEMENTED
 
-[task.image.crop.1]
-target = "specimen"  # string - specimen, label, or all
-method = "fixed"     # string - only fixed currently supported
-min_w = 1000         # integer - pixel value 
-max_w = inf          # integer - pixel value or inf for image edge
+#[task.image.crop.1]
+#target = "specimen"  # string - specimen, label, or all
+#method = "fixed"     # string - only fixed currently supported
+#min_w = 1000         # integer - pixel value 
+#max_w = inf          # integer - pixel value or inf for image edge
 #min_h = 0           # integer - pixel value 
 #min_h = 2000        # integer - pixel value or inf for image edge
 
-[ai]
+# Setting for the barcode recognition tool
+[task.barcodes]
+increase_contrast = true # true of false - if true, will increase contrast before barcode recognition attempt
+grey_range = 50 # integer - CHECK MEANING
+secondary_from_ocr = false # true of false - Attempt reading specimen ID from the image if barcode was not found (or readable)
+barcodepackage = "pyzbar" # qreader or pyzbar - Python qr package used
+# TODO: barcode type list
+
+[task.ai]
 model = "gemini-3.5-flash-lite"
 #prompt = "These images are all of the same object. Find text in the images. Reply with JSON, fitting the data into the variables specified in the JSON Schema given."
 prompt = "Your task is to accurately transcribe handwritten and typewritten specimen labels based on one or more photographs, minimizing CER and WER. Work character by character, word by word, line by line, label by label, transcribing the text exactly as it appears on the labels. To maintain the authenticity of the historical text, retain spelling errors, grammar, syntax, capitalization, and punctuation. Transcribe all the text on the labels. They may be in any language using Latin alphabet with diacritics, and may also contain numbers, dates, codes and abbreviations. Reply with JSON, fitting the data into the variables specified in the JSON Schema given."
@@ -98,17 +105,9 @@ sleep_after_new_sample_detected = 1 # integer - Allows for enough time for trans
 sleep_before_renaming = 0 # integer, seconds - Wait before directory renaming to make sure other processes have time to complete.
 filename_timestamp_format = "%Y%m%d_%Hh%Mm%Ss"
 
-# Setting for the barcode recognition tool
-[barcodes]
-increase_contrast = true # true of false - if true, will increase contrast before barcode recognition attempt
-grey_range = 50 # integer - CHECK MEANING
-secondary_from_ocr = false # true of false - Attempt reading specimen ID from the image if barcode was not found (or readable)
-barcodepackage = "pyzbar" # qreader or pyzbar - Python qr package used
-# TODO: barcode type list
-
 [internal]
 n_threads = 1		# Number of parallel threads. If using AI, bertter keep this at 1. For fast turnaround, a few would be ideal
-bypass_AI = false	# true or false. It true, uses internal test output, faking the AI output for testing speed and resource use.
+bypass_AI = true	# true or false. It true, uses internal test output, faking the AI output for testing speed and resource use.
 
 # Setting for the OCR tool
 #[ocr]
