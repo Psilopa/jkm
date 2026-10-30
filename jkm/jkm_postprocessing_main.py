@@ -6,6 +6,10 @@
 import logging
 log = logging.getLogger() # Overwrite if needed
 
+# Forced garbage collection after every processed sample. Less memory use, slightly slower
+FORCE_GC = True
+if FORCE_GC: 
+    import gc
 # Standard python modules
 import time, threading, sys, queue
 from math import inf
@@ -507,6 +511,7 @@ class jkm_post():
             if successQ is processor.FAIL_RETRY: queue.put( next_input ) # retry from start
             elif successQ is processor.FAIL_IGNORE: pass 
             elif successQ is processor.SUCCESS: pass 
+            if FORCE_GC: gc.collect()
             log.info(f"Sample events in process queue: {queue.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
 
 # ----------------- only function others should call! -----------------------------
