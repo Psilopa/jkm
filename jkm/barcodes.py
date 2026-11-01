@@ -3,14 +3,14 @@ log = logging.getLogger() # Overwrite if needed
 # non-std common libraries
 import cv2
 # application-specific modules
-from .tools import increaseTopContrast, shrink_to_maxdim
+from . import tools
 from .errors import BarcodeError
+from .typing import * # For type checking tools
 # Dynamic  import in extractbarcodedata to allow for config fig-based import
 CONST_QREADER = "qreader"
 CONST_PYZBAR = "pyzbar"
 pyzbar = QReader = None
-# For typing
-from jkm.typing import *
+
 
 def _extract_pyzbar(greyimg:type_image, encoding:str|None=None) -> list[str]:
     """Extract barcode data using PyZBar.
@@ -26,7 +26,7 @@ def _extract_pyzbar(greyimg:type_image, encoding:str|None=None) -> list[str]:
     barcodes = []
     # try qr recognition at different image sizes
     for maxdim in (200,600,2000,max(greyimg.shape)):
-        smallimg = shrink_to_maxdim(greyimg,maxdim)
+        smallimg = tools.shrink_to_maxdim(greyimg,maxdim)
         barcodes = pyzbar.decode(smallimg, symbols=[pyzbar.ZBarSymbol.QRCODE])
         if barcodes or maxdim == max(greyimg.shape): break
     log.debug("Found %i barcode(s)" % len(barcodes))
@@ -69,7 +69,7 @@ def extractbarcodedata(image:type_image,
     Parameters: 
     image -- Accepts either a filename, a file object, opencv images. Should also work with PIL or nympy image arrays.
     qrpackage -- name of barcode decoding backage to be used: see constants ONST_PYZBAR & CONST_QREADER.
-    increasecontast -- if True, calls tools.increaseTopContrast with greyrange as the parameter.
+    increasecontast -- if True, calls tools.tools.increaseTopContrast with greyrange as the parameter.
     greyrange -- see above.
     encoding -- None or a name for the enconding used in decoding the barcode byte stream to text.
     """
@@ -80,7 +80,7 @@ def extractbarcodedata(image:type_image,
     img = image
     greyimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     if increasecontast:
-        greyimg = increaseTopContrast(greyimg,greyrange)
+        greyimg = tools.increaseTopContrast(greyimg,greyrange)
     if qrpackage == CONST_PYZBAR:
         if not pyzbar: 
             importlib.import_module("pyzbar")

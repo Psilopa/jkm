@@ -1,11 +1,12 @@
+# Stdlib pakcages
 import logging
+import time, sys
 #import pytesseract
+# Non-stdlib pakcages
 import numpy as np
 import cv2
-import jkm.tools
-#from pathlib import Path
-import time, sys
-# For typing
+# My own
+from . import tools
 from .typing import *
 
 log = logging.getLogger() # Overwrite if needed
@@ -170,7 +171,7 @@ def ocr(rect:type_image,
         pytesseract.pytesseract.tesseract_cmd = ocr_command
 
     increasecontast = True
-    if increasecontast: rect = jkm.tools.gammacorrect(rect,3)
+    if increasecontast: rect = tools.gammacorrect(rect,3)
     try:
         start_time = time.time()
         log.debug(f"Attempting OCR on an image area shape {rect.shape}")
