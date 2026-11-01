@@ -119,7 +119,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.jkm.main(self.logging_level_file,
                       self.logging_level_stream,
                       threadpool=self.threadpool,
-                      ext = self.ext 
+                      ext = self.ext
                       )
 
     def on_ailabel(self, ai_data):

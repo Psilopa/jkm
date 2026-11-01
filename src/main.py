@@ -253,7 +253,8 @@ def task_crop(sample:type_sample, p:dict[str,str]) -> None:
 def task_write_spreadsheet(spreadsheet:type_spreadsheet,
                            airesult,
                            barcode_identifier:str|None=None,
-                           write_raw_output:bool=True
+                           write_raw_output:bool=True,
+                           sources = []
                            )-> None:
     # We handle spreadsheet opening here because we do not know possible header fields at script start time!
     raw = "raw"
@@ -264,9 +265,11 @@ def task_write_spreadsheet(spreadsheet:type_spreadsheet,
         outdata.update( {raw: airesult.raw} )
     if (not write_raw_output) and (raw in outdata):
         del outdata[raw]
+    if sources:
+        outdata.update( {"sources":"\m".join(sources)} )
     if not spreadsheet.isOpen(): 
         spreadsheet.open(fieldnames = outdata )
-        if spreadsheet.isEmpty(): spreadsheet.writeheader()                
+        if spreadsheet.isEmpty(): spreadsheet.writeheader()
     spreadsheet.add_line_from_dict(outdata)
 
 def task_write_postprocessor_report(conf:type_conf, sample:type_sample)-> None:
@@ -474,8 +477,10 @@ class jkm_post():
         # Store interpreted data in a spreadsheet file 
         if self.spreadsheet and conf.getb( "task", "ai_label_text_extraction", default=False):
             # Check if we want to store raw/all output from the AI (it can be loooong)
-            write_raw_output= conf.getb("task", "spreadsheet", "write_raw_output", default = True)
-            task_write_spreadsheet(self.spreadsheet, airesult,sample.identifier, write_raw_output)
+            option_write_raw = conf.getb("task", "spreadsheet", "write_raw_output", default = True)
+            # Write source data into the spreadsheet file
+            urls = [img.url for img in sample.imagelist]
+            task_write_spreadsheet(self.spreadsheet, airesult,sample.identifier, option_write_raw, sources = urls)
             log.debug(f"{sample.name}: Adding row to spreadsheet done.")
         else: log.debug(f"{sample.name}: No data export to a spreadsheet.")
 
