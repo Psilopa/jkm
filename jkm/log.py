@@ -1,6 +1,6 @@
 import logging, os
 # For typing
-from jkm.typing import *
+from .typing import *
 
 LOG_FILE_ENCODING = "utf8"
        

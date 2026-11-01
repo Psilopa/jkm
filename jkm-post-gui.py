@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import atexit, re, logging
 # Local
-from jkm.jkm_postprocessing_main import jkm_post
+from jkm.main import jkm_post
 import jkm.meta, jkm.external, jkm.ai
 # QT
 from PyQt6.QtCore import QThreadPool, QRunnable, pyqtSlot, pyqtSignal, QObject

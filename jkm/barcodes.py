@@ -3,8 +3,8 @@ log = logging.getLogger() # Overwrite if needed
 # non-std common libraries
 import cv2
 # application-specific modules
-import jkm.tools as tools
-from jkm.errors import BarcodeError
+from .tools import increaseTopContrast, shrink_to_maxdim
+from .errors import BarcodeError
 # Dynamic  import in extractbarcodedata to allow for config fig-based import
 CONST_QREADER = "qreader"
 CONST_PYZBAR = "pyzbar"
@@ -26,7 +26,7 @@ def _extract_pyzbar(greyimg:type_image, encoding:str|None=None) -> list[str]:
     barcodes = []
     # try qr recognition at different image sizes
     for maxdim in (200,600,2000,max(greyimg.shape)):
-        smallimg = tools.shrink_to_maxdim(greyimg,maxdim)
+        smallimg = shrink_to_maxdim(greyimg,maxdim)
         barcodes = pyzbar.decode(smallimg, symbols=[pyzbar.ZBarSymbol.QRCODE])
         if barcodes or maxdim == max(greyimg.shape): break
     log.debug("Found %i barcode(s)" % len(barcodes))
@@ -76,11 +76,11 @@ def extractbarcodedata(image:type_image,
     global QReader, pyzbar
     if qrpackage not in (CONST_QREADER, CONST_PYZBAR):
         raise BarcodeError(f"Unknown barcode reader tool '{qrpackage}'")
-#    img = tools.load_img(image)
+    # Do a loadimage just in case
     img = image
     greyimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     if increasecontast:
-        greyimg = tools.increaseTopContrast(greyimg,greyrange)
+        greyimg = increaseTopContrast(greyimg,greyrange)
     if qrpackage == CONST_PYZBAR:
         if not pyzbar: 
             importlib.import_module("pyzbar")

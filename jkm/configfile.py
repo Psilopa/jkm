@@ -1,14 +1,12 @@
+# Standard lib imports
 from pathlib import Path
-import logging,  sys, argparse
-import jkm.tools  as tools
-from jkm.errors import ConfigError, ConfigWarning
-#import jkm.errors as errors
-import tomllib
-log = logging.getLogger() # Overwrite if needed
-# For typing
-from jkm.typing import *
+import logging,  sys, argparse, tomllib
 from collections.abc import Callable, Collection, Sequence
+# My own modules in this directory
+from .errors import ConfigError, ConfigWarning
+from .typing import * # For typing
 
+log = logging.getLogger() # Overwrite if needed
 
 # TODO: DOES NOT HANDLE DEFAULT ARGUMENTS RIGHT?
 def _recursedict(d:dict, args:Sequence):

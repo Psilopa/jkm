@@ -1,5 +1,5 @@
 # For typing
-from jkm.typing import *
+from .typing import *
 import logging
 
 class ExtBase():

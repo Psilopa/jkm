@@ -6,7 +6,7 @@ import jkm.tools
 #from pathlib import Path
 import time, sys
 # For typing
-from jkm.typing import *
+from .typing import *
 
 log = logging.getLogger() # Overwrite if needed
 _net = None
