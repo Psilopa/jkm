@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
-import time, logging, math, re, io, shutil, tempfile
-import validators, json
+import time, logging, math, re, io, shutil, tempfile, json
 from pathlib import Path
-import numpy as np
-import cv2
-from jkm.downloader import defaultdownloader
-from jkm.errors import FileLoadingError, FileSavingError
 from urllib.parse import urlparse, ParseResult, unquote
 import urllib.request
+# Non-std packages
+import numpy as np
+import cv2, validators
+# My packages
+from .typing import *
+from .downloader import defaultdownloader
+from .errors import FileLoadingError, FileSavingError
 log = logging.getLogger() # Overwrite if needed
 # For typing
-from jkm.typing import *
 
     
 

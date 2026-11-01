@@ -1,8 +1,8 @@
 import logging, csv
 from pathlib import Path
 import json as jsonmodule
-from jkm.tools import json2printdict
-import jkm.errors
+from .tools import json2printdict
+from .errors import TaskError
 #import openpyxl
 
 CSV_DIALECT_DEFAULT =  csv.excel()
@@ -27,7 +27,7 @@ class SpreadsheetCSV(SpreadsheetBase):
         self.csvfile = None
         self.dialect = dialect
         if self.fp.suffix != ".csv": 
-            raise jkm.errors.TaskError(f"CSV output file name must end in '.csv'. {self.fp} fails")
+            raise TaskError(f"CSV output file name must end in '.csv'. {self.fp} fails")
     def writeheader(self) -> None:
         # Can update  self.writer.fieldnames as long as header has not yert been written. 
         self.writer.writeheader() 
