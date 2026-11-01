@@ -5,7 +5,7 @@ import  mimetypes  # mime type based on file URL
 from pathlib import Path
 # my own local modules
 from . import tools
-# tools.list2printvalues, tools.valid_xml_string, tools.load_img, tools.as_existing_path, tools.save_to_tempfile, tools.img_from_url
+from . import labeldata_model
 from .errors import AIError, AIWarning
 from .typing import * # For typing
 # GOOGLE-SPECIFIC IMPORTS
@@ -14,7 +14,6 @@ from google.genai import types
 from google.genai import errors as gemini_errors
 from google.genai.types import HttpOptions
 from google.genai._gaos.lib.compat_errors import GeminiNextGenAPIClientError
-import jkm.labeldata_model as labeldata_model
 # For local OAUTH token management, used by local_oauth_geminiAI
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
