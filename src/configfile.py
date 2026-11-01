@@ -79,7 +79,7 @@ class tomlConfig(): # TOML-based replacement
         self._verify_list(should_have, self._d, self.on_warning)
             
 # --- parse command-line arguments ---
-def parse_args(programname:str, argv=sys.argv[1:]) -> argparse.Namespace:
+def parse_args(programname:str, argv=sys.argv) -> argparse.Namespace:
     """Get command-line arguments using argparse.ArgumentParser."""
     parser = argparse.ArgumentParser(description = programname)
     parser.add_argument('-c', '--config_file',          
@@ -93,7 +93,6 @@ def parse_args(programname:str, argv=sys.argv[1:]) -> argparse.Namespace:
             default=False,
             help = 'forces all logging to level DEBUG',
             )
-
     return parser.parse_args(argv[1:])
 
 def load(programname:str, argv=sys.argv) -> tuple[tomlConfig, bool]:
