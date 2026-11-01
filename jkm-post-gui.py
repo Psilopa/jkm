@@ -108,7 +108,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _connectSignalsSlots(self):
         self.actionExit.triggered.connect(self.on_exit)
-        self.actionExit.triggered.connect(self.on_exit)
         # self.ext *should* be in place by now
         if self.ext:
             self.ext.newLogEvent.connect(self.on_logevent)

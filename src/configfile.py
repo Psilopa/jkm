@@ -79,7 +79,7 @@ class tomlConfig(): # TOML-based replacement
         self._verify_list(should_have, self._d, self.on_warning)
             
 # --- parse command-line arguments ---
-def parse_args(programname:str) -> argparse.Namespace:
+def parse_args(programname:str, argv=sys.argv[1:]) -> argparse.Namespace:
     """Get command-line arguments using argparse.ArgumentParser."""
     parser = argparse.ArgumentParser(description = programname)
     parser.add_argument('-c', '--config_file',          
@@ -93,13 +93,22 @@ def parse_args(programname:str) -> argparse.Namespace:
             default=False,
             help = 'forces all logging to level DEBUG',
             )
-    return parser.parse_args()
 
-def load(programname:str) -> tuple[tomlConfig, bool]:
-    """Returns a config class instance with loaded data. Exits on failure as config data must be available."""
+    return parser.parse_args(argv[1:])
+
+def load(programname:str, argv=sys.argv) -> tuple[tomlConfig, bool]:
+    """Returns a config class instance with loaded data and a debug indicator (boolean).
+       Exits on failure as config data must be available.
+
+       Parameters: 
+        progname - string, program name
+
+       Keywords: 
+        argv - list of strings. If given, will be used instead of sys.argv."""
+
     conf_fn = ""
     try:
-        cmdargs:argparse.Namespace  = parse_args(programname)
+        cmdargs:argparse.Namespace  = parse_args(programname, argv)
         conf_fn = cmdargs.config_file
         log.info(f"Reading configuration file {conf_fn}")
         return (tomlConfig(conf_fn), cmdargs.debug)

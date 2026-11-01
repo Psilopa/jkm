@@ -526,7 +526,8 @@ class jkm_post():
              logging_level_file:int = logging.INFO,
              logging_level_stream:int= logging.INFO,
              threadpool = myThreadPool(),
-             ext:type_external|None=None ):
+             ext:type_external|None=None,
+             argv:Sequence[str] = sys.argv):
         """jkm_post main function.
 
             Arguments:
@@ -534,6 +535,7 @@ class jkm_post():
             logging_level_stream - console/external logging level.
             threadpool - a thread pool. GUI implementations should provide a GUI-save version
             ext - a even handler object. 
+            argv - a list of initial arguments. If not given, uses sys.argv
             """
         try:
             global log
@@ -543,7 +545,7 @@ class jkm_post():
             log = self.init_logging(logging_level_file, logging_level_stream)
             log.info(f"STARTING NEW SESSION of {jkm_meta.nameversion}") # We having logging set up
             # Read config file name from sys.argv and parse the file
-            (conf, _DEBUG) = jkm_configfile.load(jkm_meta.name)
+            (conf, _DEBUG) = jkm_configfile.load(jkm_meta.name, argv)
             if _DEBUG: # re-init logging
                 log = self.init_logging(logging.DEBUG, logging.DEBUG)
                 
