@@ -1,27 +1,18 @@
 # -*- coding: utf-8 -*-
-import time, logging, math, re, io, shutil
+import time, logging, math, re, io, shutil, tempfile
 import validators, json
 from pathlib import Path
 import numpy as np
 import cv2
 from jkm.downloader import defaultdownloader
-from jkm.errors import FileLoadingError
-from urllib.parse import urlparse, ParseResult
+from jkm.errors import FileLoadingError, FileSavingError
+from urllib.parse import urlparse, ParseResult, unquote
+import urllib.request
 log = logging.getLogger() # Overwrite if needed
 # For typing
 from jkm.typing import *
 
-def is_existing_path(url: type_url) -> None: 
-    "Verify that this url, if a local file url, corresponds to an accessible path"
-    try:
-        filepath: Path = url2path( url )
-    except ValueError: return # Can't validate this
-    dirpath: Path = filepath.parent
-    # Catch some error states
-    if not dirpath.is_dir():                
-        raise FileLoadingError(f"Cannot find directory {dirpath}.")
-    if not filepath.exists():
-        raise FileLoadingError(f"Could not find file {filepath}.")
+    
 
 def list2printvalues( mylist: Collection[dict] )-> str:
     "Prettyprints the values from a list of dictionaries."
@@ -92,11 +83,29 @@ def shrink_to_maxdim(img: type_image, maxdim: int) -> type_image:
     scale: float = min(1.0, float(maxdim)/current_maxdim)
     return cv2.resize(img,(0,0),fx=scale,fy=scale)
     
-def save_img(fn: str|Path, image: type_image) -> None: 
+def save_img(savepath: Path, image: type_image) -> None: 
     # Better error handling than the raw cv2 imwrite
-    if isinstance(fn,Path): fn = str(fn)
-    try: cv2.imwrite(fn,image)
-    except SystemError as err: raise err
+    if not savepath.parent.exists():
+        raise FileSavingError(f"Cannot save into a nonexisting directory {savepath.parent}.")
+    try:
+        fn = str(savepath)
+        cv2.imwrite(fn,image)
+    except SystemError as err:
+        # Converting to a jkm Error should go here
+        raise err
+
+def save_to_tempfile(image: type_image,
+                     max_dim:int=0,
+                     dir:Path|None = None,
+                     suffix = ".tmp.jpg") -> tempfile._TemporaryFileWrapper:
+    if max_dim==0:
+        small = shrink_to_maxdim(image, max_dim)
+    else:
+        small = image
+    tmpf = tempfile.NamedTemporaryFile(delete_on_close=False, suffix = suffix)
+    tmpf.close() # Now it should be writeable by other processes
+    save_img(Path(tmpf.name), small)
+    return tmpf
 
 def img_from_file(imagestr: str|Path) -> type_image | None:
         fnp = Path(imagestr)
@@ -105,7 +114,7 @@ def img_from_file(imagestr: str|Path) -> type_image | None:
         if fnp.is_reserved(): raise FileLoadingError("File %s is reserved" % fnp)
         return cv2.imread(str(fnp),cv2.IMREAD_UNCHANGED)
     
-def img_from_url(url: str,
+def img_from_url(url: type_url,
                  downloader: Callable = defaultdownloader,
                  dlargs:list = [], dlkwords:dict = {}) -> type_image | None:
     """Tries to return an image from a URI.
@@ -114,35 +123,36 @@ def img_from_url(url: str,
     like this downloader(url, *dlargs, **dlkwords). This allows for custom
     downloaders for various data sources.
     """
-    parsed_url: ParseResult = urlparse(url)
-    if parsed_url.scheme == 'file':
-        return img_from_file(parsed_url.path)
-    # OK, this is not a local file...
+    try:
+        filepath = url2path( url, allowed_schemes=("file",) )
+        return img_from_file( filepath )
+    except (ValueError, FileLoadingError) as err:
+        pass # OK, this is not a local file...    
     if not downloader:
         raise FileLoadingError(f"Resource {url} is not local and we have no provided way to download it.")
     # Try to use the provided downloader
-    content = downloader(url) # Should return a raw byte array
+    content = downloader(url, *dlargs, **dlkwords) # Should return a raw byte array
     if content is None: 
         raise FileLoadingError(f"Could not download file {url}.")
     arr = np.asarray(bytearray(content), dtype=np.uint8)
     return cv2.imdecode(arr, -1) # 'Load it as it is'
 
     
-def load_img(image: str|Path|io.IOBase) -> type_image | None: 
+def load_img(image: type_url|str|Path|io.IOBase|type_image) -> type_image | None: 
     """Loads an image (as a cv2 image) from a variety of sources.
 
     Accept
+    - a string
     - a Path
     - a IOBase stream (which is treated as an opened file with image data
-    - 
-    an image type
+    - an numpy array (=a cv2 image in Python)
     """
     # Todo: add better Error handling (catch SystemError from and convert from FileError or like)
     if isinstance(image, Path): return img_from_file(image)
     elif isinstance(image, str): # Can be a path or a uri
         try:
             if Path(image).exists(): img_from_file(image) 
-        except FileLoadingError: pass # Continue on failure to read as path
+        except FileLoadingError: pass # Not a Path. 
         imgstr = image.strip()
         if validators.url( imgstr ):  # Should be a valid URL as-is
             return img_from_url( imgstr )
@@ -207,10 +217,51 @@ def safecopy(orig_path: Path, target_path: Path, overwrite:bool = True) -> bool:
 def unique(s: list|tuple) ->tuple :return tuple(set(s))
 
 #  ---------------- URL to Path conversions ------------------
-def path2url(fpath: Path) -> str:
+def path2url(fpath: Path) -> str:    
+    """Convert a Path to an URL."""
     return fpath.as_uri() # THIS IS DEPRECATED
 #    return urllib.request.pathname2url( str(fpath) ) 
 
-def url2path(url: str) -> Path:
-    return Path.from_uri(url) # Added in version 3.13.
-#    return Path( urllib.request.url2pathname(url) )
+def url2path(url: type_url, allowed_schemes:tuple[str, ...]|None=None) -> Path:
+    """Convert an URL to a Path.
+
+    Raise a ValueError on failure."""
+    # get path element from the URL
+    parsed = urllib.parse.urlparse( url )
+    if allowed_schemes and parsed.scheme.lower() not in allowed_schemes:
+        raise ValueError(
+            f"URL scheme {parsed.scheme} not amomng understood values {allowed_schemes}.")
+    urlpath = parsed.path # Can fail
+    # convert URL encoding (%20 for space etc.) back to originals
+    pathstr = urllib.request.url2pathname( urlpath ) 
+    return Path(pathstr)
+
+def as_existing_path(url: type_url) -> Path: 
+    """Verify that this url, if a local file url, corresponds to an accessible path.
+
+    Returns a Path on success. Raises a FileLoadingError on failure. """
+    try:
+        filepath = url2path( url )
+    except ValueError:
+        raise FileLoadingError(f"Turning {url} into a Path failed.") 
+    # Catch some error states
+    dirpath: Path = filepath.parent
+    if not dirpath.is_dir(): 
+        raise FileLoadingError(f"Cannot find directory {dirpath}.")
+    if not filepath.exists():
+        raise FileLoadingError(f"Could not find file {filepath}.")
+    return filepath
+
+# ----- string to XML preparation ---------------
+#Based on an answer by John Machin on Stack Overflow (http://stackoverflow.com/users/84270/john-machin)
+#http://stackoverflow.com/questions/8733233/filtering-out-certain-bytes-in-python
+
+def isValidXMLChar(char):
+  codepoint = ord(char)
+  return 0x20 <= codepoint <= 0xD7FF or   \
+         codepoint in (0x9, 0xA, 0xD) or  \
+         0xE000 <= codepoint <= 0xFFFD or \
+         0x10000 <= codepoint <= 0x10FFFF
+
+def valid_xml_string(intext):
+    return "".join(filter(isValidXMLChar, intext))

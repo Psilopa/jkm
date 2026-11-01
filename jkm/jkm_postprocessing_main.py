@@ -6,9 +6,13 @@
 import logging
 log = logging.getLogger() # Overwrite if needed
 
+# Forced garbage collection after every processed sample. Less memory use, slightly slower
+FORCE_GC = True
+if FORCE_GC: 
+    import gc
 # Standard python modules
 import time, threading, sys, queue
-#from math import inf
+from math import inf
 from datetime import datetime
 from pathlib import Path
 # non-stdlib modules
@@ -23,8 +27,7 @@ import jkm.external as ext
 from jkm.typing import *
 
 # CONSTANTS
-_BACKUP_DATATABLE = True
-_num_worker_threads = 1 # BETTER KEEP THIS AT 1: AI PROCESSES DO NOT SEEM TO LIKE CONCURRENT CALLS
+BACKUP_DATATABLE = True
 _AI_AUTH_TYPES = ("APIKEY", "CLOUD_OAUTH", "LOCAL_OAUTH")
 class processor:
     SUCCESS = 0
@@ -50,7 +53,7 @@ class myThreadPool():
 def get_sample_class(sample_format_str:str) -> type_sample:
     str2class = {
         "dir_content":  jkm.sample.SingleImageSample,  # Every matching image in a directory (incl subdirs) = a sample
-        "subdirectories":  jkm.sample.SubDirectorySample, # For each directory, all images = a sample
+        "subdirectories":  jkm.sample.DirectorySample, # For each directory, all images = a sample
         "resourcefile":  jkm.sample.FileRowSample,  # 1 row = 1 sample
         "mzh_insectline" : jkm.sample.LuomusInsectLineSample,
         "mzh_plantline":  jkm.sample.LuomusPlantLineSample,
@@ -67,7 +70,9 @@ class myFileEventHandler(watchdog.events.PatternMatchingEventHandler):
         super().__init__(**kwargs)
     def on_created(self:Self, event: watchdog.events.FileSystemEvent) -> None:
         """Queues path names when a new filesystem event is noticed."""
-        if event.src_path != self._lastinsert: self.queue.put(event.src_path)
+        if event.src_path != self._lastinsert: 
+            url = jkm.tools.path2url( Path(str(event.src_path) ) )             
+            self.queue.put(url)
         else: log.debug(f"Prevented double insertion of {event.src_path} into the queue")
         self._lastinsert = event.src_path        
 
@@ -81,6 +86,32 @@ def find_existing_events(conf:type_conf) -> tuple[type_url]:
     return found
         
 #------------------ SINGLE TASKS -------------------
+def task_backup_images(sample:type_sample, target_dir:Path, maxdim:int=0) -> None:
+    """Save copied of the processed images.
+    Keywords:   
+    maxdim - if >0, maximum dimension of the saved image
+    """
+    for sampleimg in sample.imagelist:
+        img = jkm.tools.load_img(sampleimg.url)
+        if img is None: return None # Nothing to do
+        if maxdim > 0: img = jkm.tools.shrink_to_maxdim(img, maxdim)
+        # Create target safe path from the full image filename AND parent directory 
+        try: 
+            fpath = jkm.tools.url2path(sampleimg.url,
+                                       allowed_schemes = ("file",)
+                                       )
+            pathparts = fpath.parts
+            imgdir = pathparts[-2]        
+            filename = "_".join( (imgdir,fpath.name) ) # dir+filename as a filename        
+        except ValueError: # Probably not a local file
+            # TODO: THIS ASSUMES LUOMUS-STYLE URL PATHS!
+            fpath = jkm.tools.url2path(sampleimg.url)
+            pathparts = fpath.parts
+            imgdir = pathparts[-2]
+            filename = "_".join( (imgdir,fpath.name) ) # dir+filename as a filename        
+        outpath = target_dir / filename        
+        jkm.tools.save_img(outpath, img)
+
 def task_add_prefix_to_imagefiles(sample:type_sample) -> None:
     try:
         new_name_prefix = sample.shortidentifier
@@ -90,7 +121,7 @@ def task_add_prefix_to_imagefiles(sample:type_sample) -> None:
 
 def task_OCR(conf:type_conf, sample:type_sample) -> str:
     alltext = ""
-    ocr_command = conf.get("ocr", "ocr_command")
+    ocr_command = conf.getb("ocr", "ocr_command", default=False)
     for image in sample.imagelist:
         if not image.has_labels : continue # Skip pure specimen images
         labeltxt = image.ocr(ocr_command) # Default ocr uses fragments created above
@@ -101,7 +132,7 @@ def task_OCR(conf:type_conf, sample:type_sample) -> str:
 
 def task_read_barcodes(conf:type_conf, sample:type_sample) -> Sequence[str]:
     allbarcodes = []
-    barcodepackage = conf.get( "barcodes", "barcodepackage").lower()
+    barcodepackage = conf.get( "task","barcodes", "barcodepackage").lower()
     for image in sample.imagelist:
         try:
             # NOTE: the choice of barcose detector tool is hardcoded in jkm/barcodes.py
@@ -129,31 +160,33 @@ def task_get_text_areas(conf:type_conf, sample:type_sample) -> Collection[type_r
 def task_AI_label_data_extraction(conf:type_conf, sample:type_sample) -> type_airresult|None:
     airesult = None # Start with no result
     try:
-        ai_auth_type = conf.get("ai", "auth_type") 
+        ai_auth_type = conf.get("task","ai", "auth_type") 
         assert ai_auth_type in _AI_AUTH_TYPES
         if ai_auth_type == 'APIKEY': myai = jkm.ai.apikey_geminiAI(conf.APIKEY)
         elif ai_auth_type == 'CLOUD_OAUTH':
-            project_id = conf.getpath("ai", "google_project_id")
-            location = conf.getpath("ai", "google_location")
+            project_id = conf.getpath("task","ai", "google_project_id")
+            location = conf.getpath("task","ai", "google_location")
             myai = jkm.ai.cloud_oauth_geminiAI(project_id, location)
         elif ai_auth_type == 'LOCAL_OAUTH': 
-            app_token_path = conf.getpath("ai", "app_token_path") # Should be readable
-            tmp_token_path = conf.getpath("ai", "tmp_token_path") # Should be writeable
-            project_id = conf.getstr("ai", "google_project_id")
-            location = conf.getstr("ai", "google_location")
+            app_token_path = conf.getpath("task","ai", "app_token_path") # Should be readable
+            tmp_token_path = conf.getpath("task","ai", "tmp_token_path") # Should be writeable
+            project_id = conf.getstr("task","ai", "google_project_id")
+            location = conf.getstr("task","ai", "google_location")
             myai = jkm.ai.local_oauth_geminiAI(project_id, location, app_token_path, tmp_token_path)
         else:
             myai = None # Should never happen as ai_auth_type is verified to havce a valid value at this point
         if myai: #
-            myai.model = conf.getstr('ai','model')
-            myai.prompt = conf.getstr('ai','prompt')
-            imageurls = (x.url for x in sample.imagelist if x.has_labels)
-            image_max_dim = conf.geti("ai", "max_image_dim", default=0)
-            airesult = myai.labeldata_from_images(imageurls,  image_max_dim = image_max_dim)
+            myai.model = conf.getstr("task",'ai','model')
+            myai.prompt = conf.getstr("task",'ai','prompt')
+            imageurls = [x.url for x in sample.imagelist if x.has_labels]
+            image_max_dim = conf.geti("task","ai", "max_image_dim", default=0)
+            timeout = conf.geti("task","ai", "request_timeout", default=None) # milliseconds
+            force_download = conf.geti("task","ai", "force_download", default=False) 
+            airesult = myai.labeldata_from_images(imageurls,  image_max_dim = image_max_dim, timeout=timeout, force_download = force_download)
             myai.close()
         # airesult can contain almost anything, possibly including non-valid UTF8. Should sanitize better.
         log.debug(f"{sample.name}:AI call for data extraction returned {str(airesult)}")
-        outfn = conf.get("ai","properties_filename")
+        outfn = conf.get("task","ai","properties_filename")
         if outfn and (airesult is not None): # If a properties_filename was defined
             outpath = sample.datapath / outfn
             with outpath.open("w") as f: f.write(airesult.to_json())                                                        
@@ -188,9 +221,10 @@ def task_rename_directories(conf:type_conf, sample:type_sample, sleep_before:int
             log.warning(f"{sample.name}: Renaming directory failed, original directory does not exist anymore: {msg}")                
             break # Exit the while loop 
         except PermissionError as msg:                
-            log.warning(f"No write access: {msg}. \nWill attempt again in {wait_time} seconds {attempt_times-attempt_current} times.")                    
-            attempt_current += 1
-            time.sleep(wait_time)
+            log.warning(f"No write access: {msg}. \nWill attempt again in {wait_time} seconds {attempt_times-attempt_current} times.")
+        # If loop was not interrupted by break above
+        attempt_current += 1
+        time.sleep(wait_time)
 
 def task_rotate(sample:type_sample, degrees:int, allowed_values:Collection|None = None) -> None:
     if allowed_values and (degrees not in allowed_values):
@@ -246,7 +280,7 @@ class jkm_post():
     # ----------------- Verify setup --------------------------------
     def verify_conf(self:Self, conf:type_conf)-> None:
         try: # Configuration verification
-            conf.verify( must_have = ["postprocessor", "task", "data","meta","spreadsheet",
+            conf.verify( must_have = ["postprocessor", "task", "data","meta",
                                       ["data","main_data_directory"],
                                       ["data","datatype_to_load"],
                                       ["data","sample_pattern"],
@@ -256,14 +290,13 @@ class jkm_post():
                                         ],
                          should_have = []
                         )
-            if conf.has_section("barcodes"):
-                log.debug(f'Using QR code decoder { conf.get( "barcodes", "barcodepackage") }')
+            if conf.getb("task","read_barcodes"):
+                log.debug(f'Using QR code decoder { conf.get( "task","barcodes", "barcodepackage") }')
             if not conf.basepath.exists(): raise jkm.errors.ConfigError(f"Resource base {conf.basepath} does not exist.")
         except jkm.errors.ConfigWarning: # ConfigError is way worse and is handled at the end
             pass # Exception does its own logging  
     # ----------------- Initialize state  -----------------------------
     def init_logging(self:Self,logging_level_file:int, logging_level_stream:int) -> logging.Logger:
-        global log  # !!!!
         log = jkm.log.setup_logging(jkm.meta.name, logging_level_file, logging_level_stream, ext = self.ext)
         jkm.configfile.log = log    
         jkm.tools.log = log
@@ -277,13 +310,13 @@ class jkm_post():
     def init_spreadsheet(self:Self,conf:type_conf) -> type_spreadsheet|None:
         spreadsheetpath = ""
         try: 
-            spreadsheetpath = Path(conf.get("spreadsheet","filename") ) 
-            if  _BACKUP_DATATABLE:  
+            spreadsheetpath = Path(conf.get("task","spreadsheet","filename") ) 
+            if  BACKUP_DATATABLE:  
                 timestr = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
                 backup_path = spreadsheetpath.with_stem( spreadsheetpath.stem + "_" + timestr )
                 # TODO: check return 
                 successQ = jkm.tools.safecopy(spreadsheetpath, backup_path) 
-            sheetformat = conf.get("spreadsheet","format") 
+            sheetformat = conf.get("task","spreadsheet","format") 
             if sheetformat.lower() != "csv": 
                 log.warning("Unknown ") 
             self.spreadsheet = jkm.spreadsheet.SpreadsheetCSV(spreadsheetpath)
@@ -294,35 +327,35 @@ class jkm_post():
         return self.spreadsheet
 
     def init_AI_auth(self:Self,conf:type_conf) -> None:
-        conf.verify( must_have = ["ai", ["ai","auth_type"] ] )
-        auth_type = conf.get("ai", "auth_type") # Must exist if we want AI
+        conf.verify( must_have = [ ["task","ai","auth_type"] ] )
+        auth_type = conf.get("task","ai", "auth_type") # Must exist if we want AI
         log.debug(f"AI authentication method: {auth_type}")
         if auth_type == 'APIKEY':
-            conf.verify( must_have = [["ai","APIkeyfile"]] )
-            APIPATH = Path(conf.get("ai","APIkeyfile"))
+            conf.verify( must_have = [ ["task","ai","APIkeyfile"] ] )
+            APIPATH = Path(conf.get("task","ai","APIkeyfile"))
             conf.APIKEY = jkm.ai.load_apikey(APIPATH) # HACK, FIND A BETTER WAY TO PASS THIS
             log.debug(f"Reading API key from {APIPATH}")
-            log.debug(f"AI prompt set to \'{conf.get('ai','prompt')}\'")
+            log.debug(f"AI prompt set to \'{conf.get('task','ai','prompt')}\'")
         elif auth_type == "CLOUD_OAUTH":
-            conf.verify( must_have = [["ai","google_project_id"], ["ai","google_location"],
-                                      ["ai","app_token_path"], ["ai","tmp_token_path"],
+            conf.verify( must_have = [["task","ai","google_project_id"], ["task","ai","google_location"],
+                                      ["task","ai","app_token_path"], ["task","ai","tmp_token_path"],
                                       ] )
         elif auth_type == "LOCAL_OAUTH":
-            conf.verify( must_have = [["ai","google_project_id"], ["ai","google_location"],
+            conf.verify( must_have = [["task","ai","google_project_id"], ["task","ai","google_location"],
                                       ] )
         else:
             raise jkm.errors.AIError(f"Unknown AI authentication method {auth_type}")                
     # ----------------- A meta-task ------------------------
     def task_edit_images(self:Self, conf:type_conf, sample:type_sample) -> None:
         # ROTATE IMAGES ?
-        if conf.getb( "task", "image", "rotate_images"):
+        if conf.getb( "task", "image", "edit", "rotate", default=False):
             log.debug(f"Rotating image {sample.name}")
             degrees = conf.geti( "task", "image", "rotate", "degrees")    
             task_rotate(sample, degrees, [0, 90, 180, 270])# non-zero value    
             # SAVE ROTATED (NOT IMPLEMENTED)
             # goes here
         else: log.debug(f"{sample.name}: No rotation performed.")
-        if conf.getb( "task", "image", "crop_images"):
+        if conf.getb( "task", "image", "edit", "crop", default=False):
             for n in conf.getlist( "task", "image", "crop"):
                 params = conf.getdict( "task", "image", "crop", n )
                 task_crop(sample, params)
@@ -330,43 +363,40 @@ class jkm_post():
 
     # ----------------- Process a single event ------------------------
     def processSingleEvent(self:Self, sourceurl:type_url, conf:type_conf, spreadsheet:type_spreadsheet) -> int:
-        log.debug(f"Processing data from {sourceurl}" )
         # Variables to hold extracted data
+        # Potential exceptions: jkm.errors.FileLoadingError
         allbarcodes = []
-        try:
-            # If local, checks that it the path exists
-            jkm.tools.is_existing_path( sourceurl ) 
-            # Try to recognise input file/directory format
-            sample_format = conf.get("data", "datatype_to_load")        
-            sample_class = get_sample_class( sample_format.lower() )
-            if sample_class in (jkm.sample.LuomusInsectLineSample,
-                                jkm.sample.LuomusPlantLineSample,
-                                jkm.sample.SubDirectorySample,
-                                ): 
-                jkm.tools.is_existing_path( sourceurl ) 
-                sample = sample_class.from_directory(sourceurl, conf)
-            elif sample_class in (jkm.sample.SingleImageSample,
-                                  jkm.sample.FileRowSample):
-                sample = sample_class.from_url(sourceurl, conf)
-            # get_sample_class(sformat) should already block unknown sample types:   
-            else:
-                raise jkm.errors.FileLoadingError(f"Unknown sample type {sample_format}")
-        except jkm.errors.FileLoadingError as msg:
-            log.error(msg)
-            return processor.FAIL_IGNORE
-                
+        # If local, checks that it the path exists
+        # jkm.tools.as_existing_path( sourceurl ) # Raises an FileLoadingError on failure
+                        
+        # Try to recognise input file/directory format
+        sample_format = conf.get("data", "datatype_to_load")        
+        sample_class = get_sample_class( sample_format.lower() )
+        if sample_class in (jkm.sample.LuomusInsectLineSample,
+                            jkm.sample.LuomusPlantLineSample,
+                            jkm.sample.DirectorySample,
+                            ): 
+            jkm.tools.as_existing_path( sourceurl )  # FileLoadingError on failure
+            sample = sample_class.from_directory(sourceurl, conf)
+        elif sample_class in (jkm.sample.SingleImageSample,
+                              jkm.sample.FileRowSample):
+            sample = sample_class.from_url(sourceurl, conf)
+        # get_sample_class(sformat) should already block unknown sample types:   
+        else:
+            raise jkm.errors.FileLoadingError(f"Unknown sample type {sample_format}")
+            
 ##        # MAIN POSTPROCESSOR STARTS HERE
         if sample: log.info(f"New sample found, initial name {sample.name}")
         if self.ext: self.ext.event_new_sample(sample)
 
         # IMAGE EDITING        
-        edit_images = conf.getb( "task", "image_editing_tasks")
+        edit_images = conf.getb( "task", "image_editing_tasks", default=False)
         # This meta-function does its own logging etc
         if edit_images:
             self.task_edit_images(conf, sample) 
         
         # FIND BARCODES ?
-        if conf.getb( "task", "read_barcodes"):
+        if conf.getb( "task", "read_barcodes", default=False):
             allbarcodes += task_read_barcodes(conf,sample)
             if self.ext: self.ext.event_barcode_detection(sample)
         else: log.debug(f"{sample.name}: No barcode extraction.")
@@ -384,7 +414,7 @@ class jkm_post():
             if self.ext: self.ext.event_single_sample_id(sample)
         
         # FIND TEXT ARES ?
-        if conf.getb( "task", "find_text_areas"):
+        if conf.getb( "task", "find_text_areas", default=False):
             textareas = task_get_text_areas(conf, sample)
             if self.ext: self.ext.event_textareas(sample)
         else:
@@ -392,13 +422,13 @@ class jkm_post():
             log.debug(f"{sample.name}: No text area recognition.")
 
         # PERFORM Classic OCR ?
-        if conf.getb( "task", "ocr"):
+        if conf.getb( "task", "ocr", default=False):
             task_OCR(conf, sample)
             if self.ext: self.ext.event_OCRtext(sample)
         else: log.debug(f"{sample.name}: No OCR.")
 
         # AI-BASED TEXT EXTRACTION ?
-        if conf.getb( "task", "ai_label_text_extraction"):
+        if conf.getb( "task", "ai_label_text_extraction", default=False):
             airesult = task_AI_label_data_extraction(conf, sample)
             if airesult: log.info(f'AI label analysis results was \n"{airesult.to_prettyprint()}\n"\n')
             else: log.warning(f'AI label analysis results was empty.\n') # Shouldn't happen
@@ -417,7 +447,7 @@ class jkm_post():
 
         # RENAME DIRECTORIES (this may need to stay above file renaming)  
         if sample.shortidentifier \
-                  and  conf.getb( "task", "directories_rename_by_barcode_id") \
+                  and  conf.getb( "task", "directories_rename_by_barcode_id", default=False) \
                   and sample.supports_rename_directories:
             sleep_before = conf.geti("postprocessor", "sleep_before_renaming", default=0)
             task_rename_directories(conf, sample, sleep_before)
@@ -435,13 +465,22 @@ class jkm_post():
 
         # FINALLY, WRITE RESULTS TO FILES
         # Store interpreted data in a spreadsheet file 
-        if self.spreadsheet and conf.getb( "task", "ai_label_text_extraction"):
+        if self.spreadsheet and conf.getb( "task", "ai_label_text_extraction", default=False):
             # Check if we want to store raw/all output from the AI (it can be loooong)
-            write_raw_output= conf.getb( "spreadsheet", "write_raw_output", default = True)
+            write_raw_output= conf.getb("task", "spreadsheet", "write_raw_output", default = True)
             task_write_spreadsheet(self.spreadsheet, airesult,sample.identifier, write_raw_output)
             log.debug(f"{sample.name}: Adding row to spreadsheet done.")
         else: log.debug(f"{sample.name}: No data export to a spreadsheet.")
 
+        # Create backup scaled-down images for review:
+        # This should be after dir renaming to capture most recent names
+        if conf.getb( "task", "save_images", default=False):
+            image_backup_path = conf.getpath( "task", "saveimages","path")
+            max_size = conf.geti( "task", "saveimages","max_size")
+            task_backup_images(sample, image_backup_path, max_size)
+            log.debug(f"Saved review images to {image_backup_path}.")
+            
+        
         # Write sample metadata to a JSON Metadata file (should this be before renaming?)
         if conf.getb( "task", "save_JSON", default=False):
             sample.writeMetaJSON()
@@ -456,18 +495,23 @@ class jkm_post():
         log.info(f"Postprocessing sample {sample.name} ready.")
         if self.ext: self.ext.event_sample_done(sample, processor.SUCCESS)
         return processor.SUCCESS
-
 # ----------------- main worker function, called in a new thread created when a sample arrival event is noticed ------------------------
     def processSampleEvents(self:Self,queue:queue.Queue, conf:type_conf, sleep_s:int, spreadsheet:type_spreadsheet) -> None:
         while True:
             next_input = queue.get()
             if next_input is None: break
             time.sleep(sleep_s) # Wait for all data to arrive
-            successQ = self.processSingleEvent( next_input, conf, self.spreadsheet )        
+            try:
+                log.debug(f"Processing data from {next_input}" )
+                successQ = self.processSingleEvent( next_input, conf, self.spreadsheet )        
+            except (jkm.errors.FileLoadingError,
+                    jkm.errors.FileSavingError) as msg:
+                log.error(msg)
+                successQ = processor.FAIL_IGNORE                
             if successQ is processor.FAIL_RETRY: queue.put( next_input ) # retry from start
             elif successQ is processor.FAIL_IGNORE: pass 
             elif successQ is processor.SUCCESS: pass 
-#            if self.ext: self.ext.event_sample_done(sample, processor.SUCCESS) # ... but we do NOT know the sample here, at it is not returned. TODO
+            if FORCE_GC: gc.collect()
             log.info(f"Sample events in process queue: {queue.qsize()}\n\n") # Queue still contains this item, thus -1 in the number reported               
 
 # ----------------- only function others should call! -----------------------------
@@ -479,29 +523,30 @@ class jkm_post():
         """jkm_post main function.
 
             Arguments:
-            logging_level_file - 
-            logging_level_stream -  
+            logging_level_file - log file logging level (typically logging.DEBUG or logging.INFO)
+            logging_level_stream - console/external logging level.
             threadpool - a thread pool. GUI implementations should provide a GUI-save version
             ext - a even handler object. 
             """
-        self.ext = ext # hooks for an external event handler (like a GUI)
-        self.threadpool = threadpool
-        # Set loggers in all modules
-        log = self.init_logging(logging_level_file, logging_level_stream)
-        log.info(f"STARTING NEW SESSION of {jkm.meta.nameversion}") # We having logging set up
-        if jkm.ai.TESTING_BYPASS_AI_CALL:
-            log.warning("*******AI BYPASS TESTING MODE IS ON*******")
-        # Read config file name from sys.argv and parse the file
-        try: 
-            conf:type_conf = jkm.configfile.load(jkm.meta.name)
+        try:
+            global log
+            self.ext = ext # hooks for an external event handler (like a GUI)
+            self.threadpool = threadpool
+            # Set loggers in all modules
+            log = self.init_logging(logging_level_file, logging_level_stream)
+            log.info(f"STARTING NEW SESSION of {jkm.meta.nameversion}") # We having logging set up
+            # Read config file name from sys.argv and parse the file
+            (conf, _DEBUG) = jkm.configfile.load(jkm.meta.name)
+            if _DEBUG: # re-init logging
+                log = self.init_logging(logging.DEBUG, logging.DEBUG)
+                
             self.verify_conf(conf) # Check that config has basic data needed to run
             datafile_patterns = conf.getlist("data", "sample_pattern")
-
-            if conf.getb("postprocessor", "process_existing"):            
-                for fn in find_existing_events(conf):
-                    self.urlqueue.put(fn)
-                log.info(f"Approximate number of sample events to process at launch is {self.urlqueue.qsize()}")
-            
+            # Set some behaviour-controlling variables
+            jkm.ai.TESTING_BYPASS_AI_CALL = conf.getb("internal","bypass_AI", default = False)
+            if jkm.ai.TESTING_BYPASS_AI_CALL:
+                log.warning("*******AI BYPASS TESTING MODE IS ON*******")
+            N_WORKER_THREADS = conf.geti("internal","n_threads", default = 17)
             if conf.getb("task", "labeldata_to_CSV", default = False):
                 self.spreadsheet = self.init_spreadsheet(conf)
 
@@ -509,9 +554,15 @@ class jkm_post():
                 # Reads keys if needed, verifies conf for chosen method. Raises jkm.errors.AIError on failure
                 self.init_AI_auth(conf) 
 
+            # Should be process existing data ?
+            if conf.getb("postprocessor", "process_existing"):            
+                for fn in find_existing_events(conf):
+                    self.urlqueue.put(fn)
+                log.info(f"Approximate number of sample events to process at launch is {self.urlqueue.qsize()}")
+            
             # Create worker threads for handlinf Sample processing requests
             wait_after_sample_s = conf.getf("postprocessor", "sleep_after_new_sample_detected")
-            for i in range(_num_worker_threads):
+            for i in range(N_WORKER_THREADS):
                 self.threadpool.newthread( target = self.processSampleEvents,
                                       args = (self.urlqueue,conf, wait_after_sample_s, self.spreadsheet) )
             #Start loops looking for data to process and processing it

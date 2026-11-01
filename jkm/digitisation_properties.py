@@ -1,29 +1,31 @@
 from  pathlib import Path
 import shutil
+# For typing
+from jkm.typing import *
 
 class DigipropFile:
-    def __init__(self):
+    def __init__(self:Self):
         self._ddict = {}
         self._hdr = ""            
-    def read(self, fileobject):
+    def read(self:Self, fileobject:TextIO) -> dict[str,str]:
         d = [x.split("=",1) for x in fileobject.readlines()]
         if len(d) > 0: 
             self._hdr = d[0][0]
         d = [x for x in d if len(x) == 2] #skip lines that did not split into "x = y" pairs. Note: strips the hdr line, if any
         self._ddict = {k:v for (k,v) in d}
         return self._ddict
-    def update(self,key, value):
+    def update(self:Self,key:str, value:str|Path) -> None:
         self._ddict[key] = value
-    def setheader(self,val): 
+    def setheader(self:Self,val:str) -> None: 
         self._hdr = val
-    def write(self,fileobject,line_end= "\n"):
+    def write(self:Self,fileobject:TextIO ,line_end:str= "\n") -> None:
         # TODO: make tmp copy
         fileobject.write(self._hdr + line_end)
         for k,v in self._ddict.items():
             fileobject.write("%s=%s%s" % (k,v.strip(),line_end) )
-    def datadict(self): return self._ddict        
-    def header(self): return self._hdr    
-    def save(self, fullpath):
+    def datadict(self:Self) -> dict[str,str]: return self._ddict        
+    def header(self:Self) -> str: return self._hdr    
+    def save(self:Self, fullpath:Path) -> None:
             with open(fullpath,"w") as f: self.write(f)
         
 

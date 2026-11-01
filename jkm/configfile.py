@@ -89,16 +89,22 @@ def parse_args(programname:str) -> argparse.Namespace:
             help = 'name of configuration life',
             type=Path,
             )
+    parser.add_argument('-D', '--debug',          
+            required = False,
+            action='store_true',
+            default=False,
+            help = 'forces all logging to level DEBUG',
+            )
     return parser.parse_args()
 
-def load(programname:str) -> tomlConfig:
+def load(programname:str) -> tuple[tomlConfig, bool]:
     """Returns a config class instance with loaded data. Exits on failure as config data must be available."""
     conf_fn = ""
     try:
         cmdargs:argparse.Namespace  = parse_args(programname)
         conf_fn = cmdargs.config_file
         log.info(f"Reading configuration file {conf_fn}")
-        return tomlConfig(conf_fn)
+        return (tomlConfig(conf_fn), cmdargs.debug)
     except Exception as err:
         log.critical(f"Loading configuration file {conf_fn} failed: {err}")
         sys.exit()

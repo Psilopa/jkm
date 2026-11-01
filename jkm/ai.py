@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
-import  logging,  json, os, base64, tempfile
+import sys
+import  logging,  json, os, base64
 import  mimetypes  # mime type based on file URL
 from pathlib import Path
 import jkm.tools
-from jkm.errors import AIError, AIWarning
+import jkm.errors
 log = logging.getLogger() # Overwrite if needed
 # GOOGLE-SPECIFIC IMPORTS
 from google import genai
 from google.genai import types
 from google.genai import errors as gemini_errors
 from google.genai.types import HttpOptions
-from google.genai._gaos.lib.compat_errors import APIConnectionError
+from google.genai._gaos.lib.compat_errors import GeminiNextGenAPIClientError
 import jkm.labeldata_model as labeldata_model
 
 # For local OAUTH token management, used by local_oauth_geminiAI
@@ -21,41 +22,34 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 # For typing
 from jkm.typing import *
 
-# For testing, Google Free Key for small tests
-TESTING_BYPASS_AI_CALL:bool = False
-_TESTING_JSON_FROM_AI = r"""
-{
-  "verbatim_all_text": [
-    {
-      "verbatim_text": "Korpilahti"
-    },
-    {
-      "verbatim_text": "17.7. 1939"
-    },
-    {
-      "verbatim_text": "Rönnholm"
-    }  ],
-  "verbatim_date": "17.7. 1939",
-  "verbatim_locality": "Korpilahti",
-  "verbatim_collector": "Rönnholm",
-  "verbatim_coordinates": "664:28",
-  "verbatim_notebook_reference_code":"",
-  "notebook_reference_code_label_properties":"",
-  "verbatim_taxon": "Baccha elongata",
-  "verbatim_identified_by": "J. Kahanpää leg.",
-  "notes": "There is a black streak/smudge partially obscuring the collector's name (Rönnholm)."
-}
-"""
-_TESTING_RAW_JSON = r'{"status": "completed", "model": "gemini-3.5-flash-lite", "id": "v1_ChdaM3pLYXZqa05zdnk3TThQeHZ6VzRRTRIXWjN6S2F2amtOc3Z5N004UHh2elc0UU0", "created": "2026-10-10T17:56:56Z", "updated": "2026-10-10T17:56:56Z", "usage": {"total_input_tokens": 1133, "input_tokens_by_modality": [{"modality": "image", "tokens": 1100}, {"modality": "text", "tokens": 33}], "total_cached_tokens": 0, "total_output_tokens": 229, "total_tool_use_tokens": 0, "total_thought_tokens": 0, "total_tokens": 1362}, "service_tier": "standard", "steps": [{"type": "thought", "signature": "EmAKXgFpFH0TCBtbvirA2u6a+1v3JSS4CcgWyreyJdZ0OolgZ7FlhgZrxPNuT+UWDr9GIj2vDZs7nqlOlthrCskbaQep9nF2VUoq7B5zOFo/2bINWEN1eO8E1lHHj+p4jR0="}, {"type": "model_output", "content": [{"text": "{\n  \"verbatim_all_text\": [\n    {\n      \"verbatim_text\": \"ID: http://id.luomus.fi/GV.92671\"\n    },\n    {\n      \"verbatim_text\": \"Helsinki\"\n    },\n    {\n      \"verbatim_text\": \"8.VI. 1932\"\n    },\n    {\n      \"verbatim_text\": \"E. Kangas\"\n    },\n    {\n      \"verbatim_text\": \"GV92671\"\n    }\n  ],\n  \"verbatim_locality\": \"Helsinki\",\n  \"verbatim_collector\": \"E. Kangas\",\n  \"verbatim_date\": \"8.VI. 1932\",\n  \"verbatim_coordinates\": \"\",\n  \"verbatim_field_identifier\": \"\",\n  \"verbatim_taxon\": \"\",\n  \"verbatim_identified_by\": \"\",\n  \"notes\": \"\"\n}", "type": "text"}]}], "output_text": "{\n  \"verbatim_all_text\": [\n    {\n      \"verbatim_text\": \"ID: http://id.luomus.fi/GV.92671\"\n    },\n    {\n      \"verbatim_text\": \"Helsinki\"\n    },\n    {\n      \"verbatim_text\": \"8.VI. 1932\"\n    },\n    {\n      \"verbatim_text\": \"E. Kangas\"\n    },\n    {\n      \"verbatim_text\": \"GV92671\"\n    }\n  ],\n  \"verbatim_locality\": \"Helsinki\",\n  \"verbatim_collector\": \"E. Kangas\",\n  \"verbatim_date\": \"8.VI. 1932\",\n  \"verbatim_coordinates\": \"\",\n  \"verbatim_field_identifier\": \"\",\n  \"verbatim_taxon\": \"\",\n  \"verbatim_identified_by\": \"\",\n  \"notes\": \"\"\n}'
-_IMAGE_TRANSFER_UPLOAD:int = 1
-_IMAGE_TRANSFER_INLINE:int = 2
+_IMAGE_TRANSFER_UPLOAD = 1
+_IMAGE_TRANSFER_INLINE = 2
 _TEST_PROMPT = "There images are all of the same object. Find text in the images. Reply with JSON only, fitting the data into the following variables: collector, date, locality, identifier, and notes."
 AI_FAILURE_RETURN_VALUE = 'null'
-_AI_GEMINI_TIMEOUT:int = 10 * 1000 # 10 seconds
+
+# For testing, Google Free Key for small tests
+TESTING_BYPASS_AI_CALL:bool = False # Default to no bypass: use actual AI
+_TESTING_JSON_FROM_AI = r"""{
+  "verbatim_all_text": [
+    {"verbatim_text": "Xanthorhoé designata Hfn."},
+    {"verbatim_text": "SUOMI U. Nurmijärvi 17.6.1967 M. Koponen leg."},
+    {"verbatim_text": "E714218"}
+  ],
+  "verbatim_locality": "U. Nurmijärvi",
+  "verbatim_collector": "M. Koponen",
+  "verbatim_date": "17.6.1967",
+  "verbatim_coordinates": "",
+  "verbatim_notebook_reference_code": "",
+  "notebook_reference_code_label_properties": "",
+  "verbatim_taxon": "Xanthorhoé designata Hfn.",
+  "verbatim_identified_by": ""
+}
+"""
+_TESTING_RAW_JSON = r"""{"status": "completed", "model": "gemini-3.5-flash-lite", "id": "DUMMYID", "created": "2026-10-10T17:56:56Z", "updated": "2026-10-10T17:56:56Z", "usage": {"total_input_tokens": 1133, "input_tokens_by_modality": [{"modality": "image", "tokens": 1100}, {"modality": "text", "tokens": 33}], "total_cached_tokens": 0, "total_output_tokens": 229, "total_tool_use_tokens": 0, "total_thought_tokens": 0, "total_tokens": 1362}, "service_tier": "standard", "steps": [{"type": "thought", "signature": "EmAKXgFpFH0TCBtbvirA2u6a+1v3JSS4CcgWyreyJdZ0OolgZ7FlhgZrxPNuT+UWDr9GIj2vDZs7nqlOlthrCskbaQep9nF2VUoq7B5zOFo/2bINWEN1eO8E1lHHj+p4jR0="}, {"type": "model_output", "content": [{"text": "{\n  \"verbatim_all_text\": [\n    {\n      \"verbatim_text\": \"ID: http://id.luomus.fi/GV.92671\"\n    },\n    {\n      \"verbatim_text\": \"Helsinki\"\n    },\n    {\n      \"verbatim_text\": \"8.VI. 1932\"\n    },\n    {\n      \"verbatim_text\": \"E. Kangas\"\n    },\n    {\n      \"verbatim_text\": \"GV92671\"\n    }\n  ],\n  \"verbatim_locality\": \"Helsinki\",\n  \"verbatim_collector\": \"E. Kangas\",\n  \"verbatim_date\": \"8.VI. 1932\",\n  \"verbatim_coordinates\": \"\",\n  \"verbatim_field_identifier\": \"\",\n  \"verbatim_taxon\": \"\",\n  \"verbatim_identified_by\": \"\",\n  \"notes\": \"\"\n}", "type": "text"}]}], "output_text": "{\n  \"verbatim_all_text\": [\n    {\n      \"verbatim_text\": \"ID: http://id.luomus.fi/GV.92671\"\n    },\n    {\n      \"verbatim_text\": \"Helsinki\"\n    },\n    {\n      \"verbatim_text\": \"8.VI. 1932\"\n    },\n    {\n      \"verbatim_text\": \"E. Kangas\"\n    },\n    {\n      \"verbatim_text\": \"GV92671\"\n    }\n  ],\n  \"verbatim_locality\": \"Helsinki\",\n  \"verbatim_collector\": \"E. Kangas\",\n  \"verbatim_date\": \"8.VI. 1932\",\n  \"verbatim_coordinates\": \"\",\n  \"verbatim_field_identifier\": \"\",\n  \"verbatim_taxon\": \"\",\n  \"verbatim_identified_by\": \"\",\n  \"notes\": \"\"\n}"""
 
 def load_apikey(fp:Path):
     "Read content from a file."
-    # TODO: convert errors to jk.errors.AIError
+    # TODO: convert errors to jkm.errors.AIError
     with fp.open() as f: return f.read()
     
 def _parseAI_JSON(text:str, schema = None ) -> dict:
@@ -80,7 +74,7 @@ def _parseAI_JSON(text:str, schema = None ) -> dict:
         return d
     except json.JSONDecodeError as msg:
         # Strip everything outside first { and last }
-        raise AIWarning(f"AI-generated JSON parsing failed with error message {msg}.")
+        raise jkm.errors.AIWarning(f"AI-generated JSON parsing failed with error message {msg}.")
         
 # --- AI-related classes ---- 
 class AI_output:
@@ -154,6 +148,7 @@ class geminiAI(): # Make subclasses based on authentication method
     def _execute_query(self:Self,content=Collection) -> tuple[ str,str|None ]:
         # Default query function. Uses the experimental Interactions API
         # May not work with older models
+        # Raises a GeminiNextGenAPIClientError on API error
         assert self.client, "_execute_query without self.client: _create_client should fail with an exception to prevent this if client creation fails"
         response_format={
             "type": "text",
@@ -177,28 +172,31 @@ class geminiAI(): # Make subclasses based on authentication method
         
         TODO: Needs Error handling!"""
         log.debug (f"Trying to upload {filepath},  of type {type(filepath)}") 
-        if  self.client is None: raise AIError("Upload images requested before AI Client was created in code.")        
+        if  self.client is None: raise jkm.errors.AIError("Upload images requested before AI Client was created in code.")        
         fileobj = self.client.files.upload(  file = filepath )
-        if not fileobj: AIError(f"Uploading image failed, status {fileobj}")
+        if not fileobj: raise jkm.errors.AIError(f"Uploading image failed, status {fileobj}")
         log.debug (f"OK upload {filepath}",  )   
         return fileobj
     def labeldata_from_images(self:Self,
                      imageurls=Sequence[type_url],
                      timeout:int|None = None,
-                     image_max_dim:int = 0) -> AI_output:
+                     image_max_dim:int = 0,
+                     force_download:bool = False) -> AI_output:
         """Get data from Gemini based on multiple images. 
         
         Parameters: 
             pathlist: list of image files paths (Pathlib.Path instances)
             timeout: if given, HTTP call timeout period in milliseconds
+            force_download: True or False[default]: if True, images are downloaded and uploaded. If False, images are passed as URLs
         Returns: 
             an AI_output object
 	Exceptions: 
-##	   AIError 
+##	   AIError
+
         """
         log.debug("Query_images started")
         # State checks
-        if not self.prompt: raise AIError("No prompt for AI provided.")
+        if not self.prompt: raise jkm.errors.AIError("No prompt for AI provided.")
 #        img_bytes = [self._file2bytes(x) for x in pathlist]
 #        sumsize = int(sum( [len(x) for x in img_bytes] )/1024)
 #        log.debug( f"Images to bytes done, size {sumsize} kb" )
@@ -210,13 +208,14 @@ class geminiAI(): # Make subclasses based on authentication method
         else:
             # Create AI client
             log.debug("Create client")
+            log.debug(f"AI client HTTP call timeout set to {timeout}.")
             if  timeout: httpopts = HttpOptions(timeout=timeout)      
             else: httpopts = HttpOptions()
             self.client = self._create_client(httpopts)
-            if not self.client: raise AIError("Creating an AI client failed.")
+            if not self.client: raise jkm.errors.AIError("Creating an AI client failed.")
             # log.debug("Create client done")
             content =  [ {"type": "text", "text": self.prompt} ]
-            content += self._add_images(imageurls, image_max_dim)
+            content += self._add_images(imageurls, force_download, image_max_dim)
             try: # Query the model
                 rv = self._execute_query(content)
                 (raw, text_output) = self._execute_query(content)
@@ -224,45 +223,57 @@ class geminiAI(): # Make subclasses based on authentication method
                     gemini_errors.ClientError,
                     gemini_errors.APIError,
                     gemini_errors.ServerError,
-                    APIConnectionError) as msg:
-                raise AIError(msg)
+                    GeminiNextGenAPIClientError) as msg:
+                raise jkm.errors.AIError(msg)
         log.debug( f'Response was "{text_output}"' )
         log.debug( f'Raw was "{raw}"' )
         aioutput = AI_output()
-        if text_output == AI_FAILURE_RETURN_VALUE: return aioutput        # Primitive error handling
+        # Primitive error handling on failure, return empty result
+        if text_output == AI_FAILURE_RETURN_VALUE: return aioutput   
         # TODO: Handle errors here
+        # Sanitize text_output and raw: exclude UTF8 characters that are not
+        # XML valid
+        XML_VALID_CHARS_ONLY = True # THIS SHOULD COME FROM CONF
+        if XML_VALID_CHARS_ONLY:
+            text_output = jkm.tools.valid_xml_string(text_output)
+            raw = jkm.tools.valid_xml_string(raw)
+        # See https://www.w3.org/TR/xml11/?utm_source=chatgpt.com#charsets
         aioutput.from_text( text_output,
-                                   schema = labeldata_model.LabelData ) # Tries parsing the text as JSON
+                            schema = labeldata_model.LabelData ) # Tries parsing the text as JSON
         aioutput.raw = raw
         return aioutput
-    def _smallertempfile(self:Self, fpath:Path, image_max_dim:int, dir = None) :
-        "Returns a NamedTemporaryFile object or None."
- #TODO -> None | tempfile.NamedTemporaryFile fails ... is there a typo in the typing of NamedTemporaryFile?
-        img = jkm.tools.load_img(fpath)
-        if img is None: return None # Nothing to do
-        small = jkm.tools.shrink_to_maxdim(img, image_max_dim)
-        # Save to temp directory
-        suffix = fpath.suffix
-        tmpf = tempfile.NamedTemporaryFile(delete_on_close=False, suffix = suffix)
-        tmpf.close() # Now it should be writeable by other processes
-        jkm.tools.save_img(tmpf.name, img)
-        log.debug(f"Resizing done, saved to {tmpf.name}.")
-        return tmpf
+##    def _smallertempfile(self:Self, img:type_img, max_dim:int, dir:Path|None = None) -> BinaryIO :
+##        #TODO -> None | tempfile.NamedTemporaryFile fails ... is there a typo in the typing of NamedTemporaryFile?
+##        """Returns a NamedTemporaryFile object or None.
+##        
+##        Arguments:
+##        max_dim - maximum dimension of the new image.
+##        
+##        Keywords:
+##        dir - if given, temp file is stored here.
+##        """
+##        if img is None: return None # Nothing to do
+##        # Save to temp directory
+##        suffix = ".tmp"
+##        tmpf = jkm.tools.save_to_tempfile(img, max_dim=max_dim, dir=dir, suffix=suffix)
+##        log.debug(f"Resizing done, saved to {tmpf.name}.")
+##        return tmpf
+##
     def _handle_nonlocal_file(self:Self, url:type_url, ctype:str="image") -> dict[str,str]:
         """Returns a HTTP reqest fragment wrapping the url with resource type and mimertype."""
-        return {"type": ctype,
-            "uri": url,
-            "mime_type": mimetypes.guess_type(url),
+        return {"type": str(ctype),
+            "uri": str(url),
+            "mime_type": str(mimetypes.guess_type(url)),
                 }
         return http_input_fragment
     def _handle_local_file(self:Self, fpath:Path, max_dim:int = 0) -> dict[str,str]:
-        if max_dim == 0: 
+        if max_dim == 0:  # Should not rescale
             log.debug("No image resizing requested before AI.")
             return self._http_inline_image(fpath)
         log.debug(f"Resizing requested to a maximum dimension of {max_dim}.")
-        smallerdir = None # We do not care where these images are temporarily stored
-        tmpf = self._smallertempfile(fpath, max_dim, dir = smallerdir)
-        if tmpf: # Should not rescale
+        img = jkm.tools.load_img(fpath) # Load from URL
+        tmpf = jkm.tools.save_to_tempfile(img, max_dim=max_dim)
+        if tmpf: # Temp file created and exists (but is not opened for writing)
             tmpfilepath = Path(tmpf.name) 
             return self._http_inline_image(tmpfilepath) 
             del tmpf  # Delete temp file onced we are done
@@ -279,6 +290,7 @@ class geminiAI(): # Make subclasses based on authentication method
             }
     def _add_images(self:Self,
                     imageurls:Sequence[type_url],
+                    force_download:bool,
                     max_dim:int = 0
                     ) -> Sequence[dict[str,str]]: 
         """Converts files to resources usable in HTTP queries
@@ -294,19 +306,31 @@ class geminiAI(): # Make subclasses based on authentication method
         assert max_dim >= 0
         # img_blocks should contain dictionaries corresponding to JSON HTTP blocks
         img_blocks = []
-        recognised = False
         for url in imageurls:
             log.debug(f"Trying to classify {url} as a local path or online resource.")
-            try: 
-                fpath = jkm.tools.url2path(url) 
-                if fpath.exists(): # This is a local file
-                    recognised = True
-                    img_blocks.append( self._handle_local_file(fpath, max_dim) )                    
-                    log.debug(f"\t a local resource.")
-            except ValueError: pass
-            # Local a local path .. try treating it as an online resource
-            log.debug(f"\t an online resource.")            
-            img_blocks.append( self._handle_nonlocal_file(url) ) 
+            try:
+                fpath = jkm.tools.as_existing_path(url) # FileLoadingError on error.                
+                if fpath:
+                    img_blocks.append( self._handle_local_file(fpath, max_dim) )
+                else:
+                    log.warning(f"Trying to read unaccesible resource {fpath}.") # Should not handle
+#                log.debug(f"\t {url} is a local resource.")
+            except jkm.errors.FileLoadingError: 
+                # Not a local path .. try treating it as an online resource
+                log.debug(f"\t {url} an online resource.")
+                if force_download:
+                    # Download, save in temp file, then pass to AI
+                    image = jkm.tools.img_from_url(url)
+                    tempfile = jkm.tools.save_to_tempfile(image, max_dim=max_dim)
+                    if tempfile: # Temp file created and exists (but is not opened for writing)
+                        tmpfpath = Path(tempfile.name)                       
+                        img_blocks.append(
+                            self._handle_local_file(tmpfpath, max_dim)
+                            )
+                        del tempfile  # Delete temp file onced we are done
+                else: 
+                    img_blocks.append( self._handle_nonlocal_file(url) )
+                    
         return img_blocks
     
 # APIKEY security solution.    
