@@ -15,6 +15,7 @@ class ExtBase():
     def event_renamed_directories(self, sample:type_sample): pass
     def event_renamed_image_files(self, sample:type_sample): pass
     def event_sample_done(self, sample:type_sample, successQ:bool): pass
+    def event_error(self, msg): pass
 
 class PrinterExt(ExtBase):
     def __init__(self): pass

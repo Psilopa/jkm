@@ -9,13 +9,13 @@ import PyQt6.QtWidgets as QtWidgets
 from PyQt6 import uic # for uic, install package pyqt6-dev-tools 
 
 # Translates jkm output to QT Signals
-class QExt(jkm.external.ExtBase, QObject):
+class QExt(src.external.ExtBase, QObject):
     newLogEvent = pyqtSignal(logging.LogRecord)
-    newAILabelText = pyqtSignal(jkm.ai.AI_output)
+    newAILabelText = pyqtSignal(src.ai.AI_output)
     def event_exit(self, msg): pass
     def __init__(self):
         QObject.__init__(self)
-        jkm.external.ExtBase.__init__(self)
+        src.external.ExtBase.__init__(self)
 
     def event_log(self, logrecord): self.newLogEvent.emit( logrecord )
     #Sample-specific messages
@@ -104,7 +104,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _load_UI(self):
         """Read an GUI definition file and connect it to data models"""
         uic.loadUi("gui/mainwindow.ui", self)
-        self.setWindowTitle(jkm.meta.nameversion)
+        self.setWindowTitle(src.meta.nameversion)
 
     def _connectSignalsSlots(self):
         self.actionExit.triggered.connect(self.on_exit)

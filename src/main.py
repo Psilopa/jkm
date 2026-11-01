@@ -599,12 +599,12 @@ class jkm_post():
         except UnicodeEncodeError as msg:
             msg = f"Unicode encoding error: '{msg}'"
             log.critical(msg)
-            if self.ext: self.ext.event_failure( msg )
+            if self.ext: self.ext.event_error( msg )
         except jkm_errors.JKError as msg:
             # jkm_errors.ConfigError gets caught here
             msg = f"Execution failed with error message '{msg}'"
             log.critical(msg)
-            if self.ext: self.ext.event_failure( msg )
+            if self.ext: self.ext.event_error( msg )
 #        except Exception as msg:
 #            # Forward all errors to logger before quitting, if we are not writing at DEBUG level
 #            if logging_level_stream != logging.DEBUG:
@@ -621,7 +621,7 @@ class jkm_post():
         # Signal end-of-life to worker threads
         if self.threadpool:
             end_of_life_signal = None # Standard for queue.Queue()        
-            for i in range(self.threadpool.activethreadcount):
+            for i in range( self.threadpool.activethreadcount() ):
                 self.urlqueue.put( end_of_life_signal )
             # Wait for each worker thread to end properly
             self.threadpool.join()
