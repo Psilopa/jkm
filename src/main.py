@@ -626,7 +626,7 @@ class jkm_post():
         # Signal end-of-life to worker threads
         if self.threadpool:
             end_of_life_signal = None # Standard for queue.Queue()        
-            for i in range( self.threadpool.activethreadcount() ):
+            for i in range( self.threadpool.activethreadcount ):
                 self.urlqueue.put( end_of_life_signal )
             # Wait for each worker thread to end properly
             self.threadpool.join()
