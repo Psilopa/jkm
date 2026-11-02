@@ -266,7 +266,7 @@ def task_write_spreadsheet(spreadsheet:type_spreadsheet,
     if (not write_raw_output) and (raw in outdata):
         del outdata[raw]
     if sources:
-        outdata.update( {"sources":"\m".join(sources)} )
+        outdata.update( {"sources":"\n".join(sources)} )
     if not spreadsheet.isOpen(): 
         spreadsheet.open(fieldnames = outdata )
         if spreadsheet.isEmpty(): spreadsheet.writeheader()
