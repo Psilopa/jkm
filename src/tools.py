@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import time, logging, math, re, io, shutil, tempfile, json
+from os import name as osystem_name
 from pathlib import Path
 from urllib.parse import urlparse, ParseResult, unquote
 import urllib.request
@@ -108,12 +109,17 @@ def save_to_tempfile(image: type_image,
     save_img(Path(tmpf.name), small)
     return tmpf
 
+
 def img_from_file(imagestr: str|Path) -> type_image | None:
         fnp = Path(imagestr)
         if not fnp.exists(): raise FileLoadingError("File %s does not exist" % fnp)
         if not fnp.is_file(): raise FileLoadingError("%s is not a file" % fnp)
         if fnp.is_reserved(): raise FileLoadingError("File %s is reserved" % fnp)
-        return cv2.imread(str(fnp),cv2.IMREAD_UNCHANGED)
+        if (osystem_name == 'nt'):
+            # We are on windows with a cv struggling with non-ascii paths
+            return cv2.imdecode(np.fromfile(str(fnp), np.uint8),
+                               flags=cv2.IMREAD_COLOR)
+        return cv2.imread(str(fnp),flags=cv2.IMREAD_COLOR)
     
 def img_from_url(url: type_url,
                  downloader: Callable = defaultdownloader,
@@ -136,7 +142,7 @@ def img_from_url(url: type_url,
     if content is None: 
         raise FileLoadingError(f"Could not download file {url}.")
     arr = np.asarray(bytearray(content), dtype=np.uint8)
-    return cv2.imdecode(arr, -1) # 'Load it as it is'
+    return cv2.imdecode(arr,flags=cv2.IMREAD_COLOR) 
 
     
 def load_img(image: type_url|str|Path|io.IOBase|type_image) -> type_image | None: 
