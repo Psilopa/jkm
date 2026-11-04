@@ -320,7 +320,9 @@ class jkm_post():
     def init_spreadsheet(self:Self,conf:type_conf) -> type_spreadsheet|None:
         spreadsheetpath = ""
         try: 
-            spreadsheetpath = Path(conf.get("task","spreadsheet","filename") ) 
+            spreadsheetpath = Path(conf.get("task","spreadsheet","filename") )
+            if not spreadsheetpath.parent.exists():
+                raise jkm_errors.FileLoadingError(f"Directory {spreadsheetpath.parent} does not exist or cannot be accessed.")
             if  BACKUP_DATATABLE:  
                 timestr = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
                 backup_path = spreadsheetpath.with_stem( spreadsheetpath.stem + "_" + timestr )
@@ -332,7 +334,7 @@ class jkm_post():
             self.spreadsheet = jkm_spreadsheet.SpreadsheetCSV(spreadsheetpath)
             log.debug(f"Tabular output is appended to file {spreadsheetpath}")
         except IOError as msg: 
-            log.critical(f"Error in opening file {spreadsheetpath} for output:{msg}")
+            raise jkm_errors.FileLoadingError(f"Error in opening file {spreadsheetpath} for output:{msg}")
             self.spreadsheet = None
         return self.spreadsheet
 
@@ -606,7 +608,7 @@ class jkm_post():
             log.critical(msg)
             if self.ext: self.ext.event_error( msg )
         except jkm_errors.JKError as msg:
-            # jkm_errors.ConfigError gets caught here
+            # jkm_errors.ConfigError gets caught here if not captured earlier
             msg = f"Execution failed with error message '{msg}'"
             log.critical(msg)
             if self.ext: self.ext.event_error( msg )
