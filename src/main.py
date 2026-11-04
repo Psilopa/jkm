@@ -322,7 +322,9 @@ class jkm_post():
         try: 
             spreadsheetpath = Path(conf.get("task","spreadsheet","filename") )
             if not spreadsheetpath.parent.exists():
-                raise jkm_errors.FileLoadingError(f"Directory {spreadsheetpath.parent} does not exist or cannot be accessed.")
+                 # Create if it does not exist: on failure, raises an OSError
+                log.warning(f"Creating spreadsheet directory {spreadsheetpath.parent}.")
+                spreadsheetpath.parent.mkdir() 
             if  BACKUP_DATATABLE:  
                 timestr = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
                 backup_path = spreadsheetpath.with_stem( spreadsheetpath.stem + "_" + timestr )
@@ -333,9 +335,9 @@ class jkm_post():
                 log.warning("Unknown ") 
             self.spreadsheet = jkm_spreadsheet.SpreadsheetCSV(spreadsheetpath)
             log.debug(f"Tabular output is appended to file {spreadsheetpath}")
-        except IOError as msg: 
+        except OSError as msg:
+            # Raise a CRITICAL error
             raise jkm_errors.FileLoadingError(f"Error in opening file {spreadsheetpath} for output:{msg}")
-            self.spreadsheet = None
         return self.spreadsheet
 
     def init_AI_auth(self:Self,conf:type_conf) -> None:
