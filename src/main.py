@@ -21,7 +21,7 @@ import watchdog.events, watchdog.observers
 from . import configfile as jkm_configfile
 from . import sample as jkm_sample
 from . import tools as jkm_tools
-from . import spreadsheet as jkm_spreadsheet
+from .itersheets import itercsv as jkm_spreadsheet
 from . import ocr as jkm_ocr
 from . import ai as jkm_ai
 from . import log as jkm_log
@@ -267,9 +267,9 @@ def task_write_spreadsheet(spreadsheet:type_spreadsheet,
         del outdata[raw]
     if sources:
         outdata.update( {"sources":"\n".join(sources)} )
-    if not spreadsheet.isOpen(): 
-        spreadsheet.open(fieldnames = outdata )
-        if spreadsheet.isEmpty(): spreadsheet.writeheader()
+    if not spreadsheet.is_open: 
+        spreadsheet.open(fieldnames = outdata.keys() )
+        if spreadsheet.is_empty: spreadsheet.writeheader()
     spreadsheet.add_line_from_dict(outdata)
 
 def task_write_postprocessor_report(conf:type_conf, sample:type_sample)-> None:
@@ -333,7 +333,7 @@ class jkm_post():
             sheetformat = conf.get("task","spreadsheet","format") 
             if sheetformat.lower() != "csv": 
                 log.warning("Unknown ") 
-            self.spreadsheet = jkm_spreadsheet.SpreadsheetCSV(spreadsheetpath)
+            self.spreadsheet = jkm_spreadsheet.WriteCSV(spreadsheetpath)
             log.debug(f"Tabular output is appended to file {spreadsheetpath}")
         except OSError as msg:
             # Raise a CRITICAL error
