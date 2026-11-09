@@ -2,7 +2,7 @@
 # STDlib
 from abc import ABC, abstractmethod
 from pathlib import Path
-import logging, re, json
+import logging, json
 
 # My own modules
 #from .mytyping import * # For type checking tools
@@ -11,7 +11,9 @@ from .errors import sheetError
 log = logging.getLogger() # Set from main script if fancy logging is required.
 
 class new_column_action:
-    NEWFILE = "newfile"
+    NEWFILE = "newfile" # Only supported for CSV at the moment
+    INSERT = "insert" # Only supported for XLS at the moment
+#   EXCEPTION = "reject" # TODO- not currently supported. Raise a UnknownColumnError ?
 
 def json2printdict(jsondata: str | dict[str,Any] ) -> dict[str,Any]:
     "Converts a string with JSON data or a corresponding dictionary with prettyprinted content."
@@ -96,11 +98,10 @@ class WriteOnlySpreadsheet(Spreadsheet):
         self._fields = tuple(unique(val))
         self._currentfields = set(self._fields)
 
-    # Override parent class methods
+    # Override parent class methods in child classes
     def close(self:Self, save:bool=True) -> None:
         if save: self.save()
-        else:
-            if not self._saved: log.warning(f"Closing file {self.filename} without saving first.")
+        if not self._saved: log.warning(f"Closing file {self.filename} without saving first.")
         super().close()
 
     @abstractmethod        
@@ -109,21 +110,21 @@ class WriteOnlySpreadsheet(Spreadsheet):
     @abstractmethod        
     def addrow(self:Self,
                datarowdict: dict[str,object],
-               on_new_field:str = new_column_action.NEWFILE
+               on_new_field:str 
                ) -> None:
         self._saved = False
 
    
-    def add_line_from_dict(self:Self,
+    def add_row_from_dict(self:Self,
                            datarowdict: dict[str,object],
-                           on_new_key:str = new_column_action.NEWFILE) -> None:
+                           on_new_key:str ) -> None:
         """Write a row based on a dictionary of column_header: value items.
 
         If the column_header is not included in the existing file structure, raise a ValueError."""
         self.addrow( json2printdict(datarowdict), on_new_key )
         
-    def add_line_from_json(self:Self, datarowdict: dict[str,object],
-                           on_new_key:str = new_column_action.NEWFILE ) -> None:
+    def add_row_from_json(self:Self, datarowdict: dict[str,object],
+                           on_new_key:str  ) -> None:
         self.addrow( json2printdict(datarowdict), on_new_key )
 
     def move(self:Self, newpath, overwrite=False):
@@ -140,4 +141,19 @@ class ReadOnlySpreadsheet(Spreadsheet):
     @abstractmethod        
     def next(self:Self) -> Iterable[str]: 
         return iter([])
+
+    @abstractmethod        
+    def open(self:Self) -> None:
+        self._opened = True
+
+#    @abstractmethod        
+#    def get_row(self,n:int, func:Callable|None=None, replace_none:str|None=None) -> tuple:
+#        """Get row values as a tuple.
+#
+#        n - int. Row number, starting from 0.
+#        func - if not None, a function that is called for every element
+#        replace_none - None or string. If a string, None values is output are replaced with this value *before* the function func is called.
+#        """
+#        return tuple()
+
 

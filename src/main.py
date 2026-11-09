@@ -21,7 +21,7 @@ import watchdog.events, watchdog.observers
 from . import configfile as jkm_configfile
 from . import sample as jkm_sample
 from . import tools as jkm_tools
-from .itersheets import itercsv as jkm_spreadsheet
+from .itersheets import itersheets as jkm_spreadsheet
 from . import ocr as jkm_ocr
 from . import ai as jkm_ai
 from . import log as jkm_log
@@ -39,6 +39,8 @@ class processor:
     SUCCESS = 0
     FAIL_IGNORE = 1
     FAIL_RETRY = 2
+    
+on_new_key = jkm_spreadsheet.new_column_action.INSERT 
 #------------------ MISC TOOLS  ------------------- 
 # Default threadpool, using Python threading module.
 class myThreadPool():
@@ -270,7 +272,7 @@ def task_write_spreadsheet(spreadsheet:type_spreadsheet,
     if not spreadsheet.is_open: 
         spreadsheet.open(fieldnames = outdata.keys() )
         if spreadsheet.is_empty: spreadsheet.writeheader()
-    spreadsheet.add_line_from_dict(outdata)
+    spreadsheet.add_row_from_dict(outdata,on_new_key = on_new_key)
 
 def task_write_postprocessor_report(conf:type_conf, sample:type_sample)-> None:
         # This does nothing unless the class reimplements the empty standard def.
@@ -330,10 +332,17 @@ class jkm_post():
                 backup_path = spreadsheetpath.with_stem( spreadsheetpath.stem + "_" + timestr )
                 # TODO: check return 
                 successQ = jkm_tools.safecopy(spreadsheetpath, backup_path) 
-            sheetformat = conf.get("task","spreadsheet","format") 
-            if sheetformat.lower() != "csv": 
-                log.warning("Unknown ") 
-            self.spreadsheet = jkm_spreadsheet.WriteCSV(spreadsheetpath)
+            sheetformat = conf.get("task","spreadsheet","format").lower()
+            supportedformats = ("csv", "xlsx", "ods") # HARDCODED HERE            
+            if sheetformat not in supportedformats: 
+                raise jkm_errors.FileSavingError(f"Unsupported spreadsheet storage format {sheetformat}. Known formats are {", .".join(supportedformats)}")
+            format2writer = {
+                'csv': jkm_spreadsheet.WriterCSV,
+                'xlsx': jkm_spreadsheet.WriterXLSX,
+                'ods': jkm_spreadsheet.WriterODS,
+                }
+            writer = format2writer[sheetformat]
+            self.spreadsheet = writer(spreadsheetpath)
             log.debug(f"Tabular output is appended to file {spreadsheetpath}")
         except OSError as msg:
             # Raise a CRITICAL error

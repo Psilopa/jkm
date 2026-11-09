@@ -1,7 +1,7 @@
 #from collections.abc import Callable, Collection, Sequence, Generator
-from collections.abc import Sequence, Collection
+from collections.abc import Sequence, Collection, Iterator, Callable
 #Examples:
 #   Generator[SampleImageBase,None,None]
 from typing import Self, Any #Hashable, TextIO, BinaryIO
 
-#type type_conf = jkm.configfile.tomlConfig # Depends on Python 3.12+
+type type_fields = Sequence[str]
