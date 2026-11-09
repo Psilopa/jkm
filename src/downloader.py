@@ -1,8 +1,8 @@
 import requests, time
 from pathlib import Path
 # For typing
-from jkm.typing import *
-from jkm.errors import FileLoadingError
+from .typing import *
+from .errors import FileLoadingError
 
 IMAGE_REQUEST_HEADERS = {
     "User-Agent": (

@@ -1,26 +1,27 @@
 # -*- coding: utf-8 -*-
-import sys
-import  logging,  json, os, base64
+# Standard library stuff
+import sys, logging,  json, os, base64
 import  mimetypes  # mime type based on file URL
 from pathlib import Path
-import jkm.tools
-import jkm.errors
-log = logging.getLogger() # Overwrite if needed
+# my own local modules
+from . import tools
+from . import labeldata_model
+from .errors import AIError, AIWarning, FileLoadingError
+from .typing import * # For typing
 # GOOGLE-SPECIFIC IMPORTS
 from google import genai
 from google.genai import types
 from google.genai import errors as gemini_errors
 from google.genai.types import HttpOptions
 from google.genai._gaos.lib.compat_errors import GeminiNextGenAPIClientError
-import jkm.labeldata_model as labeldata_model
-
 # For local OAUTH token management, used by local_oauth_geminiAI
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-# For typing
-from jkm.typing import *
+
+
+log = logging.getLogger() # Overwrite if needed
 
 _IMAGE_TRANSFER_UPLOAD = 1
 _IMAGE_TRANSFER_INLINE = 2
@@ -74,7 +75,7 @@ def _parseAI_JSON(text:str, schema = None ) -> dict:
         return d
     except json.JSONDecodeError as msg:
         # Strip everything outside first { and last }
-        raise jkm.errors.AIWarning(f"AI-generated JSON parsing failed with error message {msg}.")
+        raise AIWarning(f"AI-generated JSON parsing failed with error message {msg}.")
         
 # --- AI-related classes ---- 
 class AI_output:
@@ -112,7 +113,7 @@ class AI_output:
         self._dict = _parseAI_JSON(self._text, schema) # Raises an AIWarning on failure
         # Prettyprint the verbatim_all_text field
         vatext = "verbatim_all_text"
-        self._dict[vatext] = jkm.tools.list2printvalues(self._dict[vatext])       
+        self._dict[vatext] = tools.list2printvalues(self._dict[vatext])       
     def __str__(self:Self) -> str: 
         if self._dict: return str(self._dict) 
         return str( self._text)
@@ -172,9 +173,9 @@ class geminiAI(): # Make subclasses based on authentication method
         
         TODO: Needs Error handling!"""
         log.debug (f"Trying to upload {filepath},  of type {type(filepath)}") 
-        if  self.client is None: raise jkm.errors.AIError("Upload images requested before AI Client was created in code.")        
+        if  self.client is None: raise AIError("Upload images requested before AI Client was created in code.")        
         fileobj = self.client.files.upload(  file = filepath )
-        if not fileobj: raise jkm.errors.AIError(f"Uploading image failed, status {fileobj}")
+        if not fileobj: raise AIError(f"Uploading image failed, status {fileobj}")
         log.debug (f"OK upload {filepath}",  )   
         return fileobj
     def labeldata_from_images(self:Self,
@@ -196,7 +197,7 @@ class geminiAI(): # Make subclasses based on authentication method
         """
         log.debug("Query_images started")
         # State checks
-        if not self.prompt: raise jkm.errors.AIError("No prompt for AI provided.")
+        if not self.prompt: raise AIError("No prompt for AI provided.")
 #        img_bytes = [self._file2bytes(x) for x in pathlist]
 #        sumsize = int(sum( [len(x) for x in img_bytes] )/1024)
 #        log.debug( f"Images to bytes done, size {sumsize} kb" )
@@ -212,7 +213,7 @@ class geminiAI(): # Make subclasses based on authentication method
             if  timeout: httpopts = HttpOptions(timeout=timeout)      
             else: httpopts = HttpOptions()
             self.client = self._create_client(httpopts)
-            if not self.client: raise jkm.errors.AIError("Creating an AI client failed.")
+            if not self.client: raise AIError("Creating an AI client failed.")
             # log.debug("Create client done")
             content =  [ {"type": "text", "text": self.prompt} ]
             content += self._add_images(imageurls, force_download, image_max_dim)
@@ -224,7 +225,7 @@ class geminiAI(): # Make subclasses based on authentication method
                     gemini_errors.APIError,
                     gemini_errors.ServerError,
                     GeminiNextGenAPIClientError) as msg:
-                raise jkm.errors.AIError(msg)
+                raise AIError(msg)
         log.debug( f'Response was "{text_output}"' )
         log.debug( f'Raw was "{raw}"' )
         aioutput = AI_output()
@@ -235,8 +236,8 @@ class geminiAI(): # Make subclasses based on authentication method
         # XML valid
         XML_VALID_CHARS_ONLY = True # THIS SHOULD COME FROM CONF
         if XML_VALID_CHARS_ONLY:
-            text_output = jkm.tools.valid_xml_string(text_output)
-            raw = jkm.tools.valid_xml_string(raw)
+            text_output = tools.valid_xml_string(text_output)
+            raw = tools.valid_xml_string(raw)
         # See https://www.w3.org/TR/xml11/?utm_source=chatgpt.com#charsets
         aioutput.from_text( text_output,
                             schema = labeldata_model.LabelData ) # Tries parsing the text as JSON
@@ -255,7 +256,7 @@ class geminiAI(): # Make subclasses based on authentication method
 ##        if img is None: return None # Nothing to do
 ##        # Save to temp directory
 ##        suffix = ".tmp"
-##        tmpf = jkm.tools.save_to_tempfile(img, max_dim=max_dim, dir=dir, suffix=suffix)
+##        tmpf = tools.save_to_tempfile(img, max_dim=max_dim, dir=dir, suffix=suffix)
 ##        log.debug(f"Resizing done, saved to {tmpf.name}.")
 ##        return tmpf
 ##
@@ -271,8 +272,8 @@ class geminiAI(): # Make subclasses based on authentication method
             log.debug("No image resizing requested before AI.")
             return self._http_inline_image(fpath)
         log.debug(f"Resizing requested to a maximum dimension of {max_dim}.")
-        img = jkm.tools.load_img(fpath) # Load from URL
-        tmpf = jkm.tools.save_to_tempfile(img, max_dim=max_dim)
+        img = tools.load_img(fpath) # Load from URL
+        tmpf = tools.save_to_tempfile(img, max_dim=max_dim)
         if tmpf: # Temp file created and exists (but is not opened for writing)
             tmpfilepath = Path(tmpf.name) 
             return self._http_inline_image(tmpfilepath) 
@@ -309,19 +310,19 @@ class geminiAI(): # Make subclasses based on authentication method
         for url in imageurls:
             log.debug(f"Trying to classify {url} as a local path or online resource.")
             try:
-                fpath = jkm.tools.as_existing_path(url) # FileLoadingError on error.                
+                fpath = tools.as_existing_path(url) # FileLoadingError on error.                
                 if fpath:
                     img_blocks.append( self._handle_local_file(fpath, max_dim) )
                 else:
                     log.warning(f"Trying to read unaccesible resource {fpath}.") # Should not handle
 #                log.debug(f"\t {url} is a local resource.")
-            except jkm.errors.FileLoadingError: 
+            except FileLoadingError: 
                 # Not a local path .. try treating it as an online resource
                 log.debug(f"\t {url} an online resource.")
                 if force_download:
                     # Download, save in temp file, then pass to AI
-                    image = jkm.tools.img_from_url(url)
-                    tempfile = jkm.tools.save_to_tempfile(image, max_dim=max_dim)
+                    image = tools.img_from_url(url)
+                    tempfile = tools.save_to_tempfile(image, max_dim=max_dim)
                     if tempfile: # Temp file created and exists (but is not opened for writing)
                         tmpfpath = Path(tempfile.name)                       
                         img_blocks.append(

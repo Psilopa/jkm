@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
-import time, logging, math, re, io, shutil, tempfile
-import validators, json
+import time, logging, math, re, io, shutil, tempfile, json
+from os import name as system_name
 from pathlib import Path
-import numpy as np
-import cv2
-from jkm.downloader import defaultdownloader
-from jkm.errors import FileLoadingError, FileSavingError
 from urllib.parse import urlparse, ParseResult, unquote
 import urllib.request
+# Non-std packages
+import numpy as np
+import cv2, validators
+# My packages
+from .typing import *
+from .downloader import defaultdownloader
+from .errors import FileLoadingError, FileSavingError
 log = logging.getLogger() # Overwrite if needed
 # For typing
-from jkm.typing import *
 
     
 
@@ -107,12 +109,19 @@ def save_to_tempfile(image: type_image,
     save_img(Path(tmpf.name), small)
     return tmpf
 
+
 def img_from_file(imagestr: str|Path) -> type_image | None:
         fnp = Path(imagestr)
         if not fnp.exists(): raise FileLoadingError("File %s does not exist" % fnp)
         if not fnp.is_file(): raise FileLoadingError("%s is not a file" % fnp)
         if fnp.is_reserved(): raise FileLoadingError("File %s is reserved" % fnp)
-        return cv2.imread(str(fnp),cv2.IMREAD_UNCHANGED)
+        # At least on Windows, cv2.imread cannot handle non-ascii paths
+        # but Numpy can convert for us.
+        if system_name == 'nt':
+            return cv2.imdecode(np.fromfile(fnp, dtype=np.uint8),
+                   cv2.IMREAD_UNCHANGED)
+        else: # Preferred for simplicity on other systems
+            return cv2.imread(str(fnp),cv2.IMREAD_UNCHANGED)
     
 def img_from_url(url: type_url,
                  downloader: Callable = defaultdownloader,
@@ -135,7 +144,7 @@ def img_from_url(url: type_url,
     if content is None: 
         raise FileLoadingError(f"Could not download file {url}.")
     arr = np.asarray(bytearray(content), dtype=np.uint8)
-    return cv2.imdecode(arr, -1) # 'Load it as it is'
+    return cv2.imdecode(arr,flags=cv2.IMREAD_COLOR) 
 
     
 def load_img(image: type_url|str|Path|io.IOBase|type_image) -> type_image | None: 

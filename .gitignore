@@ -22,3 +22,4 @@ jkm*.log
 jkm_insectline_*.bat
 jkm_singlerun.bat
 setup/*testing.toml
+setup/*test.toml
