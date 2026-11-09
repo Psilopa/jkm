@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import time, logging, math, re, io, shutil, tempfile, json
+import time, logging, math, re, io, shutil, tempfile, json, os
 from pathlib import Path
 from urllib.parse import urlparse, ParseResult, unquote
 import urllib.request
@@ -113,7 +113,13 @@ def img_from_file(imagestr: str|Path) -> type_image | None:
         if not fnp.exists(): raise FileLoadingError("File %s does not exist" % fnp)
         if not fnp.is_file(): raise FileLoadingError("%s is not a file" % fnp)
         if fnp.is_reserved(): raise FileLoadingError("File %s is reserved" % fnp)
-        return cv2.imread(str(fnp),cv2.IMREAD_UNCHANGED)
+        # At least on Windows, cv2.imread cannot handle non-ascii paths
+        # but Numpy can convert for us.
+        if os.name == 'nt':
+            return cv2.imdecode(np.fromfile(fnp, dtype=np.uint8),
+                   cv2.IMREAD_UNCHANGED)
+        else: # Preferred for simplicity on other systems
+            return cv2.imread(str(fnp),cv2.IMREAD_UNCHANGED)
     
 def img_from_url(url: type_url,
                  downloader: Callable = defaultdownloader,
