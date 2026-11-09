@@ -6,7 +6,7 @@ from pathlib import Path
 # my own local modules
 from . import tools
 from . import labeldata_model
-from .errors import AIError, AIWarning
+from .errors import AIError, AIWarning, FileLoadingError
 from .typing import * # For typing
 # GOOGLE-SPECIFIC IMPORTS
 from google import genai
@@ -75,7 +75,7 @@ def _parseAI_JSON(text:str, schema = None ) -> dict:
         return d
     except json.JSONDecodeError as msg:
         # Strip everything outside first { and last }
-        raise jkm.errors.AIWarning(f"AI-generated JSON parsing failed with error message {msg}.")
+        raise AIWarning(f"AI-generated JSON parsing failed with error message {msg}.")
         
 # --- AI-related classes ---- 
 class AI_output:
@@ -173,9 +173,9 @@ class geminiAI(): # Make subclasses based on authentication method
         
         TODO: Needs Error handling!"""
         log.debug (f"Trying to upload {filepath},  of type {type(filepath)}") 
-        if  self.client is None: raise jkm.errors.AIError("Upload images requested before AI Client was created in code.")        
+        if  self.client is None: raise AIError("Upload images requested before AI Client was created in code.")        
         fileobj = self.client.files.upload(  file = filepath )
-        if not fileobj: raise jkm.errors.AIError(f"Uploading image failed, status {fileobj}")
+        if not fileobj: raise AIError(f"Uploading image failed, status {fileobj}")
         log.debug (f"OK upload {filepath}",  )   
         return fileobj
     def labeldata_from_images(self:Self,
@@ -197,7 +197,7 @@ class geminiAI(): # Make subclasses based on authentication method
         """
         log.debug("Query_images started")
         # State checks
-        if not self.prompt: raise jkm.errors.AIError("No prompt for AI provided.")
+        if not self.prompt: raise AIError("No prompt for AI provided.")
 #        img_bytes = [self._file2bytes(x) for x in pathlist]
 #        sumsize = int(sum( [len(x) for x in img_bytes] )/1024)
 #        log.debug( f"Images to bytes done, size {sumsize} kb" )
@@ -213,7 +213,7 @@ class geminiAI(): # Make subclasses based on authentication method
             if  timeout: httpopts = HttpOptions(timeout=timeout)      
             else: httpopts = HttpOptions()
             self.client = self._create_client(httpopts)
-            if not self.client: raise jkm.errors.AIError("Creating an AI client failed.")
+            if not self.client: raise AIError("Creating an AI client failed.")
             # log.debug("Create client done")
             content =  [ {"type": "text", "text": self.prompt} ]
             content += self._add_images(imageurls, force_download, image_max_dim)
@@ -225,7 +225,7 @@ class geminiAI(): # Make subclasses based on authentication method
                     gemini_errors.APIError,
                     gemini_errors.ServerError,
                     GeminiNextGenAPIClientError) as msg:
-                raise jkm.errors.AIError(msg)
+                raise AIError(msg)
         log.debug( f'Response was "{text_output}"' )
         log.debug( f'Raw was "{raw}"' )
         aioutput = AI_output()
@@ -316,7 +316,7 @@ class geminiAI(): # Make subclasses based on authentication method
                 else:
                     log.warning(f"Trying to read unaccesible resource {fpath}.") # Should not handle
 #                log.debug(f"\t {url} is a local resource.")
-            except jkm.errors.FileLoadingError: 
+            except FileLoadingError: 
                 # Not a local path .. try treating it as an online resource
                 log.debug(f"\t {url} an online resource.")
                 if force_download:
