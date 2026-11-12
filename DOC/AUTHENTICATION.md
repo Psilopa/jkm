@@ -18,6 +18,7 @@ Older gloud versions may need a separate
 
 ## Asetustiedosto (setup/...toml)
 ```auth_type = "CLOUD_OAUTH" ```
+
 CLOUD_OAUTH tarvitsee lisätiedot JKM_GOOGLE_PROJECT_ID ja JKM_GOOGLE_LOCATION. Kts. TOML-tiedosto. 
 
 # Google Cloud OAUTH2 ilman gcloud-ohjelmaa
@@ -29,4 +30,5 @@ CLOUD_OAUTH tarvitsee lisätiedot JKM_GOOGLE_PROJECT_ID ja JKM_GOOGLE_LOCATION. 
 
 ## Asetustiedosto
 ```auth_type = "LOCAL_OAUTH" ```
+
 CLOUD_OAUTH tarvitsee lisätiedot JKM_GOOGLE_CLIENT_SECRET_JSON, JKM_GOOGLE_PROJECT_ID ja JKM_GOOGLE_LOCATION. Kts. TOML-tiedosto. 
