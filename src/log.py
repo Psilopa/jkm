@@ -1,6 +1,6 @@
 import logging, os
 # For typing
-#from .mytyping import * # For typing
+from .mytyping import * # For typing
 
 LOG_FILE_ENCODING = "utf8"
        

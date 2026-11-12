@@ -14,7 +14,7 @@ from .downloader import defaultdownloader
 from .errors import FileLoadingError, FileSavingError
 log = logging.getLogger() # Overwrite if needed
 # For typing
-#from .mytyping import * # For typing
+from .mytyping import * # For typing
 
     
 

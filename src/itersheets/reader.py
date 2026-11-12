@@ -7,6 +7,7 @@ from .errors import sheetError
 from .base import ReadOnlySpreadsheet
 from .jkxlsx import XLSXFile
 from .jkods import ODSFile
+from .mytyping import * # For type checking tools
 
 class ReaderBase(ReadOnlySpreadsheet):
     def __init__(self:Self, filename: str|Path): 

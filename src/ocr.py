@@ -7,7 +7,7 @@ import numpy as np
 import cv2
 # My own
 from . import tools
-#from .mytyping import * # For typing
+from .mytyping import * # For typing
 
 log = logging.getLogger() # Overwrite if needed
 _net = None

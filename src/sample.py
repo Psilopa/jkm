@@ -16,7 +16,7 @@ from .barcodes import extractbarcodedata
 from .digitisation_properties import DigipropFile
 
 # For typing
-#from .mytyping import * # For typing
+from .mytyping import * # For typing
 
 log = logging.getLogger() # Overwrite from calling script for fancier logging
 deg2rotcode = {90: cv2.ROTATE_90_CLOCKWISE,

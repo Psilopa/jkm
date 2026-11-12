@@ -31,7 +31,7 @@ from . import errors as jkm_errors
 from . import barcodes as jkm_barcodes
 from . import security 
 #from . import external as jkm_ext
-#from .mytyping import * # For typing
+from .mytyping import * # For typing
 
 # CONSTANTS
 BACKUP_DATATABLE = True

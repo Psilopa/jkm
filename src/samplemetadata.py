@@ -2,7 +2,7 @@
 import logging
 from collections import UserDict
 log = logging.getLogger() # Overwrite if needed
-#from .mytyping import * # For typing
+from .mytyping import * # For typing
 
 class metaStorage(UserDict):
     "A dictionary-like metadata storage container (should keep order in Python 3.7+)"

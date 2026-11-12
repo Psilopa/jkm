@@ -6,7 +6,7 @@ import json as jsonmodule
 # My own modules
 from .errors import sheetError
 from .base import new_column_action, WriteOnlySpreadsheet, ReadOnlySpreadsheet
-#from .mytyping import * # For type checking tools
+from .mytyping import * # For type checking tools
 
 SUFFIXES = [".csv", "csv"]
 class default:
