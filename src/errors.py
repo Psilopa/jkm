@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
+#from .mytyping import * # For typing
+
 
 log = logging.getLogger() # Overwrite if needed
 

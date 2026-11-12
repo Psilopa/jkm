@@ -30,7 +30,7 @@ from . import samplemetadata as jkm_samplemetadata
 from . import errors as jkm_errors
 from . import barcodes as jkm_barcodes
 #from . import external as jkm_ext
-from .typing import * # For type checking tools
+#from .mytyping import * # For typing
 
 # CONSTANTS
 BACKUP_DATATABLE = True

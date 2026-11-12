@@ -4,15 +4,17 @@ from os import name as system_name
 from pathlib import Path
 from urllib.parse import urlparse, ParseResult, unquote
 import urllib.request
+
 # Non-std packages
 import numpy as np
 import cv2, validators
+
 # My packages
-from .typing import *
 from .downloader import defaultdownloader
 from .errors import FileLoadingError, FileSavingError
 log = logging.getLogger() # Overwrite if needed
 # For typing
+#from .mytyping import * # For typing
 
     
 

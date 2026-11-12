@@ -5,7 +5,7 @@ import cv2
 # application-specific modules
 from . import tools
 from .errors import BarcodeError
-from .typing import * # For type checking tools
+#from .mytyping import * # For type checking tools
 # Dynamic  import in extractbarcodedata to allow for config fig-based import
 CONST_QREADER = "qreader"
 CONST_PYZBAR = "pyzbar"
