@@ -196,7 +196,7 @@ class geminiAI(): # Make subclasses based on authentication method
         return fileobj
 
     def labeldata_from_images(self:Self,
-                     imageurls=Sequence[type_url],
+                     imageurls=Sequence[str],
                      timeout:int|None = None,
                      image_max_dim:int = 0,
                      force_download:bool = False) -> AI_output:
