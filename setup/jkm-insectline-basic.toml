@@ -58,14 +58,15 @@ prompt = "These images are all of the same object. Find text in the images. Repl
 properties_filename = "" # String - leave empty for no output
 # Authentication to Google Cloud services
 auth_type = "LOCAL_OAUTH" # APIKEY, LOCAL_OAUTH or CLOUD_OAUTH
-# Settings for API KEY auth
-APIkeyfile = 'Z:/APIKEYS/GEMINI_APIKEY.txt'
-# Google Cloud API settings (LOCAL_OAUTH and CLOUD_OAUTH)
-google_location = "global"
-google_project_id = "gen-lang-client-0404401598"
-# Settings LOCAL_OAUTH: OAUTH2 authentication without Google's Gcloud tool
-app_token_path = 'C:/Insect_APPs/ACT/jkm_token.json' # Should be readable
-tmp_token_path = 'C:/Insect_APPs/ACT/temptoken.json' # Should be writeable
+# SECURE INFORMATION is searched for in the following way
+# 1. OS Keyring/Secrets Manager. Looks for values with system/application=jkm-post and the user names = KEY_NAME
+# 2. Environmental variables
+# 3. A .env file in the directory where the main script is
+# The accessed values are (usage depends on the chosen auth_type
+#JKM_GOOGLE_AI_APIKEY - for APIKEY
+#JKM_GOOGLE_CLIENT_SECRET_JSON - needed for LOCAL_OAUTH
+#JKM_GOOGLE_PROJECT_ID - needed for CLOUD_OAUTH and LOCAL_OAUTH
+#JKM_GOOGLE_LOCATION - needed for CLOUD_OAUTH and LOCAL_OAUTH
 request_timeout = 10000 # AI request timeout in milliseconds
 max_image_dim = 2000
 force_download = true # Force image download/upload- If false, image URLs are passed to the AI
