@@ -178,11 +178,7 @@ def task_AI_label_data_extraction(conf:type_conf, sample:type_sample) -> type_ai
             location = security.get("JKM_GOOGLE_LOCATION")
             myai = jkm_ai.cloud_oauth_geminiAI(project_id, location)
         elif ai_auth_type == 'LOCAL_OAUTH':
-#            app_token_path = conf.getpath("task","ai", "app_token_path") # Should be readable
-#            tmp_token_path = conf.getpath("task","ai", "tmp_token_path") # Should be writeable
-#            project_id = conf.getstr("task","ai", "google_project_id")
-#            location = conf.getstr("task","ai", "google_location")
-            myai = jkm_ai.local_oauth_geminiAI(project_id, location, app_token_path, tmp_token_path)
+            myai = jkm_ai.local_oauth_geminiAI()
         else:
             myai = None # Should never happen as ai_auth_type is verified to havce a valid value at this point
         if myai: #
@@ -359,15 +355,13 @@ class jkm_post():
             log.debug(f"Trying to find API key")
             conf.APIKEY = jkm_ai.load_apikey(validate_min_len=20)
         elif auth_type == "CLOUD_OAUTH":
-            if security.get("JKM_GOOGLE_PROJECT_ID") is None:
+            if not security.get("JKM_GOOGLE_PROJECT_ID"):
                 raise jkm_errors.ConfigError(f"Missing Google project ID in configuration.")
-            if security.get("JKM_GOOGLE_LOCATION") is None:
+            if not security.get("JKM_GOOGLE_LOCATION"):
                 raise jkm_errors.ConfigError(f"Missing Google location in configuration.")
-        elif auth_type == "LOCAL_OAUTH":
-            pass
-#            conf.verify( must_have = [["task","ai","google_project_id"], ["task","ai","google_location"],
-#                                      ["task","ai","app_token_path"], ["task","ai","tmp_token_path"],
-#                                      ] )
+        elif auth_type == "LOCAL_OAUTH":           
+            if not security.get("JKM_GOOGLE_CLIENT_SECRET_JSON"):
+                raise jkm_errors.ConfigError(f"Missing Google Secrets JSON data in configuration.")
         else:
             raise jkm_errors.AIError(f"Unknown AI authentication method {auth_type}")                
         log.debug(f"AI prompt set to \'{conf.get('task','ai','prompt')}\'")

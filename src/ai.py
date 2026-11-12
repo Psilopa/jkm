@@ -91,6 +91,7 @@ class AI_output:
         self._text = None
         self._dict = None
         self.raw = ""
+
     def _pp_lines(self:Self,dictionary:dict, noraw:bool, insert:str="\t") -> list:
         lines = []
         for k,v in dictionary.items():
@@ -100,14 +101,17 @@ class AI_output:
                 lines.append( f"{insert}{k}:\n{v}" )
             else: lines.append(f"{insert}{k}:{v}")
         return lines
+
     def to_prettyprint(self:Self, newline:str = "\n", noraw:bool = True) -> str:
         if self._dict is None: return ""
         lines = self._pp_lines(self._dict, noraw)
         return newline.join(lines)
+
     def to_dict(self:Self) -> None:
         assert(self._dict)
         self._dict.update( {self.rawstr:self.raw} )
         return self._dict
+
     def from_text(self:Self,  text, schema = None) -> None:
         """Tries to convert the AI returned JSON to other formats.
 
@@ -117,9 +121,11 @@ class AI_output:
         # Prettyprint the verbatim_all_text field
         vatext = "verbatim_all_text"
         self._dict[vatext] = tools.list2printvalues(self._dict[vatext])       
+
     def __str__(self:Self) -> str: 
         if self._dict: return str(self._dict) 
         return str( self._text)
+
     def to_json(self:Self, suppress_raw:bool = False) -> str:
         if not self._dict: return "{}"
         if suppress_raw and (self.rawstr in self._dict):
@@ -135,20 +141,27 @@ class geminiAI(): # Make subclasses based on authentication method
         self.client = None
         # Settings, should come from user setup is a production code
         self._MODEL = 'gemini-3.1-flash-lite' # Default model
+
     def close(self:Self) -> None:
         if self.client: self.client.close() # Not necesary, but a good habit.
     # Getters, setters for properties
+
     @property
     def prompt(self:Self) -> str|None: return self._promt
+
     @prompt.setter
     def prompt(self:Self,  prompt:str) -> None: self._promt = prompt    
+
     @property
     def model(self:Self) -> str|None: return self._MODEL 
     @model.setter
+
     def model(self:Self,  model:str) -> None: self._MODEL  = model    
    # Sending a query
+
     def _create_client(self:Self, httpopts: HttpOptions) -> genai.Client:
         assert False, "Child classes should replace this function."
+
     def _execute_query(self:Self,content=Collection) -> tuple[ str,str|None ]:
         # Default query function. Uses the experimental Interactions API
         # May not work with older models
@@ -181,6 +194,7 @@ class geminiAI(): # Make subclasses based on authentication method
         if not fileobj: raise AIError(f"Uploading image failed, status {fileobj}")
         log.debug (f"OK upload {filepath}",  )   
         return fileobj
+
     def labeldata_from_images(self:Self,
                      imageurls=Sequence[type_url],
                      timeout:int|None = None,
@@ -216,6 +230,7 @@ class geminiAI(): # Make subclasses based on authentication method
             if  timeout: httpopts = HttpOptions(timeout=timeout)      
             else: httpopts = HttpOptions()
             self.client = self._create_client(httpopts)
+            raise AIError("TEST BREAKOUT")
             if not self.client: raise AIError("Creating an AI client failed.")
             # log.debug("Create client done")
             content =  [ {"type": "text", "text": self.prompt} ]
@@ -246,23 +261,7 @@ class geminiAI(): # Make subclasses based on authentication method
                             schema = labeldata_model.LabelData ) # Tries parsing the text as JSON
         aioutput.raw = raw
         return aioutput
-##    def _smallertempfile(self:Self, img:type_img, max_dim:int, dir:Path|None = None) -> BinaryIO :
-##        #TODO -> None | tempfile.NamedTemporaryFile fails ... is there a typo in the typing of NamedTemporaryFile?
-##        """Returns a NamedTemporaryFile object or None.
-##        
-##        Arguments:
-##        max_dim - maximum dimension of the new image.
-##        
-##        Keywords:
-##        dir - if given, temp file is stored here.
-##        """
-##        if img is None: return None # Nothing to do
-##        # Save to temp directory
-##        suffix = ".tmp"
-##        tmpf = tools.save_to_tempfile(img, max_dim=max_dim, dir=dir, suffix=suffix)
-##        log.debug(f"Resizing done, saved to {tmpf.name}.")
-##        return tmpf
-##
+
     def _handle_nonlocal_file(self:Self, url:type_url, ctype:str="image") -> dict[str,str]:
         """Returns a HTTP reqest fragment wrapping the url with resource type and mimertype."""
         return {"type": str(ctype),
@@ -270,6 +269,7 @@ class geminiAI(): # Make subclasses based on authentication method
             "mime_type": str(mimetypes.guess_type(url)),
                 }
         return http_input_fragment
+
     def _handle_local_file(self:Self, fpath:Path, max_dim:int = 0) -> dict[str,str]:
         if max_dim == 0:  # Should not rescale
             log.debug("No image resizing requested before AI.")
@@ -283,8 +283,10 @@ class geminiAI(): # Make subclasses based on authentication method
             del tmpf  # Delete temp file onced we are done
         log.warning(f"Could not save a rescaled copy of {fpath}, using the original.")
         return self._http_inline_image(fpath)
+
     def _file2bytes(self:Self,  filepath:Path):
         with filepath.open('rb') as f:   return f.read()
+
     def _http_inline_image(self:Self,  filepath:Path) -> dict[str,str]: 
         fbytes  = self._file2bytes(filepath)       
         return {
@@ -292,6 +294,7 @@ class geminiAI(): # Make subclasses based on authentication method
             "data": base64.b64encode(fbytes).decode('utf-8'),
             "mime_type": "image/jpeg",
             }
+
     def _add_images(self:Self,
                     imageurls:Sequence[type_url],
                     force_download:bool,
@@ -368,12 +371,21 @@ class cloud_oauth_geminiAI(oauth_geminiAI):
 
 # OAUTH2 without gcloud --- we keep manual track of credentials.
 class local_oauth_geminiAI(oauth_geminiAI):
-    def __init__(self:Self, projectID:str, location:str, secretpath:Path, tokenpath:Path|None = None) :
+    def __init__(self:Self) :
         log.debug("Using local_oauth_geminiAI()")
-        super().__init__(projectID, location)
-        self.secretpath = secretpath
-        self.tokenpath = tokenpath
+        self.projectID = security.get("JKM_GOOGLE_PROJECT_ID")
+        self.location = security.get("JKM_GOOGLE_LOCATION")
+        super().__init__(self.projectID, self.location)
+        log.debug("Loading credentials for local_oauth_geminiAI()")
         self.creds = self.load_oauth2_creds()
+        log.debug("DOne")
+    def load_cached_token(self:Self): #
+        rv = security.get_cachedsecret()
+        print("load_tmptoken returned", rv)
+        if not rv: return None
+        else : return json.loads(rv) # Trey to read this as JSON
+    def save_cached_token(self:Self, tokenjson): #
+        security.set_cachedsecret(tokenjson)        
     def load_oauth2_creds(self:Self): #  -> Credentials|None
         """Converts `client_secret.json` to a credential object.
 
@@ -384,21 +396,26 @@ class local_oauth_geminiAI(oauth_geminiAI):
         """
         SCOPES = ["https://www.googleapis.com/auth/cloud-platform", 'https://www.googleapis.com/auth/generative-language.retriever']
         creds = None
-        # Use existing credentials from self.tokenpath JSON file
-        if self.tokenpath and os.path.exists(self.tokenpath):
-            creds = Credentials.from_authorized_user_file(self.tokenpath, SCOPES)
+        # Use existing credentials from the OS keyring, if they exist
+        tokendata = self.load_cached_token()
+        if tokendata:
+            creds = Credentials.from_authorized_user_info(tokendata, SCOPES)
+            print("creds from tokendata =", creds)
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
+            if creds and creds.expired and creds.refresh_token: # Creds exist but are not valid
                 creds.refresh(Request())
             else:
-                flow = InstalledAppFlow.from_client_secrets_file(self.secretpath, SCOPES)
+                client_config_json = security.get("JKM_GOOGLE_CLIENT_SECRET_JSON")
+                client_config = json.loads(client_config_json)
+                flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
                 creds = flow.run_local_server(port=0)
             # Save the credentials for the next run
-            if self.tokenpath:
-                with self.tokenpath.open('w') as token:
-                    token.write(creds.to_json())
+            print("len(creds.to_json()) =", len(creds.to_json()) )
+            print("creds.to_json() =", creds.to_json() )
+            self.save_cached_token(creds.to_json())
         return creds
+    
     def _create_client(self:Self, httpopts:HttpOptions) -> genai.Client:
         return genai.Client(
             http_options = httpopts,
