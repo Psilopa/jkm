@@ -8,24 +8,25 @@ log = logging.getLogger("jkm")
 
 PROGNAME = "jkm-post"
 
-def _get_secret_from_user(prompt):
+def _get_secret_from_user(prompt:str) -> None|str:
     """Prompt user for a appsecret.
     The promp should tell users how to avoid this.
 
     Returns None on empty values."""
     rv = input(prompt)
-    return None or input(prompt)
+    return None or str(input(prompt))
     
 # Public functions
-def get_cachedsecret(name="JKM_GOOGLE_TEMPTOKEN"):
-    return keyring.get_password(PROGNAME, name)
+def get_cachedsecret(name:str="JKM_GOOGLE_TEMPTOKEN") -> str|None:
     "Get cached secret token from the  OS keyring."
+    return keyring.get_password(PROGNAME, name)
 
-def set_cachedsecret(value, name="JKM_GOOGLE_TEMPTOKEN"):
+
+def set_cachedsecret(value:str, name:str="JKM_GOOGLE_TEMPTOKEN") -> None:
     "Store cached secret token in the OS keyring."
     keyring.set_password(PROGNAME, name, value)
 
-def get(name, prompt=None):
+def get(name:str, prompt:str|None=None) -> None|str:
     """Get a secret value.
 
     Returns None on failure. """
@@ -47,7 +48,7 @@ def get(name, prompt=None):
     log.warning(f"Secret {name} not in any source.")
     return None
 
-def verify_appsecret(value:str, minlen=20) -> bool:
+def verify_appsecret(value:str, minlen:int=20) -> bool:
     "Check if this return value looks like a valid appsecret token"
     if not value: return False # Should not be empty
     if not isinstance(value, str): return False # Must be a string
@@ -55,8 +56,4 @@ def verify_appsecret(value:str, minlen=20) -> bool:
     if len(value) < minlen: return False
     return True
 
-if __name__ == '__main__':
-    apptoken = get_appsecret("Missing an jkm app secret token string. This is needed for the AI call. Please provide one. See jkm/DOC/AUTHENTICATION.md for details about how you can get one (and how to avoid this question),")
-    print(f"Apptoken returned '{apptoken}'")
-    print("Verification return", verify_appsecret(apptoken) )
-    
+
