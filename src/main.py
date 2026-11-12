@@ -29,6 +29,7 @@ from . import meta as jkm_meta
 from . import samplemetadata as jkm_samplemetadata
 from . import errors as jkm_errors
 from . import barcodes as jkm_barcodes
+from . import security 
 #from . import external as jkm_ext
 #from .mytyping import * # For typing
 
@@ -170,16 +171,17 @@ def task_AI_label_data_extraction(conf:type_conf, sample:type_sample) -> type_ai
     try:
         ai_auth_type = conf.get("task","ai", "auth_type") 
         assert ai_auth_type in _AI_AUTH_TYPES
-        if ai_auth_type == 'APIKEY': myai = jkm_ai.apikey_geminiAI(conf.APIKEY)
+        if ai_auth_type == 'APIKEY':
+            myai = jkm_ai.apikey_geminiAI(conf.APIKEY)
         elif ai_auth_type == 'CLOUD_OAUTH':
-            project_id = conf.getpath("task","ai", "google_project_id")
-            location = conf.getpath("task","ai", "google_location")
+            project_id = security.get("JKM_GOOGLE_PROJECT_ID")
+            location = security.get("JKM_GOOGLE_LOCATION")
             myai = jkm_ai.cloud_oauth_geminiAI(project_id, location)
-        elif ai_auth_type == 'LOCAL_OAUTH': 
-            app_token_path = conf.getpath("task","ai", "app_token_path") # Should be readable
-            tmp_token_path = conf.getpath("task","ai", "tmp_token_path") # Should be writeable
-            project_id = conf.getstr("task","ai", "google_project_id")
-            location = conf.getstr("task","ai", "google_location")
+        elif ai_auth_type == 'LOCAL_OAUTH':
+#            app_token_path = conf.getpath("task","ai", "app_token_path") # Should be readable
+#            tmp_token_path = conf.getpath("task","ai", "tmp_token_path") # Should be writeable
+#            project_id = conf.getstr("task","ai", "google_project_id")
+#            location = conf.getstr("task","ai", "google_location")
             myai = jkm_ai.local_oauth_geminiAI(project_id, location, app_token_path, tmp_token_path)
         else:
             myai = None # Should never happen as ai_auth_type is verified to havce a valid value at this point
@@ -354,20 +356,21 @@ class jkm_post():
         auth_type = conf.get("task","ai", "auth_type") # Must exist if we want AI
         log.debug(f"AI authentication method: {auth_type}")
         if auth_type == 'APIKEY':
-            conf.verify( must_have = [ ["task","ai","APIkeyfile"] ] )
-            APIPATH = Path(conf.get("task","ai","APIkeyfile"))
-            conf.APIKEY = jkm_ai.load_apikey(APIPATH) # HACK, FIND A BETTER WAY TO PASS THIS
-            log.debug(f"Reading API key from {APIPATH}")
-            log.debug(f"AI prompt set to \'{conf.get('task','ai','prompt')}\'")
+            log.debug(f"Trying to find API key")
+            conf.APIKEY = jkm_ai.load_apikey(validate_min_len=20)
         elif auth_type == "CLOUD_OAUTH":
-            conf.verify( must_have = [["task","ai","google_project_id"], ["task","ai","google_location"],
-                                      ["task","ai","app_token_path"], ["task","ai","tmp_token_path"],
-                                      ] )
+            if security.get("JKM_GOOGLE_PROJECT_ID") is None:
+                raise jkm_errors.ConfigError(f"Missing Google project ID in configuration.")
+            if security.get("JKM_GOOGLE_LOCATION") is None:
+                raise jkm_errors.ConfigError(f"Missing Google location in configuration.")
         elif auth_type == "LOCAL_OAUTH":
-            conf.verify( must_have = [["task","ai","google_project_id"], ["task","ai","google_location"],
-                                      ] )
+            pass
+#            conf.verify( must_have = [["task","ai","google_project_id"], ["task","ai","google_location"],
+#                                      ["task","ai","app_token_path"], ["task","ai","tmp_token_path"],
+#                                      ] )
         else:
             raise jkm_errors.AIError(f"Unknown AI authentication method {auth_type}")                
+        log.debug(f"AI prompt set to \'{conf.get('task','ai','prompt')}\'")
     # ----------------- A meta-task ------------------------
     def task_edit_images(self:Self, conf:type_conf, sample:type_sample) -> None:
         # ROTATE IMAGES ?
