@@ -16,10 +16,9 @@ Older gloud versions may need a separate
 - ```gcloud auth application-default login```
 - ```gcloud auth application-default set-quota-project [GCloud-project-id]```
 
-## Asetustiedosto
-Tarkasta seuraavat arvot:
-- google_location = global
-- google_project_id = [GCloud-project-id]
+## Asetustiedosto (setup/...toml)
+```auth_type = "CLOUD_OAUTH" ```
+CLOUD_OAUTH tarvitsee lisätiedot JKM_GOOGLE_PROJECT_ID ja JKM_GOOGLE_LOCATION. Kts. TOML-tiedosto. 
 
 # Google Cloud OAUTH2 ilman gcloud-ohjelmaa
 - Avaa laskutusprojektin konsoli ([https://console.cloud.google.com/welcome?hl=en])
@@ -29,8 +28,5 @@ Tarkasta seuraavat arvot:
 - Lisää jkm-Clientin käyttäjäksi/Audience operaattorit google-emailien perusteella ([https://console.cloud.google.com/auth/audience])
 
 ## Asetustiedosto
-Tarkasta seuraavat arvot:
-- google_location = "global"
-- google_project_id = [GCloud-project-id]
-- app_token_path = [polku jkm-token -tiedostoon]
-- tmp_token_path = [polku tilapäiseen tiedostoon, johon voi kirjoittaa]
+```auth_type = "LOCAL_OAUTH" ```
+CLOUD_OAUTH tarvitsee lisätiedot JKM_GOOGLE_CLIENT_SECRET_JSON, JKM_GOOGLE_PROJECT_ID ja JKM_GOOGLE_LOCATION. Kts. TOML-tiedosto. 
