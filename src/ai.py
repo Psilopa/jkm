@@ -230,7 +230,6 @@ class geminiAI(): # Make subclasses based on authentication method
             if  timeout: httpopts = HttpOptions(timeout=timeout)      
             else: httpopts = HttpOptions()
             self.client = self._create_client(httpopts)
-            raise AIError("TEST BREAKOUT")
             if not self.client: raise AIError("Creating an AI client failed.")
             # log.debug("Create client done")
             content =  [ {"type": "text", "text": self.prompt} ]
@@ -244,8 +243,6 @@ class geminiAI(): # Make subclasses based on authentication method
                     gemini_errors.ServerError,
                     GeminiNextGenAPIClientError) as msg:
                 raise AIError(msg)
-        log.debug( f'Response was "{text_output}"' )
-        log.debug( f'Raw was "{raw}"' )
         aioutput = AI_output()
         # Primitive error handling on failure, return empty result
         if text_output == AI_FAILURE_RETURN_VALUE: return aioutput   
@@ -381,7 +378,6 @@ class local_oauth_geminiAI(oauth_geminiAI):
         log.debug("DOne")
     def load_cached_token(self:Self): #
         rv = security.get_cachedsecret()
-        print("load_tmptoken returned", rv)
         if not rv: return None
         else : return json.loads(rv) # Trey to read this as JSON
     def save_cached_token(self:Self, tokenjson): #
@@ -400,7 +396,6 @@ class local_oauth_geminiAI(oauth_geminiAI):
         tokendata = self.load_cached_token()
         if tokendata:
             creds = Credentials.from_authorized_user_info(tokendata, SCOPES)
-            print("creds from tokendata =", creds)
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token: # Creds exist but are not valid
@@ -411,8 +406,6 @@ class local_oauth_geminiAI(oauth_geminiAI):
                 flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
                 creds = flow.run_local_server(port=0)
             # Save the credentials for the next run
-            print("len(creds.to_json()) =", len(creds.to_json()) )
-            print("creds.to_json() =", creds.to_json() )
             self.save_cached_token(creds.to_json())
         return creds
     
