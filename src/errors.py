@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
+#from .mytyping import * # For typing
+
 
 log = logging.getLogger() # Overwrite if needed
 
@@ -19,7 +21,8 @@ class ConfigWarning(LoggingError):
         super().__init__(msg, level = logging.WARNING)
 
 class FileLoadingError(LoggingError):
-    def __init__(self, msg): super().__init__(msg)
+    def __init__(self, msg,  level = logging.CRITICAL):
+        super().__init__(msg, level)
 
 class FileSavingError(LoggingError):
     def __init__(self, msg): super().__init__(msg)
@@ -35,7 +38,8 @@ class BarcodeError(LoggingError):
     def __init__(self, msg): super().__init__(msg)
 
 class AIError(LoggingError):
-    def __init__(self, msg): super().__init__(msg)
+    def __init__(self, msg,  level = logging.ERROR):
+        super().__init__(msg,level)
 
 class AIWarning(LoggingError):
     def __init__(self, msg): super().__init__(msg, level = logging.WARNING)

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from jkm.jkm_postprocessing_main import jkm_post
+from src.main import jkm_post
 import logging
 
 logging_level_file = logging.DEBUG

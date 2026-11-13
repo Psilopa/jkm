@@ -1,7 +1,7 @@
 from  pathlib import Path
 import shutil
-# For typing
-from jkm.typing import *
+# My own local modules
+from .mytyping import * # For typing
 
 class DigipropFile:
     def __init__(self:Self):

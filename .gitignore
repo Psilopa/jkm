@@ -16,9 +16,11 @@ __pycache__/
 .pytest_cache/
 venv/
 .venv/
+.env
 env/
 .env/
 jkm*.log
 jkm_insectline_*.bat
 jkm_singlerun.bat
 setup/*testing.toml
+setup/*test.toml

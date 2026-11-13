@@ -1,18 +1,22 @@
+# Standard library packages
 import abc, re
 from pathlib import Path
 from datetime import datetime
 import logging,  os, validators
-#import  pickle
-import cv2
-import jsonpickle
-import jkm.samplemetadata, jkm.ocr, jkm.tools, jkm.errors
-from jkm.digitisation_properties import DigipropFile
-import numpy as np
-#from urllib.request import urlopen
 from urllib.parse import urlparse, urlunparse
+# Non-stdlib packages
+import cv2, jsonpickle
+import numpy as np
+# My own stuff
+from . import samplemetadata
+from . import ocr
+from . import tools
+from . import errors
+from .barcodes import extractbarcodedata
+from .digitisation_properties import DigipropFile
 
 # For typing
-from jkm.typing import *
+from .mytyping import * # For typing
 
 log = logging.getLogger() # Overwrite from calling script for fancier logging
 deg2rotcode = {90: cv2.ROTATE_90_CLOCKWISE,
@@ -56,7 +60,7 @@ class SampleEvent(SampleBase,  abc.ABC):
         self._imagelist:list[SampleImage] = [] # List of SampleImage subclass instances
         self.prefix: str|Path = "" # Common file name prefix (often/ALWAYS same as self.datapath?)
         self.datapath: Path = Path() # SHOULD THIS BE None?
-        self.meta = jkm.samplemetadata.EventMetadata() # Event-level metadata
+        self.meta = samplemetadata.EventMetadata() # Event-level metadata
         self._identifier: str|None = None
         self._shortidentifier: str|None = None
         self.results = Results()
@@ -120,7 +124,7 @@ class SampleEvent(SampleBase,  abc.ABC):
         """Rename sample file(s).
 
         NOTE: Currently only renames *image* files."""
-        if not self.identifier: raise jkm.errors.JKError("No known sample identifier, cannot rename files")
+        if not self.identifier: raise errors.JKError("No known sample identifier, cannot rename files")
         for image in self.imagelist:
             try: 
                 log.debug(f"Renaming files based on barcode content: prefix {prefix}, oldname {image.path}")
@@ -158,12 +162,12 @@ class SampleEvent(SampleBase,  abc.ABC):
         for pat in datafile_patterns:
             filepaths = d.rglob(pat)
             log.debug(f"Looking for pattern {pat} in {dirname}")
-            filepaths = [jkm.tools.path2url(x) for x in filepaths if ( str(x).find("textarea") == -1 )] # Skip files with "textarea" in their name
+            filepaths = [tools.path2url(x) for x in filepaths if ( str(x).find("textarea") == -1 )] # Skip files with "textarea" in their name
             result.extend( filepaths )
         # Delete duplicate files (hard links to the same file)        
-        return jkm.tools.unique(result)
+        return tools.unique(result)
     def rename_directories(self, config, prefix:str, ignore_domain:bool =True) -> None:
-        raise jkm.errors.JKError("Trying to rename directories in an object that does not support it.")
+        raise errors.JKError("Trying to rename directories in an object that does not support it.")
 #-----------------------------IMAGE CONTAINERS---------------------------------------------------------------    
 class SampleImageBase(SampleBase,  abc.ABC): 
     "One image plus metadata"
@@ -179,7 +183,7 @@ class SampleImageBase(SampleBase,  abc.ABC):
         self.url = url # Also sets self._parsed_url
         self.name= f"{type(self).__name__} ({url})" # For images, the image source is a good name
         self.label = label
-        self.meta = jkm.samplemetadata.ImageMetadata(self.label)  #Image-level metadata
+        self.meta = samplemetadata.ImageMetadata(self.label)  #Image-level metadata
         self.confsection:dict|None = None
         
         # Data about the actual image: can we surrpot renaming
@@ -207,9 +211,21 @@ class SampleImageBase(SampleBase,  abc.ABC):
         else: self._loaded = True        
     @property
     def path(self:Self) -> Path:
-        assert self._parsed_url.scheme == "file" # Should be accessed only for files
-        return Path(self._parsed_url.path)
+        if self._parsed_url.scheme.lower() != "file":
+            return None
+        else:
+            return tools.url2path(self._url)
     # Functions
+    def parentMoved(self:Self, oldpath:Path, newpath:Path) -> None:
+        """Update url and derived properties to reflect a changed parent directory.
+
+        Can be safely called with non-local images (non-file URLs), but will do nothing."""
+        if not self.path: return # This is not a local file, nothing we can do
+        # Update URL, _parsed_url and path should automatically follow
+        oldurl = tools.path2url(oldpath)
+        newurl = tools.path2url(newpath)
+        self.url = self.url.replace(oldurl, newurl)
+
     def encodeJSON(self:Self) -> dict:
         "Return a JSON serializable representation."
         # TODO: ADD FULL STRUCTURE HERE
@@ -239,26 +255,28 @@ class SampleImageBase(SampleBase,  abc.ABC):
         else: return None # Nothing to rotate
     def readbarcodestrings(self, qrpackage) -> list[str]:
         self._loadImage()
-        bkdata = jkm.barcodes.extractbarcodestrings(self.bitmap, qrpackage, encoding='ascii')
+        bkdata = extractbarcodedata(self.bitmap, qrpackage, encoding='ascii')
         return bkdata        
     def rotate(self, angle: int) -> None: # angle = 0,90,180,270
         angle = int(angle)
         if angle:
             self._loadImage()
             rotcode = deg2rotcode[angle]
-            if self.bitmap: self.bitmap = cv2.rotate(self.bitmap, rotateCode = rotcode)        
+            if self.bitmap is not None:
+                self.bitmap = cv2.rotate(self.bitmap, rotateCode = rotcode)        
     def rename(self,newpath: Path) -> None:
         """Rename the corresponding file on the file system.
 
-        Raises a jkm.errors.FileLoadingError if called for non-local file resources.
+        Raises a errors.FileLoadingError if called for non-local file resources.
         """
         if not self.supports_rename_files:
-            raise jkm.errors.FileLoadingError("Cannot rename resources that are not local.")
+            raise errors.FileLoadingError("Cannot rename resources that are not local.")
         # Create new URL from the old one, replacing the file path
         comps = urlparse(self.url)
         comps._replace( path=str(newpath) )
         self.path.rename(newpath)
-        self.url = urlunparse(comps) # Also resets self._parsed_url
+        # Update URL to point to the new file
+        self.url = tools.path2url( newpath ) 
 
 class SampleImage(SampleImageBase): 
     "One image plus metadata"
@@ -268,16 +286,16 @@ class SampleImage(SampleImageBase):
         """Returns image as a cv2/numpy array. 
         
         Loads data from disk if it has not already been loaded. Reloading can be forced using the force_reload flag. 
-        Raises jkm.errors.FileLoadingError is datais not accessible"""
+        Raises errors.FileLoadingError is datais not accessible"""
         if (self.bitmap is not None): return # We are already set
         try:
             if self.url is not None:
-                self.bitmap = jkm.tools.load_img(self.url)
-            else: raise jkm.errors.FileLoadingError(f"No file URL set.") 
+                self.bitmap = tools.load_img(self.url)
+            else: raise errors.FileLoadingError(f"No file URL set.") 
         except SystemError as msg:
             log.warning(f"Reading file {str(self.url)} failed" )
             self.bitmap = None # Reset after failure just in case
-            raise jkm.errors.FileLoadingError(msg)        
+            raise errors.FileLoadingError(msg)        
 #    def writeImage(filename): pass
 
 class SpecimenImage(SampleImage):
@@ -302,7 +320,7 @@ class LabelImage(SampleImage):
         "Find areas with text using EAST text detector"
         img = self._loadImage()
         log.debug("Find areas with text using EAST text detector")
-        return jkm.ocr.find_text_rects(img,nnfn)
+        return ocr.find_text_rects(img,nnfn)
     def savetextareas(self, namehdr:str) -> None:
         x = 1
         try:
@@ -311,7 +329,7 @@ class LabelImage(SampleImage):
                 imgname = self.path.stem
                 fullfn = self.path.with_name(f"{imgname}{namehdr}{x}.jpg")
                 log.debug(f"Storing individual label image: {fullfn}")
-                if imgx: jkm.tools.save_img(fullfn,imgx)
+                if imgx: tools.save_img(fullfn,imgx)
                 x += 1
         except IOError: pass
     def ocr(self, ocrcommand:str, force_all_image_ocr:bool = False) -> str: 
@@ -320,12 +338,12 @@ class LabelImage(SampleImage):
         if not self._textareas or force_all_image_ocr:
             log.debug(f"OCR call for {self.label}, full frame")
             img = self._loadImage()
-            txt = jkm.ocr.ocr(img,ocrcommand)
+            txt = ocr.ocr(img,ocrcommand)
         else:  # OCR recognised text areas one at a time
             x = 1
             for area in self._textareas:
                 log.debug(f"OCR call for {self.label}, text area {x}")
-                txt += " " + jkm.ocr.ocr(self.getsubimage(area),ocrcommand)
+                txt += " " + ocr.ocr(self.getsubimage(area),ocrcommand)
                 x += 1
         return txt
 #    def readMetadata(self:Self): pass
@@ -383,7 +401,7 @@ class SingleImageSample(MySampleBase):
 	# Create a CombinedImage to hold image data 
         image = CombinedImage(label, url)
         try: # If this a file:/// URL ?
-            imgpath = jkm.tools.url2path( url, ("file",))
+            imgpath = tools.url2path( url, ("file",))
             filecreated = getFileCreationDateTime(imgpath)
         except ValueError: # THis is not a local file URI
             imgpath = None
@@ -406,7 +424,7 @@ class DirectorySample(MySampleBase):
         self.digipropfile = DigipropFile() 
     @staticmethod
     def _createsample(url:type_url,SampleClass):
-        triggerfile = jkm.tools.url2path( url, ("file",))
+        triggerfile = tools.url2path( url, ("file",))
         # First, url is the trigger file, not the directory!
         dirpath = triggerfile.parent
         # Extract creating time from directory name 
@@ -422,7 +440,7 @@ class DirectorySample(MySampleBase):
         for pattern in patterns:
             foundpaths = [Path(x) for x in datapath.glob(pattern)]
             imagefilepaths.extend( foundpaths)
-        imagefileurls = [jkm.tools.path2url(path) for path in imagefilepaths]
+        imagefileurls = [tools.path2url(path) for path in imagefilepaths]
         # TODO: get object descriptions from config (already there, but unused)
         object_descriptions = [f"Image file {url}" for url in imagefileurls]
         # We do not know if these are sample or label images
@@ -461,11 +479,12 @@ class DirectorySample(MySampleBase):
         - FileExistsError
         """        
         # TODO: EXTEND TO POSSIBLE SUBDIRECTORIES?
-        newpath = self.datapath # Default to no change
+        oldpath = self.datapath 
+        newpath = oldpath # Default to no change
         basepath = self.datapath.parent
         if ignore_domain: id0 = self.shortidentifier
         else: id0 = self.identifier
-        if not id0: raise jkm.errors.JKError("No identifier known, cannot rename directory")
+        if not id0: raise errors.JKError("No identifier known, cannot rename directory")
         newprefix = "_".join([id0 , prefix])            
         if config.getb("task","create_directories"): # if a subdirectory was created for data
              newbase = basepath / id0 # example [basebath]/GX.38276
@@ -476,6 +495,9 @@ class DirectorySample(MySampleBase):
         log.debug(f"Renaming {self.datapath} to {newpath}")        
         self.datapath.rename(newpath) 
         self.datapath= newpath # Set datapath to the new value only if everything preceding was successful
+        # Now we need to made sure all child items know the parent item was renamed
+        for img in self._imagelist:
+            img.parentMoved(oldpath, newpath)
     def write_postprocessor_report(self, conf, properties_filename = None) -> None:
         """Write postprocessor.properties file. Uses the same format as the Luomus degitizing line .properties file"""
         if (properties_filename is None) or (not properties_filename):
@@ -512,7 +534,7 @@ class LuomusPlantLineSample(DirectorySample):
         # Load image (just one on plant line) TODO: Logic here is not very ideal
         title = conf.get("data", "label_title")
         filepath = s.datapath / Path(conf.get("data", "label_file")) # Assumes this is not a list
-        image = CombinedImage(title, jkm.tools.path2url(filepath))
+        image = CombinedImage(title, tools.path2url(filepath))
         s.addImage(image)
         log.debug(f"Created a LuomusPlantLineSample with {len(s.imagelist)} images.")
         return s           
@@ -529,7 +551,7 @@ class LuomusInsectLineSample(DirectorySample):
         # Load label image
         title = conf.get("data", "label_title")
         filepath = s.datapath / Path(conf.get("data", "label_file"))
-        image = LabelImage(title, jkm.tools.path2url(filepath))
+        image = LabelImage(title, tools.path2url(filepath))
         s.addImage(image)        
         # Load specimen images
         imagelist = DirectorySample._createimages( s.datapath,
@@ -567,15 +589,15 @@ class FileRowSample(SingleImageSample):
                 if not line or line[0] == '#': continue                
                 # Check line format: could be URL's or file paths
                 linepath = Path(line.strip())
-                if linepath.exists(): line = jkm.tools.path2url(linepath) # This is a path to an existing local file
+                if linepath.exists(): line = tools.path2url(linepath) # This is a path to an existing local file
                 elif validators.url(line): pass # Should be a valid URL as-is
                 else:
-                    raise jkm.errors.FileLoadingError(f"Could not recognize the format of line {line} in {filepath}.")
+                    raise errors.FileLoadingError(f"Could not recognize the format of line {line} in {filepath}.")
                 result.append( line.strip() )
             # Delete duplicate files (hard links to the same file)
-            return jkm.tools.unique(result)
+            return tools.unique(result)
         except IOError as msg:
-            raise jkm.errors.FileLoadingError(msg)
+            raise errors.FileLoadingError(msg)
         # return the image
         return image
     @staticmethod

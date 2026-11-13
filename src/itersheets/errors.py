@@ -1,0 +1,1 @@
+class sheetError(Exception): pass
