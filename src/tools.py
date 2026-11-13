@@ -4,15 +4,17 @@ from os import name as system_name
 from pathlib import Path
 from urllib.parse import urlparse, ParseResult, unquote
 import urllib.request
+
 # Non-std packages
 import numpy as np
 import cv2, validators
+
 # My packages
-from .typing import *
 from .downloader import defaultdownloader
 from .errors import FileLoadingError, FileSavingError
 log = logging.getLogger() # Overwrite if needed
 # For typing
+from .mytyping import * # For typing
 
     
 
@@ -245,7 +247,7 @@ def url2path(url: type_url, allowed_schemes:tuple[str, ...]|None=None) -> Path:
     pathstr = urllib.request.url2pathname( urlpath ) 
     return Path(pathstr)
 
-def as_existing_path(url: type_url) -> Path: 
+def is_existing_path(url: type_url) -> bool: 
     """Verify that this url, if a local file url, corresponds to an accessible path.
 
     Returns a Path on success. Raises a FileLoadingError on failure. """
@@ -259,7 +261,7 @@ def as_existing_path(url: type_url) -> Path:
         raise FileLoadingError(f"Cannot find directory {dirpath}.")
     if not filepath.exists():
         raise FileLoadingError(f"Could not find file {filepath}.")
-    return filepath
+    return True
 
 # ----- string to XML preparation ---------------
 #Based on an answer by John Machin on Stack Overflow (http://stackoverflow.com/users/84270/john-machin)

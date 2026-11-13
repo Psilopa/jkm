@@ -4,7 +4,7 @@ import logging,  sys, argparse, tomllib
 from collections.abc import Callable, Collection, Sequence
 # My own modules in this directory
 from .errors import ConfigError, ConfigWarning
-from .typing import * # For typing
+#from .mytyping import * # For typing
 
 log = logging.getLogger() # Overwrite if needed
 

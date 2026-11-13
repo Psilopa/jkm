@@ -2,6 +2,7 @@ import json
 # This is suss
 # Suss values rank from +1 (probably ok) to 0 (unknown) to -1 (probably bad)
 # Input: dictionary key:value_that_can_be_converted_to_string
+from .mytyping import * # For typing
 
 TESTING_JSON_FROM_AI = r"""{
   "verbatim_all_text": [
