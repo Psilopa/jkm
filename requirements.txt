@@ -10,3 +10,5 @@ pynput
 pyzbar
 watchdog
 validators
+keyring
+dotenv

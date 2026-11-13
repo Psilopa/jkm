@@ -7,7 +7,7 @@ from .jkods import ODSFile
 from .jkxlsx import XLSXFile
 from .errors import sheetError
 from .base import new_column_action, WriteOnlySpreadsheet
-#from .mytyping import * # For type checking tools
+from .mytyping import * # For type checking tools
 
 log = logging.getLogger() # Set from main script if fancy logging is required.
 def unique(s: Sequence) ->tuple[str,...] :return tuple(dict.fromkeys(s)) 
@@ -91,7 +91,9 @@ class WriterBase(WriteOnlySpreadsheet):
 
 #------------------ EXCEL SPECIFIC STUFF -------------
 class WriterXLSX(WriterBase, XLSXFile): 
-    pass
+    def __init__(self:Self, filename: str|Path): 
+        WriterBase.__init__(self,filename)
+        XLSXFile.__init__(self)
 #------------------ ODS SPECIFIC STUFF -------------
 class WriterODS(WriterBase, ODSFile): 
     pass

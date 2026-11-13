@@ -67,7 +67,7 @@ class WriterCSV(WriteOnlySpreadsheet):
 
     def save(self:Self) -> None:
         self._saved = False
-        assert self.file, "Should not save if file has not been opened yet!"
+#        assert self.file, "Should not save if file has not been opened yet!"
         if self.file: self.file.flush() # Write data to file immediately
         self._saved = True
 
