@@ -22,8 +22,17 @@ def get_cachedsecret(name:str="JKM_GOOGLE_TEMPTOKEN") -> str|None:
     return keyring.get_password(PROGNAME, name)
 
 
-def set_cachedsecret(value:str, name:str="JKM_GOOGLE_TEMPTOKEN") -> None:
-    "Store cached secret token in the OS keyring."
+def set_cachedsecret(value:str, 
+                     name:str = "JKM_GOOGLE_TEMPTOKEN", 
+                     maxlen:int = 2560) -> None:
+    """Store cached secret token in the OS keyring.
+    
+    keywords: 
+    maxlex - integer. Maximum amount of data bytes. Defaults to 2560, the maximum value 
+    allowed by the Windows Credential Manager (in late 2026).
+    """
+    if len(value.encode('utf-8')) > maxlen: 
+        raise ValueError("set_cachedsecret(): value is too long for storage")
     keyring.set_password(PROGNAME, name, value)
 
 def get(name:str, prompt:str|None=None) -> None|str:
