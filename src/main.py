@@ -145,7 +145,8 @@ def task_read_barcodes(conf:type_conf, sample:type_sample) -> Sequence[str]:
     for image in sample.imagelist:
         try:
             # NOTE: the choice of barcose detector tool is hardcoded in jkm/barcodes.py
-            bkdata = image.readbarcodestrings(barcodepackage)
+            barcodes = image.read_barcodes(barcodepackage)
+            bkdata = (bk.text for bk in barcodes)
             image.meta.addlog("Barcode contents", bkdata, log_add_hdr= sample.name, lvl=logging.DEBUG)
             allbarcodes += bkdata
         except jkm_errors.FileLoadingError as msg:

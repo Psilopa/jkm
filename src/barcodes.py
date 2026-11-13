@@ -12,7 +12,7 @@ CONST_PYZBAR = "pyzbar"
 pyzbar = QReader = None
 
 
-class barcodeitem:
+class barcode:
     def __init__(self):
         self.text = ""
         self.w1 = self.w2 = self.h1= self.h2 = None
@@ -22,7 +22,7 @@ class barcodeitem:
     def __str__(self):
         return f"{self.text} at {self.w1}:{self.w2} {self.h1}:{self.h2}"
 
-def _extract_class_pyzbar(greyimg:type_image, encoding:str|None=None) -> list[str]:
+def _extract_class_pyzbar(greyimg:type_image, encoding:str|None=None) -> tuple[str, ...]:
     """Extract barcode data using PyZBar.
     
     Returns a list of found (nonempty) values. It nay contain duplicates.
@@ -42,7 +42,7 @@ def _extract_class_pyzbar(greyimg:type_image, encoding:str|None=None) -> list[st
     log.debug("Found %i barcode(s)" % len(barcodes))
     d = []
     for qr in barcodes:
-        n = barcodeitem()        
+        n = barcode()        
         n.text = qr.data
         n.w1 = qr.rect.left 
         n.h1 = qr.rect.top
@@ -52,7 +52,7 @@ def _extract_class_pyzbar(greyimg:type_image, encoding:str|None=None) -> list[st
         d.append(n)
         print(n)
         print(n.center)
-    return [x for x in d if x.text] # Make sure the result is a list of non-empty string
+    return (x for x in d if x.text) # Make sure the result is a list of non-empty string
 
     
 def _extract_pyzbar(greyimg:type_image, encoding:str|None=None) -> list[str]:
@@ -96,7 +96,7 @@ def extractbarcodes(image:type_image,
                        encoding:str|None=None) -> list[str]:
     """Extract barcode data from an image. 
     
-    Returns a list of found (nonempty) values. Can contain duplicates.
+    Returns a tuple of barcode class instances.
     
     Parameters: 
     image -- Accepts either a filename, a file object, opencv images. Should also work with PIL or nympy image arrays.
@@ -133,7 +133,7 @@ def extractbarcodestrings(image:type_image,
                        encoding:str|None=None) -> list[str]:
     """Extract barcode data from an image. 
     
-    Returns a list of found (nonempty) values. Can contain duplicates.
+    Returns a list of found (nonempty) string values. Can contain duplicates.
     
     Parameters: 
     image -- Accepts either a filename, a file object, opencv images. Should also work with PIL or nympy image arrays.
@@ -142,25 +142,8 @@ def extractbarcodestrings(image:type_image,
     greyrange -- see above.
     encoding -- None or a name for the enconding used in decoding the barcode byte stream to text.
     """
-    global QReader, pyzbar
-    if qrpackage not in (CONST_QREADER, CONST_PYZBAR):
-        raise BarcodeError(f"Unknown barcode reader tool '{qrpackage}'")
-    # Do a loadimage just in case
-    img = image
-    greyimg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    if increasecontast:
-        greyimg = tools.increaseTopContrast(greyimg,greyrange)
-    if qrpackage == CONST_PYZBAR:
-        if not pyzbar: 
-            importlib.import_module("pyzbar")
-            from pyzbar import pyzbar
-        d = _extract_pyzbar(greyimg, encoding)    
-    elif qrpackage == CONST_QREADER:
-        if not QReader: 
-            QReader = importlib.import_module("qreader").QReader
-        d = _extract_qreader(greyimg)
-    # else: should not happen as tested above
-    return d
+    barcodes = extractbarcodes(image,qrpackage,increasecontast,greyrange,encoding)
+    return (b.text for b in barcodes)
 
 ##def sampleids(data):
 ##    # Add CETAF verification here too...

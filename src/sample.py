@@ -12,7 +12,7 @@ from . import samplemetadata
 from . import ocr
 from . import tools
 from . import errors
-from .barcodes import extractbarcodedata
+from .barcodes import extractbarcodes
 from .digitisation_properties import DigipropFile
 
 # For typing
@@ -243,28 +243,33 @@ class SampleImageBase(SampleBase,  abc.ABC):
 #        cf = configobject
 #        self.addMeta("Free text", cf.get(self.confsection,"freetextline", fallback=""))
         self.addMeta("Image timing", self.time)
-    def addMeta(self,title:str,content="") -> None:
+    def addMeta(self:Self,title:str,content="") -> None:
         self.meta.add(title,  content)
-    def addlogMeta(self,title:str,content:str="",lvl:int=logging.INFO) -> None:
+    def addlogMeta(self:Self,title:str,content:str="",lvl:int=logging.INFO) -> None:
         self.meta.addlog(title,  content, lvl=lvl)
-    def getsubimage(self,  rect=tuple[int]|list[int]) -> type_image|None:
+    def getsubimage(self:Self,  rect=tuple[int]|list[int]) -> type_image|None:
         "Rect to [x1,y1,x2,y2,rot] from upper left corner"
         x1,y1,x2,y2,rot = rect
         self._loadImage()
         if self.bitmap: return self.bitmap[y1:y2, x1:x2]
         else: return None # Nothing to rotate
-    def readbarcodestrings(self, qrpackage) -> list[str]:
+    def read_barcodes(self:Self, qrpackage:str) -> list[str]:
+        """"Read all barcodes in the image.
+
+        Returns a list of barcodes.barcode class instances.
+
+        Arguments:
+        qrpackage: string. Name of QR module to use."""
         self._loadImage()
-        bkdata = extractbarcodedata(self.bitmap, qrpackage, encoding='ascii')
-        return bkdata        
-    def rotate(self, angle: int) -> None: # angle = 0,90,180,270
+        return extractbarcodes(self.bitmap, qrpackage, encoding='ascii')
+    def rotate(self:Self, angle: int) -> None: # angle = 0,90,180,270
         angle = int(angle)
         if angle:
             self._loadImage()
             rotcode = deg2rotcode[angle]
             if self.bitmap is not None:
                 self.bitmap = cv2.rotate(self.bitmap, rotateCode = rotcode)        
-    def rename(self,newpath: Path) -> None:
+    def rename(self:Self,newpath: Path) -> None:
         """Rename the corresponding file on the file system.
 
         Raises a errors.FileLoadingError if called for non-local file resources.
@@ -280,9 +285,9 @@ class SampleImageBase(SampleBase,  abc.ABC):
 
 class SampleImage(SampleImageBase): 
     "One image plus metadata"
-    def __init__(self,  label:str,  url:type_url,  time:datetime|None = None): 
+    def __init__(self:Self,  label:str,  url:type_url,  time:datetime|None = None): 
         super().__init__(label, url,  time)
-    def _loadImage(self, colourspace:int = cv2.IMREAD_COLOR) -> None: 
+    def _loadImage(self:Self, colourspace:int = cv2.IMREAD_COLOR) -> None: 
         """Returns image as a cv2/numpy array. 
         
         Loads data from disk if it has not already been loaded. Reloading can be forced using the force_reload flag. 
@@ -302,26 +307,26 @@ class SpecimenImage(SampleImage):
     #Class properties
     has_specimens = True # Property
     has_labels = False # Property
-    def __init__(self,  label:str,  url:type_url,  time:datetime|None = None) :
+    def __init__(self:Self,  label:str,  url:type_url,  time:datetime|None = None) :
         super().__init__(label,  url,  time)
 
 class LabelImage(SampleImage):
         #Class properties
     has_specimens = False # Property
     has_labels = True # Property
-    def __init__(self,  label:str,  url:type_url,  time:datetime|None = None) :
+    def __init__(self:Self,  label:str,  url:type_url,  time:datetime|None = None) :
         super().__init__(label,  url,  time)
         self._textareas = []
     @property
     def textareas(self:Self) -> list:  
         "Access textareas once they have been identified using findtextareas()"
         return self._textareas
-    def findtextareas(self,  nnfn:str) -> Collection[type_rotated_rect]:
+    def findtextareas(self:Self,  nnfn:str) -> Collection[type_rotated_rect]:
         "Find areas with text using EAST text detector"
         img = self._loadImage()
         log.debug("Find areas with text using EAST text detector")
         return ocr.find_text_rects(img,nnfn)
-    def savetextareas(self, namehdr:str) -> None:
+    def savetextareas(self:Self, namehdr:str) -> None:
         x = 1
         try:
             for rect in self._textareas:
@@ -332,7 +337,7 @@ class LabelImage(SampleImage):
                 if imgx: tools.save_img(fullfn,imgx)
                 x += 1
         except IOError: pass
-    def ocr(self, ocrcommand:str, force_all_image_ocr:bool = False) -> str: 
+    def ocr(self:Self, ocrcommand:str, force_all_image_ocr:bool = False) -> str: 
         # If not all_image_ocr, examine only text areas previously found
         txt = ""
         if not self._textareas or force_all_image_ocr:
@@ -391,7 +396,7 @@ class SingleImageSample(MySampleBase):
     """A single image based minimal sample event"""
     supports_rename_files = True    
     supports_rename_directories = False    
-    def __init__(self,  time:datetime|None = None) :
+    def __init__(self:Self,  time:datetime|None = None) :
         super().__init__(time)
     @staticmethod
     def from_url(url:type_url, conf, label:str="generic_camera")-> SingleImageSample: 
