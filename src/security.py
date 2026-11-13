@@ -14,7 +14,7 @@ def _get_secret_from_user(prompt:str) -> None|str:
 
     Returns None on empty values."""
     rv = input(prompt)
-    return None or str(input(prompt))
+    return str(input(prompt)) or None
     
 # Public functions
 def get_cachedsecret(name:str="JKM_GOOGLE_TEMPTOKEN") -> str|None:
