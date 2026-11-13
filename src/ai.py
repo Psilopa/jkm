@@ -313,9 +313,9 @@ class geminiAI(): # Make subclasses based on authentication method
         for url in imageurls:
             log.debug(f"Trying to classify {url} as a local path or online resource.")
             try:
-                fpath = tools.as_existing_path(url) # FileLoadingError on error.                
-                if fpath:
-                    img_blocks.append( self._handle_local_file(fpath, max_dim) )
+                islocal = tools.is_existing_path(url) # FileLoadingError on error.                
+                if islocal:
+                    img_blocks.append( self._handle_local_file( url2path(url), max_dim) )
                 else:
                     log.warning(f"Trying to read unaccesible resource {fpath}.") # Should not handle
 #                log.debug(f"\t {url} is a local resource.")

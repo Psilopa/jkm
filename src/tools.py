@@ -247,7 +247,7 @@ def url2path(url: type_url, allowed_schemes:tuple[str, ...]|None=None) -> Path:
     pathstr = urllib.request.url2pathname( urlpath ) 
     return Path(pathstr)
 
-def as_existing_path(url: type_url) -> Path: 
+def is_existing_path(url: type_url) -> bool: 
     """Verify that this url, if a local file url, corresponds to an accessible path.
 
     Returns a Path on success. Raises a FileLoadingError on failure. """
@@ -261,7 +261,7 @@ def as_existing_path(url: type_url) -> Path:
         raise FileLoadingError(f"Cannot find directory {dirpath}.")
     if not filepath.exists():
         raise FileLoadingError(f"Could not find file {filepath}.")
-    return filepath
+    return True
 
 # ----- string to XML preparation ---------------
 #Based on an answer by John Machin on Stack Overflow (http://stackoverflow.com/users/84270/john-machin)
