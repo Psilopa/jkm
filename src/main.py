@@ -389,17 +389,16 @@ class jkm_post():
         # Variables to hold extracted data
         # Potential exceptions: jkm_errors.FileLoadingError
         allbarcodes = []
-        # If local, checks that it the path exists
-        # jkm_tools.as_existing_path( sourceurl ) # Raises an FileLoadingError on failure
-                        
         # Try to recognise input file/directory format
         sample_format = conf.get("data", "datatype_to_load")        
         sample_class = get_sample_class( sample_format.lower() )
         if sample_class in (jkm_sample.LuomusInsectLineSample,
                             jkm_sample.LuomusPlantLineSample,
                             jkm_sample.DirectorySample,
-                            ): 
-            jkm_tools.as_existing_path( sourceurl )  # FileLoadingError on failure
+                            ):
+            # These should always be local files, so we check here
+            # FileLoadingError on failure
+            jkm_tools.is_existing_path( sourceurl )  
             sample = sample_class.from_directory(sourceurl, conf)
         elif sample_class in (jkm_sample.SingleImageSample,
                               jkm_sample.FileRowSample):

@@ -6,4 +6,5 @@ from .base import new_column_action, log as baselog
 
 # Connect all log objects 
 log = writerlog = baselog 
+#log.addHandler(logging.StreamHandler())
 
