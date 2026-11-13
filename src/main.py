@@ -140,13 +140,15 @@ def task_OCR(conf:type_conf, sample:type_sample) -> str:
     return alltext
 
 def task_read_barcodes(conf:type_conf, sample:type_sample) -> Sequence[str]:
+    # TODO: THIS ASSUMES WERE ARE NEAR THE TOP OF THE TASK LIST. MAYBE WE SHOULD NOT WIPE EXISTING DATA FROM allbarcodes
     allbarcodes = []
     barcodepackage = conf.get( "task","barcodes", "barcodepackage").lower()
     for image in sample.imagelist:
         try:
             # NOTE: the choice of barcose detector tool is hardcoded in jkm/barcodes.py
             barcodes = image.read_barcodes(barcodepackage)
-            bkdata = (bk.text for bk in barcodes)
+            log.debug(f"All barcodes detected: {[str(x) for x in barcodes]}")
+            bkdata = tuple(bk.text for bk in barcodes)
             image.meta.addlog("Barcode contents", bkdata, log_add_hdr= sample.name, lvl=logging.DEBUG)
             allbarcodes += bkdata
         except jkm_errors.FileLoadingError as msg:
