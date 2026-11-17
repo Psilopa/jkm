@@ -12,3 +12,5 @@ watchdog
 validators
 keyring
 dotenv
+openpyxl
+odfdo
