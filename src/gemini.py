@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
 # Standard library stuff
 #import sys, ,  json, os,
-import base64
 import logging
 import json # Only for testing?
+import base64
 import mimetypes  # mime type based on file URL
 from pathlib import Path
 
 # my own local modules
 from . import aibase
 from . import security
-from . import tools
 from . import labeldata_model
 from .errors import AIError, AIWarning, FileLoadingError
 from .mytyping import * # For typing
@@ -29,31 +28,35 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 log = logging.getLogger() # Overwrite if needed
 
 
+
 class geminiAI(aibase.AIbase): # Make subclasses based on authentication method
+    TESTING_RAW = r"""{"output_text":{}}""" # GRAB REAL EXAMPLE FROM A FILE
+    TESTING_TEXT = json.dumps(json.loads(TESTING_RAW)["output_text"] )
     TESTING_BYPASS_AI_CALL = False
     AI_FAILURE_RETURN_VALUE = 'null'
-    TESTING_REPLY_JSON = r"""{"output_text":{}}"""
     # Grab the "output_text" section as JSON
-    TESTING_JSON_FROM_AI = json.dumps(json.loads(TESTING_REPLY_JSON)["output_text"] )
     aierrors = (gemini_errors.ServerError,
                     gemini_errors.ClientError,
                     gemini_errors.APIError,
                     gemini_errors.ServerError,
                     GeminiNextGenAPIClientError)
+    modelname = 'gemini-3.1-flash-lite' # Default model
 
     def __init__(self:Self):
-        self.client = None
-        # The 2 below have getters and setters (in case we want fancy logic later)
-        self._promt = None
-        self.modelname = 'gemini-3.1-flash-lite' # Default model
+        super().__init__()
+        # self.client from parent class
+        # self.promt from parent class
 
     def close(self:Self) -> None:
-        if self.client: self.client.close() # Not necesary, but a good habit.
-
-    def content_from_text(self:Self,txt:str):
-         return {"type": "text", "text": txt}
+        "Close the http AI client connection."
+        # Not necessary, but a good habit.
+        if self.client: self.client.close() 
 
     def _execute_query(self:Self,content=Collection) -> tuple[ str,str|None ]:
+        """Run the AI request and return the output
+
+        Output format tuple(all_output_as_json, output_text_as_json).
+        """        
         # Default query function. Uses the experimental Interactions API
         # May not work with older models
         # Raises a GeminiNextGenAPIClientError on API error
@@ -68,14 +71,19 @@ class geminiAI(aibase.AIbase): # Make subclasses based on authentication method
             input = content,
             response_format= response_format,
             )
-        # TODO: What happens if interaction.output_text  does not exist?
         # Return raw_output, output_text
         if not "output_text" in dir(interaction): 
             return (interaction.json(), None)
         else: 
             return (interaction.json(), interaction.output_text )
     
-    def _handle_nonlocal_file(self:Self, url:type_url, ctype:str="image") -> dict[str,str]:
+    # Format data into a content that can be passed through a HTTP request
+    def content_text(self:Self,txt:str):
+         return {"type": "text", "text": txt}
+
+    def content_nonlocal_file(self:Self,
+                                   url:type_url,
+                                   ctype:str="image") -> dict[str,str]:
         """Returns a HTTP reqest fragment wrapping the url with resource type and mimertype."""
         return {"type": str(ctype),
             "uri": str(url),
@@ -83,7 +91,7 @@ class geminiAI(aibase.AIbase): # Make subclasses based on authentication method
                 }
         return http_input_fragment
 
-    def _http_inline_image(self:Self,  filepath:Path) -> dict[str,str]:
+    def content_inline_image(self:Self,  filepath:Path) -> dict[str,str]:
         with filepath.open('rb') as f:
             fbytes = f.read()
         return {
@@ -92,18 +100,7 @@ class geminiAI(aibase.AIbase): # Make subclasses based on authentication method
             "mime_type": "image/jpeg",
             }
 
-#    def _upload_image(self:Self,filepath:Path): # TODO: return value type
-#        """"Upload an image to AI. 
-#        
-#        TODO: Needs Error handling!"""
-#        log.debug (f"Trying to upload {filepath},  of type {type(filepath)}") 
-#        if  self.client is None: raise AIError("Upload images requested before AI Client was created in code.")        
-#        fileobj = self.client.files.upload(  file = filepath )
-#        if not fileobj: raise AIError(f"Uploading image failed, status {fileobj}")
-#        log.debug (f"OK upload {filepath}",  )   
-#        return fileobj
-
-
+# ---------------------- Security solution subclasses --------------------
 # APIKEY security solution.    
 class apikey_geminiAI(geminiAI):
     def __init__(self:Self,  apikey:str|None = None):
@@ -111,6 +108,7 @@ class apikey_geminiAI(geminiAI):
         super().__init__()
 
     def _create_client(self:Self, timeout:int|None=None) -> genai.Client:
+        "Crfeate a http AI client object."
         if  timeout:
             httpopts = HttpOptions(timeout=timeout)      
         else:
@@ -126,6 +124,7 @@ class oauth_geminiAI(geminiAI):
         self.location = location # "global"
 
     def _create_client(self:Self, timeout:int|None=None) -> genai.Client:
+        "Crfeate a http AI client object."
         if  timeout:
             httpopts = HttpOptions(timeout=timeout)      
         else:
@@ -191,6 +190,7 @@ class local_oauth_geminiAI(oauth_geminiAI):
         return creds
     
     def _create_client(self:Self, timeout:int|None=None) -> genai.Client:
+        "Crfeate a http AI client object."
         if  timeout:
             httpopts = HttpOptions(timeout=timeout)      
         else:

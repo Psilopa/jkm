@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
-"""MS Copilot reimplementation of the AI access module. In dev."""
-#SEE https://developers.openai.com/api/docs/quickstart?language=python FOR A SIMPLE OPENAI approach
-# TODO: KEEP FOR A SESSION. SEE https://developers.openai.com/api/docs/guides/agents-api/quickstart
-
 # Standard library stuff
+from abc import ABC, abstractmethod
 import sys
 import logging
 import json
@@ -112,91 +109,22 @@ class AI_output:
         else: return json.dumps(self._dict)
 
 
-class AIbase():
-    aierrors = tuple()
+class AIbase(ABC):
+    aierrors = tuple() # All Exception types we want to convert to AIErrors 
     AI_FAILURE_RETURN_VALUE = 'null'
-    TESTING_REPLY_JSON = "{}" # Replace with AI-revelant output in 
-    TESTING_JSON_FROM_AI = "{}" # Replace with AI-revelant output in 
+    # Replace with AI-revelant output.
+    TESTING_RAW = "{}" 
+    # Replace with AI-revelant output. Should be valid LabelData JSON 
+    TESTING_TEXT = "{}"
+    # Output only XML-valid characters
+    XML_VALID_CHARS_ONLY = True 
+
     def __init__(self:Self):
         self.client = None
         # The 2 below have getters and setters (in case we want fancy logic later)
-        self._promt = None
+        self.prompt = None
 
-    # --- abstract base classes -----
-    def close(self:Self) -> None:
-        raise NotImplementedError
-
-    def _create_client(self:Self, timeout:int|None=None):
-        raise NotImplementedError
-
-    def _execute_query(self:Self,content=Collection) -> tuple[ str,str|None ]:
-        raise NotImplementedError
-
-    def content_from_text(self:Self,txt:str):
-        raise NotImplementedError
-
-#    def _upload_image(self:Self,filepath:Path):
-#        """Upload an image to an AI-associated storage (Google Drive, MS )
-#        rather than passing it as an URL or directly as part of the request."""
-#        raise NotImplementedError
-
-    # Getters, setters for properties
-    @property
-    def prompt(self:Self) -> str|None: return self._promt
-
-    @prompt.setter
-    def prompt(self:Self,  prompt:str) -> None: self._promt = prompt    
-
-    # Shared functions
-    def _handle_local_file(self:Self, fpath:Path, max_dim:int = 0) -> dict[str,str]:
-        if max_dim == 0:  # Should not rescale
-            log.debug("No image resizing requested before AI.")
-            return self._http_inline_image(fpath)
-        log.debug(f"Resizing requested to a maximum dimension of {max_dim}.")
-        img = tools.load_img(fpath) # Load from URL
-        tmpf = tools.save_to_tempfile(img, max_dim=max_dim)
-        if tmpf: # Temp file created and exists (but is not opened for writing)
-            tmpfilepath = Path(tmpf.name) 
-            return self._http_inline_image(tmpfilepath) 
-            del tmpf  # Delete temp file onced we are done
-        log.warning(f"Could not save a rescaled copy of {fpath}, using the original.")
-        return self._http_inline_image(fpath)
-
-    def content_from_url(self:Self,
-                    url:type_url,
-                    force_download:bool,
-                    max_dim:int = 0
-                    ) -> Sequence[dict[str,str]]: 
-        """Convert an URL to resources usable in HTTP queries
-
-        The return value is a dictionary describing a series of HTTP
-        call key: value pairs. For an example of how what a single item should look like,
-        see geminiAI._http_post_inline_image(),
-
-        Keywords:
-        max_dim: maximum dimension of a (local) image file. If >0: images that are larger than this will be downscaled.
-        """
-        assert max_dim >= 0
-        log.debug(f"Trying to classify {url} as a local path or online resource.")
-        try:
-            islocal = tools.is_existing_path(url) # FileLoadingError on error.                
-            if islocal:
-                return self._handle_local_file( tools.url2path(url), max_dim)
-            else:
-                log.warning(f"Trying to read unaccessible resource {fpath}.") # Should not handle
-        except FileLoadingError: 
-            # Not a local path .. try treating it as an online resource
-            log.debug(f"\t {url} an online resource.")
-            if force_download:
-                # Download, save in temp file, then pass to AI
-                image = tools.img_from_url(url)
-                tempfile = tools.save_to_tempfile(image, max_dim=max_dim)
-                if tempfile: # Temp file created and exists (but is not opened for writing)
-                    tmpfpath = Path(tempfile.name)                       
-                    return self._handle_local_file(tmpfpath, max_dim)
-            else: 
-                return self._handle_nonlocal_file(url)    
-
+    # --- main worker function: takes in image urls, returns am AI_output object
     def labeldata_from_images(self:Self,
                      imageurls=Sequence[str],
                      timeout:int|None = None,
@@ -219,8 +147,8 @@ class AIbase():
         if not self.prompt: raise AIError("No prompt for AI provided.")
         # FAKE CALL FOR TESTING, NO ACTUAL AI CALL
         if self.TESTING_BYPASS_AI_CALL:
-            text_output = self.TESTING_JSON_FROM_AI            
-            raw = self.TESTING_REPLY_JSON 
+            text_output = self.TESTING_TEXT            
+            raw = self.TESTING_RAW
         else:
             # Create AI client
             log.debug("Create client")
@@ -228,7 +156,7 @@ class AIbase():
             self.client = self._create_client(timeout)
             if not self.client: raise AIError("Creating an AI client failed.")
             # log.debug("Create client done")
-            content =  [ self.content_from_text(self.prompt)  ]
+            content =  [ self.content_text(self.prompt)  ]
             for url in imageurls:
                 c = self.content_from_url(url, force_download, image_max_dim)
                 content.append( c )
@@ -244,14 +172,114 @@ class AIbase():
             return aioutput   
         # TODO: Handle errors here
         # Sanitize text_output and raw: exclude UTF8 characters that are not
-        # XML valid
-        XML_VALID_CHARS_ONLY = True # THIS SHOULD COME FROM CONF
-        if XML_VALID_CHARS_ONLY:
-            text_output = tools.valid_xml_string(text_output)
-            raw = tools.valid_xml_string(raw)
+        text_output = self._xmlsafe(text_output)
+        raw = self._xmlsafe(raw)
         # See https://www.w3.org/TR/xml11/?utm_source=chatgpt.com#charsets
         aioutput.from_text( text_output,
                             schema = labeldata_model.LabelData ) # Tries parsing the text as JSON
         aioutput.raw = raw
         return aioutput
 
+    def _xmlsafe(self:Self,text:str):
+        if self.XML_VALID_CHARS_ONLY:
+            return tools.valid_xml_string(text)
+        else:
+            return text
+        
+    # --- abstract base classes -----
+    @abstractmethod
+    def _execute_query(self:Self,content=Collection) -> tuple[ str,str|None ]:
+        """Run the AI request and return the output
+
+        Output format tuple(all_output_as_json, output_text_as_json).
+        """        
+        raise NotImplementedError
+
+    @abstractmethod
+    def close(self:Self) -> None:
+        "Close the http AI client connection."
+        raise NotImplementedError
+
+    @abstractmethod
+    def _create_client(self:Self, timeout:int|None=None):
+        "Crfeate a http AI client object."
+        raise NotImplementedError
+
+    # Format data into a content that can be passed through a HTTP request
+    @abstractmethod
+    def content_nonlocal_file(self:Self,
+                                   url:type_url,
+                                   ctype:str="image") -> dict[str,str]:
+        """Returns a HTTP reqest fragment wrapping the url with resource type and mimertype."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def content_text(self:Self,txt:str):
+        raise NotImplementedError
+
+    @abstractmethod
+    def content_inline_image(self:Self,  filepath:Path) -> dict[str,str]:
+        raise NotImplementedError
+
+    def content_local_file(self:Self, fpath:Path, max_dim:int = 0) -> dict[str,str]:
+        if max_dim == 0:  # Should not rescale
+            log.debug("No image resizing requested before AI.")
+            return self.content_inline_image(fpath)
+        log.debug(f"Resizing requested to a maximum dimension of {max_dim}.")
+        img = tools.load_img(fpath) # Load from URL
+        tmpf = tools.save_to_tempfile(img, max_dim=max_dim)
+        if tmpf: # Temp file created and exists (but is not opened for writing)
+            tmpfilepath = Path(tmpf.name) 
+            return self.content_inline_image(tmpfilepath) 
+            del tmpf  # Delete temp file onced we are done
+        log.warning(f"Could not save a rescaled copy of {fpath}, using the original.")
+        return self.content_inline_image(fpath)
+
+    def content_from_url(self:Self,
+                    url:type_url,
+                    force_download:bool,
+                    max_dim:int = 0
+                    ) -> Sequence[dict[str,str]]: 
+        """Convert an URL to resources usable in HTTP queries
+
+        The return value is a dictionary describing a series of HTTP
+        call key: value pairs. For an example of how what a single item should look like,
+        see geminiAI._http_post_inline_image(),
+
+        Keywords:
+        max_dim: maximum dimension of a (local) image file. If >0: images that are larger than this will be downscaled.
+        """
+        assert max_dim >= 0
+        log.debug(f"Trying to classify {url} as a local path or online resource.")
+        try:
+            islocal = tools.is_existing_path(url) # FileLoadingError on error.                
+            if islocal:
+                return self.content_local_file( tools.url2path(url), max_dim)
+            else:
+                log.warning(f"Trying to read unaccessible resource {fpath}.") # Should not handle
+        except FileLoadingError: 
+            # Not a local path .. try treating it as an online resource
+            log.debug(f"\t {url} an online resource.")
+            if force_download:
+                # Download, save in temp file, then pass to AI
+                image = tools.img_from_url(url)
+                tempfile = tools.save_to_tempfile(image, max_dim=max_dim)
+                if tempfile: # Temp file created and exists (but is not opened for writing)
+                    tmpfpath = Path(tempfile.name)                       
+                    return self.content_local_file(tmpfpath, max_dim)
+            else: 
+                return self.content_nonlocal_file(url)    
+
+
+
+
+#    def _upload_image(self:Self,filepath:Path): # TODO: return value type
+#        """"Upload an image to AI. 
+#        
+#        TODO: Needs Error handling!"""
+#        log.debug (f"Trying to upload {filepath},  of type {type(filepath)}") 
+#        if  self.client is None: raise AIError("Upload images requested before AI Client was created in code.")        
+#        fileobj = self.client.files.upload(  file = filepath )
+#        if not fileobj: raise AIError(f"Uploading image failed, status {fileobj}")
+#        log.debug (f"OK upload {filepath}",  )   
+#        return fileobj

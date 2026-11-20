@@ -7,16 +7,15 @@
 # Standard library stuff
 import logging
 import json
-import os
 import  mimetypes  # mime type based on file URL
 from pathlib import Path
 # my own local modules
 from . import aibase
 from . import security
-from . import tools
 from . import labeldata_model
 from .errors import AIError, AIWarning, FileLoadingError
 from .mytyping import * # For typing
+
 # AI supplier modules
 from agent_framework.openai import OpenAIChatCompletionClient
 from azure.identity import AzureCliCredential
