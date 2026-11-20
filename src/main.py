@@ -23,7 +23,8 @@ from . import sample as jkm_sample
 from . import tools as jkm_tools
 from .itersheets import itersheets as jkm_spreadsheet
 from . import ocr as jkm_ocr
-from . import ai as jkm_ai
+from . import aibase
+from . import gemini
 from . import log as jkm_log
 from . import meta as jkm_meta
 from . import samplemetadata as jkm_samplemetadata
@@ -172,17 +173,17 @@ def task_AI_label_data_extraction(conf:type_conf, sample:type_sample) -> type_ai
         ai_auth_type = conf.get("task","ai", "auth_type") 
         assert ai_auth_type in _AI_AUTH_TYPES
         if ai_auth_type == 'APIKEY':
-            myai = jkm_ai.apikey_geminiAI(conf.APIKEY)
+            myai = gemini.apikey_geminiAI(conf.APIKEY)
         elif ai_auth_type == 'CLOUD_OAUTH':
             project_id = security.get("JKM_GOOGLE_PROJECT_ID")
             location = security.get("JKM_GOOGLE_LOCATION")
-            myai = jkm_ai.cloud_oauth_geminiAI(project_id, location)
+            myai = gemini.cloud_oauth_geminiAI(project_id, location)
         elif ai_auth_type == 'LOCAL_OAUTH':
-            myai = jkm_ai.local_oauth_geminiAI()
+            myai = gemini.local_oauth_geminiAI()
         else:
             myai = None # Should never happen as ai_auth_type is verified to havce a valid value at this point
         if myai: #
-            myai.model = conf.getstr("task",'ai','model')
+            myai.modelname = conf.getstr("task",'ai','model')
             myai.prompt = conf.getstr("task",'ai','prompt')
             imageurls = [x.url for x in sample.imagelist if x.has_labels]
             image_max_dim = conf.geti("task","ai", "max_image_dim", default=0)
@@ -312,7 +313,8 @@ class jkm_post():
         jkm_ocr.log = log 
         jkm_sample.log = log
         jkm_samplemetadata.log = log
-        jkm_ai.log = log
+        aibase.log = log
+        gemini.log = log
         jkm_barcodes.log = log
         jkm_spreadsheet.log = log
         return log
@@ -353,7 +355,7 @@ class jkm_post():
         log.debug(f"AI authentication method: {auth_type}")
         if auth_type == 'APIKEY':
             log.debug(f"Trying to find API key")
-            conf.APIKEY = jkm_ai.load_apikey(validate_min_len=20)
+            conf.APIKEY = aibase.load_apikey("JKM_GOOGLE_APIKEY", validate_min_len=20)
         elif auth_type == "CLOUD_OAUTH":
             if not security.get("JKM_GOOGLE_PROJECT_ID"):
                 raise jkm_errors.ConfigError(f"Missing Google project ID in configuration.")
@@ -566,8 +568,8 @@ class jkm_post():
             self.verify_conf(conf) # Check that config has basic data needed to run
             datafile_patterns = conf.getlist("data", "sample_pattern")
             # Set some behaviour-controlling variables
-            jkm_ai.TESTING_BYPASS_AI_CALL = conf.getb("internal","bypass_AI", default = False)
-            if jkm_ai.TESTING_BYPASS_AI_CALL:
+            gemini.geminiAI.TESTING_BYPASS_AI_CALL = conf.getb("internal","bypass_AI", default = False)
+            if gemini.geminiAI.TESTING_BYPASS_AI_CALL:
                 log.warning("*******AI BYPASS TESTING MODE IS ON*******")
             N_WORKER_THREADS = conf.geti("internal","n_threads", default = 17)
             if conf.getb("task", "labeldata_to_CSV", default = False):
