@@ -1,15 +1,17 @@
 # Stdlib pakcages
 import logging
-import time, sys
+import time
+import sys
 #import pytesseract
 # Non-stdlib pakcages
 import numpy as np
 import cv2
 # My own
 from . import tools
+from .meta import name as progname
 from .mytyping import * # For typing
 
-log = logging.getLogger() # Overwrite if needed
+log = logging.getLogger(progname)
 _net = None
 
 # DEFAULT SETUP

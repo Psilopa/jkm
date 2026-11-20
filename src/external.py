@@ -1,6 +1,8 @@
 # For typing
 #from .mytyping import * # For typing
 import logging
+from .meta import name as progname
+log = logging.getLogger(progname) 
 
 class ExtBase():
     # stubs for event calls for passing data to a GUI. For now, one direction only!

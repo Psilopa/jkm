@@ -1,10 +1,10 @@
 # Security-related stuff
 import keyring, os
 from dotenv import load_dotenv
-
+from .meta import name as progname
 from .mytyping import *
 import logging
-log = logging.getLogger("jkm")
+log = logging.getLogger(progname)
 
 PROGNAME = "jkm-post"
 

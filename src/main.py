@@ -308,15 +308,6 @@ class jkm_post():
     # ----------------- Initialize state  -----------------------------
     def init_logging(self:Self,logging_level_file:int, logging_level_stream:int) -> logging.Logger:
         log = jkm_log.setup_logging(jkm_meta.name, logging_level_file, logging_level_stream, ext = self.ext)
-        jkm_configfile.log = log    
-        jkm_tools.log = log
-        jkm_ocr.log = log 
-        jkm_sample.log = log
-        jkm_samplemetadata.log = log
-        aibase.log = log
-        gemini.log = log
-        jkm_barcodes.log = log
-        jkm_spreadsheet.log = log
         return log
         
     def init_spreadsheet(self:Self,conf:type_conf) -> type_spreadsheet|None:

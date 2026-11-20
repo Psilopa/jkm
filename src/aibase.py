@@ -5,7 +5,6 @@ import sys
 import logging
 import json
 from pathlib import Path
-log = logging.getLogger() # Overwrite if needed
 
 # my own local modules
 from . import tools
@@ -13,6 +12,9 @@ from . import labeldata_model
 #from . import security
 from .errors import AIError, AIWarning, FileLoadingError
 from .mytyping import * # For typing
+from .meta import name as progname
+
+log = logging.getLogger(progname) # Overwrite if needed
 
 _IMAGE_TRANSFER_UPLOAD = 1
 _IMAGE_TRANSFER_INLINE = 2

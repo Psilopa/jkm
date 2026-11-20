@@ -1,11 +1,14 @@
-import importlib, logging
-log = logging.getLogger() # Overwrite if needed
+import importlib
+import logging
 # non-std common libraries
 import cv2
 # application-specific modules
 from . import tools
 from .errors import BarcodeError
 from .mytyping import * # For type checking tools
+from .meta import name as progname
+log = logging.getLogger(progname) 
+
 # Dynamic  import in extractbarcodedata to allow for config fig-based import
 CONST_QREADER = "qreader"
 CONST_PYZBAR = "pyzbar"

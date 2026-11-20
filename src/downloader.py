@@ -1,8 +1,10 @@
-import requests, time
+import requests, time, logging
 from pathlib import Path
 # For typing
 from .errors import FileLoadingError
 #from .mytyping import * # For typing
+from .meta import name as progname
+log = logging.getLogger(progname) 
 
 IMAGE_REQUEST_HEADERS = {
     "User-Agent": (

@@ -45,7 +45,7 @@ def setup_logging(name:str,
     os.system('color')  # Ask system console to display color if available
     # Default logger: should do nothing as we add our own handlers, but set just in case
     log = logging.getLogger(name)
-    log.setLevel(logging_level_file)
+    log.setLevel(logging_level_file) # Default log level
     # To console
     consolelog = logging.StreamHandler( )
     consolelog.setFormatter(ColorFormatter(STREAMLOGFORMAT))

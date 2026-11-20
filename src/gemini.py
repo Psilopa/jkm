@@ -13,6 +13,7 @@ from . import security
 from . import labeldata_model
 from .errors import AIError, AIWarning, FileLoadingError
 from .mytyping import * # For typing
+from .meta import name as progname
 
 # AI supplier modules
 from google import genai
@@ -25,7 +26,8 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-log = logging.getLogger() # Overwrite if needed
+
+log = logging.getLogger(progname) 
 
 
 

@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 import logging
+from .meta import name as progname
+log = logging.getLogger(progname) 
 #from .mytyping import * # For typing
 
 
-log = logging.getLogger() # Overwrite if needed
+
 
 class JKError(Exception): 
     def __init__(self, msg): Exception.__init__(self,msg)
