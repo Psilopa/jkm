@@ -58,10 +58,13 @@ def setup_logging(name:str,
     log.addHandler(filelog)
     # To ext
     if ext:
+        log.info(f"Setting up logging to an external source {ext}.")
         extlog = ExtHandler(ext)
         # At least for now, default external logging to use the same settings as stream
         extlog.setLevel( logging_level_stream ) 
         extlog.setFormatter( logging.Formatter(fmt=FILELOGFORMAT) ) 
         log.addHandler(extlog)
+    else:
+        log.debug(f"No logging to an external source: {ext}.")
     log.info(f"Console logging set to level { logging.getLevelName(logging_level_stream) }.")
     return log
