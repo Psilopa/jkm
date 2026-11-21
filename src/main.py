@@ -186,9 +186,6 @@ def task_AI_label_data_extraction(conf:type_conf, sample:type_sample) -> type_ai
         if myai: #
             myai.modelname = conf.getstr("task",'ai','model')
             myai.prompt = conf.getstr("task",'ai','prompt')
-            # Set downloader class to user agent
-            ua = security.get("JKM_USER_AGENT")
-            downloader.downloader.useragent = ua
             imageurls = [x.url for x in sample.imagelist if x.has_labels]
             image_max_dim = conf.geti("task","ai", "max_image_dim", default=0)
             timeout = conf.geti("task","ai", "request_timeout", default=None) # milliseconds
@@ -291,6 +288,9 @@ class jkm_post():
         self.urlqueue = queue.Queue() # a FIFO queue of urls that are (hopefully) usable for building Sample objects
         self.threadpool = None # A worker thread pool ... set in main() !
         self.spreadsheet = None # a Spreadsheet obsect
+        # Set downloader class to user agent
+        ua = security.get("JKM_USER_AGENT")
+        if ua: downloader.useragent = ua
     # ----------------- Verify setup --------------------------------
     def verify_conf(self:Self, conf:type_conf)-> None:
         try: # Configuration verification

@@ -270,7 +270,7 @@ class AIbase(ABC):
             log.debug(f"\t {url} an online resource.")
             if force_download:
                 # Download, save in temp file, then pass to AI
-                image = tools.img_from_url(url)
+                image = tools.load_img(url)
                 tempfile = tools.save_to_tempfile(image, max_dim=max_dim)
                 if tempfile: # Temp file created and exists (but is not opened for writing)
                     tmpfpath = Path(tempfile.name)                       
