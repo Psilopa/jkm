@@ -10,13 +10,11 @@ import numpy as np
 import cv2, validators
 
 # My packages
-from .downloader import defaultdownloader as downloader
+from .downloader import cachingdownloader as downloader
 from .errors import FileLoadingError, FileSavingError
 from .meta import name as progname
 from .mytyping import * # For typing
 log = logging.getLogger(progname)
-
-    
 
 def list2printvalues( mylist: Collection[dict] )-> str:
     "Prettyprints the values from a list of dictionaries."
