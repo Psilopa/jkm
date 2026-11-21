@@ -185,6 +185,8 @@ def task_AI_label_data_extraction(conf:type_conf, sample:type_sample) -> type_ai
         if myai: #
             myai.modelname = conf.getstr("task",'ai','model')
             myai.prompt = conf.getstr("task",'ai','prompt')
+            ua = security.get("JKM_USER_AGENT")
+            if ua: myai.useragent = ua
             imageurls = [x.url for x in sample.imagelist if x.has_labels]
             image_max_dim = conf.geti("task","ai", "max_image_dim", default=0)
             timeout = conf.geti("task","ai", "request_timeout", default=None) # milliseconds

@@ -50,11 +50,11 @@ def get(name:str, prompt:str|None=None) -> None|str:
     if pw is not None:
         return pw # Found a value in .env file or a system ENV variable.
     else:
-        log.debug(f"Secret {name} not in an .env file or an OS environmental variable.")
+        log.warning(f"Secret {name} not in an .env file or an OS environmental variable.")
     if prompt: # as a last ask user for secret value
        return _get_secret_from_user(prompt)
     # If nothing worked, return a failure marker
-    log.warning(f"Secret {name} not in any source.")
+    log.critical(f"Secret {name} not in any source.")
     return None
 
 def verify_appsecret(value:str, minlen:int=20) -> bool:

@@ -10,7 +10,7 @@ import numpy as np
 import cv2, validators
 
 # My packages
-from .downloader import defaultdownloader
+from .downloader import defaultdownloader as downloader
 from .errors import FileLoadingError, FileSavingError
 from .meta import name as progname
 from .mytyping import * # For typing
@@ -125,8 +125,8 @@ def img_from_file(imagestr: str|Path) -> type_image | None:
         else: # Preferred for simplicity on other systems
             return cv2.imread(str(fnp),cv2.IMREAD_UNCHANGED)
     
-def img_from_url(url: type_url,
-                 downloader: Callable = defaultdownloader,
+def img_from_url(url: type_url, useragent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" ,
+                 downloader: Callable = downloader,
                  dlargs:list = [], dlkwords:dict = {}) -> type_image | None:
     """Tries to return an image from a URI.
 
@@ -138,11 +138,14 @@ def img_from_url(url: type_url,
         filepath = url2path( url, allowed_schemes=("file",) )
         return img_from_file( filepath )
     except (ValueError, FileLoadingError) as err:
+        log.debug(f"img_from_url(): {url} direct reading of file failed with message {err}.")
         pass # OK, this is not a local file...    
     if not downloader:
         raise FileLoadingError(f"Resource {url} is not local and we have no provided way to download it.")
-    # Try to use the provided downloader
-    content = downloader(url, *dlargs, **dlkwords) # Should return a raw byte array
+    # Try to use a provided downloader
+    # Should return a raw byte array
+    log.debug(f"Calling downloader with parameters: url={url}, \nuseragent={useragent}\n{dlargs}\n{dlkwords}")
+    content = downloader(url, useragent, *dlargs, **dlkwords) 
     if content is None: 
         raise FileLoadingError(f"Could not download file {url}.")
     arr = np.asarray(bytearray(content), dtype=np.uint8)

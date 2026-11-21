@@ -9,7 +9,7 @@ from pathlib import Path
 # my own local modules
 from . import tools
 from . import labeldata_model
-#from . import security
+from . import security
 from .errors import AIError, AIWarning, FileLoadingError
 from .mytyping import * # For typing
 from .meta import name as progname
@@ -28,7 +28,7 @@ def load_apikey(name, validate_min_len=20):
                       level=logging.CRITICAL)
     else:
         return rv
-    
+
 def _parseAI_JSON(text:str, schema = None ) -> dict:
     """Converts the AI returned JSON to a dictionary structure like that returned by json.loads().
 
@@ -125,6 +125,8 @@ class AIbase(ABC):
         self.client = None
         # The 2 below have getters and setters (in case we want fancy logic later)
         self.prompt = None
+        # By default, use a generic well-known User Agent string.
+        self.useragent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" 
 
     # --- main worker function: takes in image urls, returns am AI_output object
     def labeldata_from_images(self:Self,
@@ -191,7 +193,7 @@ class AIbase(ABC):
     # --- abstract base classes -----
     @abstractmethod
     def _execute_query(self:Self,content=Collection) -> tuple[ str,str|None ]:
-        """Run the AI request and return the output
+        """Run the AI request and return the output, Vendor-specific.
 
         Output format tuple(all_output_as_json, output_text_as_json).
         """        
@@ -199,12 +201,12 @@ class AIbase(ABC):
 
     @abstractmethod
     def close(self:Self) -> None:
-        "Close the http AI client connection."
+        "Close the http AI client connection. Vendor-specific."
         raise NotImplementedError
 
     @abstractmethod
     def _create_client(self:Self, timeout:int|None=None):
-        "Crfeate a http AI client object."
+        "Create a http AI client object. Vendor-specific."
         raise NotImplementedError
 
     # Format data into a content that can be passed through a HTTP request
@@ -212,18 +214,23 @@ class AIbase(ABC):
     def content_nonlocal_file(self:Self,
                                    url:type_url,
                                    ctype:str="image") -> dict[str,str]:
-        """Returns a HTTP reqest fragment wrapping the url with resource type and mimertype."""
+        """Returns a HTTP reqest fragment wrapping the url with resource type and mimertype. Vendor-specific."""
         raise NotImplementedError
 
     @abstractmethod
     def content_text(self:Self,txt:str):
+        """Turn text into a HTTP request content block suitable for the AI. Vendor-specific."""
         raise NotImplementedError
 
     @abstractmethod
     def content_inline_image(self:Self,  filepath:Path) -> dict[str,str]:
+        """Turn an image file to a HTTP request content block suitable for the AI. Vendor-specific."""
         raise NotImplementedError
 
     def content_local_file(self:Self, fpath:Path, max_dim:int = 0) -> dict[str,str]:
+        """Prepae a local file for uploading to the AI. 
+
+	Scales the image to max_dim is the keryword is set."""
         if max_dim == 0:  # Should not rescale
             log.debug("No image resizing requested before AI.")
             return self.content_inline_image(fpath)
@@ -264,7 +271,7 @@ class AIbase(ABC):
             log.debug(f"\t {url} an online resource.")
             if force_download:
                 # Download, save in temp file, then pass to AI
-                image = tools.img_from_url(url)
+                image = tools.img_from_url(url, self.useragent)
                 tempfile = tools.save_to_tempfile(image, max_dim=max_dim)
                 if tempfile: # Temp file created and exists (but is not opened for writing)
                     tmpfpath = Path(tempfile.name)                       

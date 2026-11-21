@@ -6,16 +6,10 @@ from .errors import FileLoadingError
 from .meta import name as progname
 log = logging.getLogger(progname) 
 
-IMAGE_REQUEST_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-#        "AppleWebKit/537.36 (KHTML, like Gecko) "
-#        "Chrome/120.0.0.0 Safari/537.36"
-    )
-}
 def defaultdownloader(url: type_url,
+                      useragent:str  = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
                       sleeptime:int = 0,
-                      timeout: int = 1) -> bytes|None: 
+                      timeout: int = 5) -> bytes|None: 
     """Extract output filename from image URL path."""
     # Based on Mikko Heikkinen's read_specimens.py from MocoDigi
     try:
@@ -23,7 +17,7 @@ def defaultdownloader(url: type_url,
         if sleeptime: time.sleep(sleeptime) 
         image_response = requests.get(
             url,
-            headers=IMAGE_REQUEST_HEADERS,
+            headers={ "useragent":useragent },
             timeout=timeout,
         )
         # Check for failure
