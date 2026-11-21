@@ -126,7 +126,6 @@ class AIbase(ABC):
         # The 2 below have getters and setters (in case we want fancy logic later)
         self.prompt = None
         # By default, use a generic well-known User Agent string.
-        self.useragent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" 
 
     # --- main worker function: takes in image urls, returns am AI_output object
     def labeldata_from_images(self:Self,
@@ -271,7 +270,7 @@ class AIbase(ABC):
             log.debug(f"\t {url} an online resource.")
             if force_download:
                 # Download, save in temp file, then pass to AI
-                image = tools.img_from_url(url, self.useragent)
+                image = tools.img_from_url(url)
                 tempfile = tools.save_to_tempfile(image, max_dim=max_dim)
                 if tempfile: # Temp file created and exists (but is not opened for writing)
                     tmpfpath = Path(tempfile.name)                       

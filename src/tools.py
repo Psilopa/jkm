@@ -10,10 +10,10 @@ import numpy as np
 import cv2, validators
 
 # My packages
-from .downloader import cachingdownloader as downloader
+from .downloader import cachingdownloader as cdownloader
 from .errors import FileLoadingError, FileSavingError
 from .meta import name as progname
-from .mytyping import * # For typing
+#from .mytyping import * # For typing
 log = logging.getLogger(progname)
 
 def list2printvalues( mylist: Collection[dict] )-> str:
@@ -123,8 +123,8 @@ def img_from_file(imagestr: str|Path) -> type_image | None:
         else: # Preferred for simplicity on other systems
             return cv2.imread(str(fnp),cv2.IMREAD_UNCHANGED)
     
-def img_from_url(url: type_url, useragent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" ,
-                 downloader: Callable = downloader,
+def img_from_url(url: type_url,
+                 downloader: Callable = cdownloader,
                  dlargs:list = [], dlkwords:dict = {}) -> type_image | None:
     """Tries to return an image from a URI.
 
@@ -142,8 +142,7 @@ def img_from_url(url: type_url, useragent = "Mozilla/5.0 (Windows NT 10.0; Win64
         raise FileLoadingError(f"Resource {url} is not local and we have no provided way to download it.")
     # Try to use a provided downloader
     # Should return a raw byte array
-    log.debug(f"Calling downloader with parameters: url={url}, \nuseragent={useragent}\n{dlargs}\n{dlkwords}")
-    content = downloader(url, useragent, *dlargs, **dlkwords) 
+    content = downloader(url, *dlargs, **dlkwords) 
     if content is None: 
         raise FileLoadingError(f"Could not download file {url}.")
     arr = np.asarray(bytearray(content), dtype=np.uint8)

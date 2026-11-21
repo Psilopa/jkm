@@ -1,5 +1,4 @@
 import tomllib
-
 from pathlib import Path
 #from importlib.metadata import version
 # TODO: PARSE FROM pyproject.toml
@@ -18,7 +17,7 @@ try:
     authors = ",".join ( x['name'] for x in meta['project']['authors'] )
     my_license = "" # license is reserved in Python
     version = meta['project']['version']
-    nameversion = f"{name} ({version})"
+    nameversion = f"{name} ({version})"    
     about = f"""
     {name} {version} is a {description}
     Creator(s): {authors}.

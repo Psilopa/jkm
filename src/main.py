@@ -30,7 +30,8 @@ from . import meta as jkm_meta
 from . import samplemetadata as jkm_samplemetadata
 from . import errors as jkm_errors
 from . import barcodes as jkm_barcodes
-from . import security 
+from . import security
+from . import downloader
 #from . import external as jkm_ext
 from .mytyping import * # For typing
 
@@ -185,8 +186,9 @@ def task_AI_label_data_extraction(conf:type_conf, sample:type_sample) -> type_ai
         if myai: #
             myai.modelname = conf.getstr("task",'ai','model')
             myai.prompt = conf.getstr("task",'ai','prompt')
+            # Set downloader class to user agent
             ua = security.get("JKM_USER_AGENT")
-            if ua: myai.useragent = ua
+            downloader.downloader.useragent = ua
             imageurls = [x.url for x in sample.imagelist if x.has_labels]
             image_max_dim = conf.geti("task","ai", "max_image_dim", default=0)
             timeout = conf.geti("task","ai", "request_timeout", default=None) # milliseconds
