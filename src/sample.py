@@ -14,11 +14,11 @@ from . import tools
 from . import errors
 from .barcodes import extractbarcodedata
 from .digitisation_properties import DigipropFile
-
+from .meta import name as progname
 # For typing
 from .mytyping import * # For typing
 
-log = logging.getLogger() # Overwrite from calling script for fancier logging
+log = logging.getLogger(progname) 
 deg2rotcode = {90: cv2.ROTATE_90_CLOCKWISE,
                180: cv2.ROTATE_180,
                270: cv2.ROTATE_90_COUNTERCLOCKWISE}

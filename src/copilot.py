@@ -15,13 +15,13 @@ from . import security
 from . import labeldata_model
 from .errors import AIError, AIWarning, FileLoadingError
 from .mytyping import * # For typing
+from .meta import name as progname
+log = logging.getLogger(progname) 
 
 # AI supplier modules
 from agent_framework.openai import OpenAIChatCompletionClient
 from azure.identity import AzureCliCredential
 from agent_framework import Message, Content
-
-log = logging.getLogger() # Overwrite if needed
 
 # For testing, Google Free Key for small tests
 TESTING_BYPASS_AI_CALL = False # Default to no bypass: use actual AI

@@ -13,6 +13,7 @@ from . import security
 from . import labeldata_model
 from .errors import AIError, AIWarning, FileLoadingError
 from .mytyping import * # For typing
+from .meta import name as progname
 
 # AI supplier modules
 from google import genai
@@ -25,13 +26,29 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-log = logging.getLogger() # Overwrite if needed
+
+log = logging.getLogger(progname) 
+test_json = """{"output_text":
+{  "verbatim_all_text": [
+    {      "verbatim_text": "Helsinki"    },
+    {      "verbatim_text": "8. VI. 1932"    },
+    {      "verbatim_text": "E. Kangas"    }  ],
+  "verbatim_locality": "Helsinki",
+  "verbatim_collector": "E. Kangas",
+  "verbatim_date": "8. VI. 1932",
+  "verbatim_coordinates": "774:383",
+  "verbatim_notebook_reference_code": "3903",
+  "notebook_reference_code_label_properties": "green",
+  "verbatim_taxon": "Xan. montana Húb.",
+  "verbatim_identified_by": "I. Kekkilä"}}
+"""
 
 
 
 class geminiAI(aibase.AIbase): # Make subclasses based on authentication method
-    TESTING_RAW = r"""{"output_text":{}}""" # GRAB REAL EXAMPLE FROM A FILE
+    TESTING_RAW = test_json# GRAB REAL EXAMPLE FROM A FILEmax_dim
     TESTING_TEXT = json.dumps(json.loads(TESTING_RAW)["output_text"] )
+
     TESTING_BYPASS_AI_CALL = False
     AI_FAILURE_RETURN_VALUE = 'null'
     # Grab the "output_text" section as JSON

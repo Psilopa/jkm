@@ -30,7 +30,8 @@ from . import meta as jkm_meta
 from . import samplemetadata as jkm_samplemetadata
 from . import errors as jkm_errors
 from . import barcodes as jkm_barcodes
-from . import security 
+from . import security
+from . import downloader
 #from . import external as jkm_ext
 from .mytyping import * # For typing
 
@@ -287,6 +288,9 @@ class jkm_post():
         self.urlqueue = queue.Queue() # a FIFO queue of urls that are (hopefully) usable for building Sample objects
         self.threadpool = None # A worker thread pool ... set in main() !
         self.spreadsheet = None # a Spreadsheet obsect
+        # Set downloader class to user agent
+        ua = security.get("JKM_USER_AGENT")
+        if ua: downloader.useragent = ua
     # ----------------- Verify setup --------------------------------
     def verify_conf(self:Self, conf:type_conf)-> None:
         try: # Configuration verification
@@ -308,15 +312,6 @@ class jkm_post():
     # ----------------- Initialize state  -----------------------------
     def init_logging(self:Self,logging_level_file:int, logging_level_stream:int) -> logging.Logger:
         log = jkm_log.setup_logging(jkm_meta.name, logging_level_file, logging_level_stream, ext = self.ext)
-        jkm_configfile.log = log    
-        jkm_tools.log = log
-        jkm_ocr.log = log 
-        jkm_sample.log = log
-        jkm_samplemetadata.log = log
-        aibase.log = log
-        gemini.log = log
-        jkm_barcodes.log = log
-        jkm_spreadsheet.log = log
         return log
         
     def init_spreadsheet(self:Self,conf:type_conf) -> type_spreadsheet|None:

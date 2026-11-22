@@ -1,8 +1,9 @@
 #from pathlib import Path
 import logging
 from collections import UserDict
-log = logging.getLogger() # Overwrite if needed
 from .mytyping import * # For typing
+from .meta import name as progname
+log = logging.getLogger(progname)
 
 class metaStorage(UserDict):
     "A dictionary-like metadata storage container (should keep order in Python 3.7+)"
@@ -28,14 +29,16 @@ class metaStorage(UserDict):
 #            k, v = [x.strip() for x in l.split(":", 1)]
 #            newdata.append((k, v))
 #        self.data  = newdata
-#        
+        
+
 class EventMetadata(metaStorage):
     def __init__(self):
-        super().__init__(self)
+        super().__init__()
+
         
 class ImageMetadata(metaStorage):
     def __init__(self, cameraname:str="unknown"):
-        super().__init__(self) 
+        super().__init__() 
         self.label = cameraname    
     def addlog(self,
                title:str,

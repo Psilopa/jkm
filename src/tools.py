@@ -10,13 +10,11 @@ import numpy as np
 import cv2, validators
 
 # My packages
-from .downloader import defaultdownloader
+from .downloader import cachedownloader as cdownloader
 from .errors import FileLoadingError, FileSavingError
-log = logging.getLogger() # Overwrite if needed
-# For typing
-from .mytyping import * # For typing
-
-    
+from .meta import name as progname
+#from .mytyping import * # For typing
+log = logging.getLogger(progname)
 
 def list2printvalues( mylist: Collection[dict] )-> str:
     "Prettyprints the values from a list of dictionaries."
@@ -124,31 +122,35 @@ def img_from_file(imagestr: str|Path) -> type_image | None:
                    cv2.IMREAD_UNCHANGED)
         else: # Preferred for simplicity on other systems
             return cv2.imread(str(fnp),cv2.IMREAD_UNCHANGED)
-    
-def img_from_url(url: type_url,
-                 downloader: Callable = defaultdownloader,
+
+def _img_from_url(url: type_url,
+                 downloader: Callable = cdownloader,
                  dlargs:list = [], dlkwords:dict = {}) -> type_image | None:
     """Tries to return an image from a URI.
 
     If the needs to be downloaded, calls the optional downloader function
     like this downloader(url, *dlargs, **dlkwords). This allows for custom
     downloaders for various data sources.
+
+    Raises a FileLoadingError on failure. Checkign the return value for None
+    is also recommended.
     """
     try:
         filepath = url2path( url, allowed_schemes=("file",) )
         return img_from_file( filepath )
     except (ValueError, FileLoadingError) as err:
+        log.debug(f"_img_from_url(): {url} direct reading of file failed with message {err}.")
         pass # OK, this is not a local file...    
     if not downloader:
         raise FileLoadingError(f"Resource {url} is not local and we have no provided way to download it.")
-    # Try to use the provided downloader
-    content = downloader(url, *dlargs, **dlkwords) # Should return a raw byte array
+    # Try to use a provided downloader
+    # Should return a raw byte array
+    content = downloader(url) 
     if content is None: 
         raise FileLoadingError(f"Could not download file {url}.")
     arr = np.asarray(bytearray(content), dtype=np.uint8)
     return cv2.imdecode(arr,flags=cv2.IMREAD_COLOR) 
 
-    
 def load_img(image: type_url|str|Path|io.IOBase|type_image) -> type_image | None: 
     """Loads an image (as a cv2 image) from a variety of sources.
 
@@ -166,7 +168,7 @@ def load_img(image: type_url|str|Path|io.IOBase|type_image) -> type_image | None
         except FileLoadingError: pass # Not a Path. 
         imgstr = image.strip()
         if validators.url( imgstr ):  # Should be a valid URL as-is
-            return img_from_url( imgstr )
+            return _img_from_url( imgstr )
     elif isinstance(image,io.IOBase):
         return cv2.imdecode(image.read(),cv2.IMREAD_UNCHANGED)
     else:

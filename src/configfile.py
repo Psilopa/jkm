@@ -4,9 +4,10 @@ import logging,  sys, argparse, tomllib
 from collections.abc import Callable, Collection, Sequence
 # My own modules in this directory
 from .errors import ConfigError, ConfigWarning
+from .meta import name as progname
 #from .mytyping import * # For typing
 
-log = logging.getLogger() # Overwrite if needed
+log = logging.getLogger(progname) # Overwrite if needed
 
 # TODO: DOES NOT HANDLE DEFAULT ARGUMENTS RIGHT?
 def _recursedict(d:dict, args:Sequence):
