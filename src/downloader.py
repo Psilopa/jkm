@@ -7,7 +7,10 @@ from pathlib import Path
 from .errors import FileLoadingError
 #from .mytyping import * # For typing
 from .meta import name as progname
-log = logging.getLogger(progname) 
+log = logging.getLogger(progname)
+
+
+# Note: if we wanted to avoid in-memory caching, or time-based purging, we could use the requests-cache module.
 
 sleeptime = 0
 timeout = 10
