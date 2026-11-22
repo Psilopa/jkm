@@ -9,27 +9,25 @@ from .errors import FileLoadingError
 from .meta import name as progname
 log = logging.getLogger(progname) 
 
-n_downloaded = 0
-useragent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+sleeptime = 0
+timeout = 10
+useragent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" # Default UA. Can be used from calling code as a module attribute
 
+# To avoid duplicate downloads, keep the last 3 requests in memory
 @lru_cache(maxsize=3)
-def simpledownloader(url: type_url,
-                      sleeptime:int = 0,
-                      timeout: int = 5) -> bytes|None:
+def cachedresponse(url: type_url) -> requests.Response:
+    """A version of requests.get() with a simple 3-item cache."""
+    return requests.get( url, headers={ "useragent":useragent }, timeout=timeout)
+
+def cachedownloader(url: type_url, clear_cache:bool = False) -> bytes|None:
     """Download raw byte content. Keeps an in-memory cache of the last 3 calls."""
     # Based on Mikko Heikkinen's read_specimens.py from MocoDigi
-    global n_downloaded
-    n_downloaded += 1
-    print("download() called with params", url, useragent, sleeptime, timeout)
-    log.debug(f"defaultdownloader() call count: {n_downloaded}")
     try:
         # To avoid flooding the server, we do not rush here...
-        if sleeptime: time.sleep(sleeptime) 
-        image_response = requests.get(
-            url,
-            headers={ "useragent":useragent },
-            timeout=timeout,
-        )
+        if sleeptime: time.sleep(sleeptime)
+        if clear_cache: cachedresponse.cache_clear()
+        image_response = cachedresponse(url)
+        log.debug(f"cachedresponse() cache statistics: {cachedresponse.cache_info()}")
         # Check for failure
         image_response.raise_for_status() # 400 or 500 series errors
         if image_response.status_code != requests.codes.ok:

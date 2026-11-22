@@ -4,14 +4,13 @@ from os import name as system_name
 from pathlib import Path
 from urllib.parse import urlparse, ParseResult, unquote
 import urllib.request
-from functools import lru_cache
 
 # Non-std packages
 import numpy as np
 import cv2, validators
 
 # My packages
-from .downloader import simpledownloader as cdownloader
+from .downloader import cachedownloader as cdownloader
 from .errors import FileLoadingError, FileSavingError
 from .meta import name as progname
 #from .mytyping import * # For typing
@@ -132,6 +131,9 @@ def _img_from_url(url: type_url,
     If the needs to be downloaded, calls the optional downloader function
     like this downloader(url, *dlargs, **dlkwords). This allows for custom
     downloaders for various data sources.
+
+    Raises a FileLoadingError on failure. Checkign the return value for None
+    is also recommended.
     """
     try:
         filepath = url2path( url, allowed_schemes=("file",) )
@@ -143,13 +145,12 @@ def _img_from_url(url: type_url,
         raise FileLoadingError(f"Resource {url} is not local and we have no provided way to download it.")
     # Try to use a provided downloader
     # Should return a raw byte array
-    content = downloader(url, *dlargs, **dlkwords) 
+    content = downloader(url) 
     if content is None: 
         raise FileLoadingError(f"Could not download file {url}.")
     arr = np.asarray(bytearray(content), dtype=np.uint8)
     return cv2.imdecode(arr,flags=cv2.IMREAD_COLOR) 
 
-@lru_cache(maxsize=4)        
 def load_img(image: type_url|str|Path|io.IOBase|type_image) -> type_image | None: 
     """Loads an image (as a cv2 image) from a variety of sources.
 
