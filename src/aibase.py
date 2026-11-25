@@ -229,12 +229,13 @@ class AIbase(ABC):
     def content_local_file(self:Self, fpath:Path, max_dim:int = 0) -> dict[str,str]:
         """Prepae a local file for uploading to the AI. 
 
-	Scales the image to max_dim is the keryword is set."""
+	Scales the image to max_dim is the keyword is set."""
         if max_dim == 0:  # Should not rescale
             log.debug("No image resizing requested before AI.")
             return self.content_inline_image(fpath)
         log.debug(f"Resizing requested to a maximum dimension of {max_dim}.")
         img = tools.load_img(fpath) # Load from URL
+        # save_to_tempfile rescales
         tmpf = tools.save_to_tempfile(img, max_dim=max_dim)
         if tmpf: # Temp file created and exists (but is not opened for writing)
             tmpfilepath = Path(tmpf.name) 
