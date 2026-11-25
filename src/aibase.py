@@ -20,7 +20,7 @@ _IMAGE_TRANSFER_UPLOAD = 1
 _IMAGE_TRANSFER_INLINE = 2
 
 # ******* THESE SHOULD BE COMMON AND SHARED BETWEEN AI SUPPLIERS  ******* 
-def load_apikey(name, validate_min_len=20):
+def load_apikey(name:str, validate_min_len:int=20) -> str|None:
     # TODO: convert errors to jkm.errors.AIError
     rv = security.get(name)
     if not security.verify_appsecret(rv, minlen=validate_min_len): 
@@ -125,11 +125,11 @@ class AIbase(ABC):
         self.client = None
         # The 2 below have getters and setters (in case we want fancy logic later)
         self.prompt = None
-        # By default, use a generic well-known User Agent string.
+        self.TESTING_BYPASS_AI_CALL = False
 
     # --- main worker function: takes in image urls, returns am AI_output object
     def labeldata_from_images(self:Self,
-                     imageurls=Sequence[str],
+                     imageurls=Sequence[type_url],
                      timeout:int|None = None,
                      image_max_dim:int = 0,
                      force_download:bool = False) -> AI_output:
@@ -176,18 +176,18 @@ class AIbase(ABC):
         # TODO: Handle errors here
         # Sanitize text_output and raw: exclude UTF8 characters that are not
         text_output = self._xmlsafe(text_output)
-        raw = self._xmlsafe(raw)
+        raw = self._xmlsafe(raw) 
         # See https://www.w3.org/TR/xml11/?utm_source=chatgpt.com#charsets
         aioutput.from_text( text_output,
                             schema = labeldata_model.LabelData ) # Tries parsing the text as JSON
         aioutput.raw = raw
         return aioutput
 
-    def _xmlsafe(self:Self,text:str):
-        if self.XML_VALID_CHARS_ONLY:
+    def _xmlsafe(self:Self,text:str|None):
+        if text and self.XML_VALID_CHARS_ONLY:
             return tools.valid_xml_string(text)
         else:
-            return text
+            return text or ""
         
     # --- abstract base classes -----
     @abstractmethod
@@ -247,7 +247,7 @@ class AIbase(ABC):
                     url:type_url,
                     force_download:bool,
                     max_dim:int = 0
-                    ) -> Sequence[dict[str,str]]: 
+                    ) -> dict[str,str]: 
         """Convert an URL to resources usable in HTTP queries
 
         The return value is a dictionary describing a series of HTTP
@@ -257,26 +257,29 @@ class AIbase(ABC):
         Keywords:
         max_dim: maximum dimension of a (local) image file. If >0: images that are larger than this will be downscaled.
         """
-        assert max_dim >= 0
+        # TODO: THIS COULD BE IMPROVED ON. Should we let FileLoadingError elevate?
+        assert max_dim > 0
         log.debug(f"Trying to classify {url} as a local path or online resource.")
         try:
             islocal = tools.is_existing_path(url) # FileLoadingError on error.                
             if islocal:
                 return self.content_local_file( tools.url2path(url), max_dim)
             else:
-                log.warning(f"Trying to read unaccessible resource {fpath}.") # Should not handle
-        except FileLoadingError: 
-            # Not a local path .. try treating it as an online resource
-            log.debug(f"\t {url} an online resource.")
-            if force_download:
-                # Download, save in temp file, then pass to AI
-                image = tools.load_img(url)
-                tempfile = tools.save_to_tempfile(image, max_dim=max_dim)
-                if tempfile: # Temp file created and exists (but is not opened for writing)
-                    tmpfpath = Path(tempfile.name)                       
-                    return self.content_local_file(tmpfpath, max_dim)
-            else: 
-                return self.content_nonlocal_file(url)    
+                log.debug(f"Trying to read unaccessible local resource {url}.") # Should not handle
+                pass
+        except FileLoadingError:
+            pass
+        # Not a local path .. try treating it as an online resource
+        log.debug(f"\t {url} an online resource.")
+        if force_download:
+            # Download, save in temp file, then pass to AI
+            image = tools.load_img(url)
+            tempfile = tools.save_to_tempfile(image, max_dim=max_dim)
+            if tempfile: # Temp file created and exists (but is not opened for writing)
+                tmpfpath = Path(tempfile.name)                       
+                return self.content_local_file(tmpfpath, max_dim)
+        else: 
+            return self.content_nonlocal_file(url)    
 
 
 

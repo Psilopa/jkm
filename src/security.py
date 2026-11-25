@@ -57,7 +57,7 @@ def get(name:str, prompt:str|None=None) -> None|str:
     log.critical(f"Secret {name} not in any source.")
     return None
 
-def verify_appsecret(value:str, minlen:int=20) -> bool:
+def verify_appsecret(value:str|None, minlen:int=20) -> bool:
     "Check if this return value looks like a valid appsecret token"
     if not value: return False # Should not be empty
     if not isinstance(value, str): return False # Must be a string

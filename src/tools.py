@@ -13,7 +13,7 @@ import cv2, validators
 from .downloader import cachedownloader as cdownloader
 from .errors import FileLoadingError, FileSavingError
 from .meta import name as progname
-#from .mytyping import * # For typing
+from .mytyping import * # For typing
 log = logging.getLogger(progname)
 
 def list2printvalues( mylist: Collection[dict] )-> str:
