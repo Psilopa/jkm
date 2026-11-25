@@ -4,6 +4,7 @@ from collections.abc import Callable, Collection, Sequence, Generator
 from typing import Self, Any, Hashable, TextIO, BinaryIO
 from . import aibase, sample, configfile, external
 import numpy
+import itersheets 
 # These need reworking!
 type type_conf = configfile.tomlConfig # Depends on Python 3.12+
 type type_url = str # Alias, maybe we enforce this later
