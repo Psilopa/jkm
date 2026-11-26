@@ -11,7 +11,7 @@ from . import tools
 from . import labeldata_model
 from . import security
 from .errors import AIError, AIWarning, FileLoadingError
-from .mytyping import * # For typing
+from . import mytyping as t # For typing
 from .meta import name as progname
 
 log = logging.getLogger(progname) # Overwrite if needed
@@ -129,7 +129,7 @@ class AIbase(ABC):
 
     # --- main worker function: takes in image urls, returns am AI_output object
     def labeldata_from_images(self:Self,
-                     imageurls=Sequence[type_url],
+                     imageurls=t.Sequence[t.type_url],
                      timeout:int|None = None,
                      image_max_dim:int = 0,
                      force_download:bool = False) -> AI_output:
@@ -191,7 +191,7 @@ class AIbase(ABC):
         
     # --- abstract base classes -----
     @abstractmethod
-    def _execute_query(self:Self,content=Collection) -> tuple[ str,str|None ]:
+    def _execute_query(self:Self,content=t.Collection) -> tuple[ str,str|None ]:
         """Run the AI request and return the output, Vendor-specific.
 
         Output format tuple(all_output_as_json, output_text_as_json).

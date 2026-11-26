@@ -2,7 +2,7 @@ from collections.abc import Callable, Collection, Sequence, Generator
 #Examples:
 #   Generator[SampleImageBase,None,None]
 from typing import Self, Any, Hashable, TextIO, BinaryIO
-from . import aibase, sample, configfile, external
+#from . import aibase, sample, configfile, external
 import numpy
 import itersheets 
 # These need reworking!
