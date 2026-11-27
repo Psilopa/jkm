@@ -227,7 +227,8 @@ def safecopy(orig_path: Path, target_path: Path, overwrite:bool = True) -> bool:
         return True
     return False
 
-def unique(s: list|tuple) ->tuple :return tuple(set(s))
+def unique(_sequence: list|tuple) ->tuple: 
+    return tuple(dict.fromkeys(_sequence))
 
 #  ---------------- URL to Path conversions ------------------
 def path2url(fpath: Path) -> str:    

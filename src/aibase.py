@@ -166,7 +166,7 @@ class AIbase(ABC):
             try: # Query the model
                 rv = self._execute_query(content)
                 (raw, text_output) = self._execute_query(content)
-                print("**** TEXT OUTPUT = ", text_output)
+#                print("**** TEXT OUTPUT = ", text_output)
             except self.aierrors as msg:
                 raise AIError(msg)
         aioutput = AI_output()
